@@ -78,6 +78,13 @@
           >
             {locale.t('canvas.accept')}
           </button>
+          <button
+            onclick={() => void canvas.acceptStagingToNewLayer()}
+            class="text-[11px] px-2 py-1 rounded border border-indigo-600 bg-indigo-600/20 text-indigo-200 hover:border-indigo-400 hover:bg-indigo-600/30 hover:text-indigo-100"
+            title={locale.t('canvas.contextual.accept_new_layer')}
+          >
+            {locale.t('canvas.contextual.accept_new_layer')}
+          </button>
         {/if}
         {#if canvas.canUndoInpaintBase}
           <button

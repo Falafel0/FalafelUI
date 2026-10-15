@@ -4645,5 +4645,7 @@ const zhTw: Record<string, string> = {
   "canvas.downscale_mask": "重設遮罩尺寸",
   "canvas.send_to_mask": "傳送至遮罩圖層",
   "canvas.layer.denoise": "Denoise",
+  "canvas.show_original": "原圖 (修改前)",
+  "canvas.original_active": "正在檢視原圖 (修改前)",
 };
 export default zhTw;

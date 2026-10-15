@@ -4645,5 +4645,7 @@ const ko: Record<string, string> = {
   "canvas.downscale_mask": "마스크 크기 초기화",
   "canvas.send_to_mask": "마스크 레이어로 보내기",
   "canvas.layer.denoise": "Denoise",
+  "canvas.show_original": "원본 (이전)",
+  "canvas.original_active": "원본 보기 (이전)",
 };
 export default ko;

@@ -114,6 +114,8 @@
     canvas.registerStageOps({
       mergeDown: undefined,
       flatten: undefined,
+      duplicateLayer: undefined,
+      applyInpaintAsLayer: undefined,
       acceptStagingToLayer: undefined,
       getLayerDataUrls: undefined,
       loadLayersFromProject: undefined,
@@ -217,6 +219,7 @@
     canvasHistory.setRefs(konvaLayers, canvas.canvasWidth, canvas.canvasHeight);
     canvasHistory.setOnRestored((layerIds) => {
       for (const id of layerIds) scheduleThumbRefresh(id);
+      stage?.batchDraw();
     });
 
     // Apply initial viewport
@@ -238,6 +241,8 @@
     canvas.registerStageOps({
       mergeDown: handleMergeDown,
       flatten: handleFlatten,
+      duplicateLayer: handleDuplicateLayer,
+      applyInpaintAsLayer: handleApplyInpaintAsLayer,
       acceptStagingToLayer: handleAcceptStagingToLayer,
       getLayerDataUrls,
       loadLayersFromProject,
@@ -501,6 +506,7 @@
 
     for (const layer of sorted) {
       const effectiveVisible =
+        !canvas.showingOriginal &&
         layer.visible && !(layer.type === "mask" && hideInpaintMask);
       let kLayer: Konva.Layer;
       if (!konvaLayers.has(layer.id)) {
@@ -852,6 +858,123 @@
       scheduleThumbRefresh(targetLayerId);
       return true;
     } catch {
+      return false;
+    }
+  }
+
+  async function handleDuplicateLayer(sourceId: string, newId: string): Promise<boolean> {
+    if (!stage) return false;
+    const sourceMeta = canvas.layers.find((l) => l.id === sourceId);
+    if (!sourceMeta) return false;
+
+    const kSource = konvaLayers.get(sourceId);
+    if (!kSource) return false;
+
+    syncKonvaLayers();
+    const kNew = konvaLayers.get(newId);
+    if (!kNew) return false;
+
+    // Reset viewport transforms to capture clean 1:1 canvas pixels
+    const sX = kSource.scaleX();
+    const sY = kSource.scaleY();
+    const origX = kSource.x();
+    const origY = kSource.y();
+    kSource.scaleX(1);
+    kSource.scaleY(1);
+    kSource.x(0);
+    kSource.y(0);
+
+    let srcCanvas: HTMLCanvasElement;
+    try {
+      srcCanvas = kSource.toCanvas({
+        pixelRatio: 1,
+        width: canvas.canvasWidth,
+        height: canvas.canvasHeight,
+      });
+    } finally {
+      kSource.scaleX(sX);
+      kSource.scaleY(sY);
+      kSource.x(origX);
+      kSource.y(origY);
+    }
+
+    const dataUrl = srcCanvas.toDataURL();
+    try {
+      const img = await loadImageEl(dataUrl);
+      kNew.destroyChildren();
+      const kImg = new Konva.Image({
+        image: img,
+        x: 0,
+        y: 0,
+        width: canvas.canvasWidth,
+        height: canvas.canvasHeight,
+        listening: false,
+      });
+      kNew.add(kImg);
+      kNew.scaleX(sX);
+      kNew.scaleY(sY);
+      kNew.x(origX);
+      kNew.y(origY);
+      kNew.batchDraw();
+      scheduleThumbRefresh(newId);
+      return true;
+    } catch (e) {
+      console.error("Failed to clone duplicate layer pixels:", e);
+      return false;
+    }
+  }
+
+  async function handleApplyInpaintAsLayer(): Promise<boolean> {
+    if (!stage || !canvas.pendingResultPreviewUrl) return false;
+    try {
+      const resultImg = await loadImageEl(canvas.pendingResultPreviewUrl);
+      const maskCanvas = getMaskCanvas();
+
+      const offscreen = document.createElement("canvas");
+      offscreen.width = canvas.canvasWidth;
+      offscreen.height = canvas.canvasHeight;
+      const ctx = offscreen.getContext("2d");
+      if (!ctx) return false;
+
+      ctx.drawImage(resultImg, 0, 0, canvas.canvasWidth, canvas.canvasHeight);
+
+      if (maskCanvas) {
+        ctx.globalCompositeOperation = "destination-in";
+        ctx.drawImage(maskCanvas, 0, 0);
+      }
+
+      const patchDataUrl = offscreen.toDataURL("image/png");
+      const patchImg = await loadImageEl(patchDataUrl);
+
+      const targetLayerId = canvas.addLayer("raster", "Inpaint Patch");
+      syncKonvaLayers();
+
+      const kLayer = konvaLayers.get(targetLayerId);
+      if (!kLayer) return false;
+
+      const { zoom, panX, panY } = canvas.viewport;
+      kLayer.scaleX(zoom);
+      kLayer.scaleY(zoom);
+      kLayer.x(panX);
+      kLayer.y(panY);
+
+      const kImage = new Konva.Image({
+        image: patchImg,
+        x: 0,
+        y: 0,
+        width: canvas.canvasWidth,
+        height: canvas.canvasHeight,
+        listening: false,
+      });
+      kLayer.add(kImage);
+      kLayer.batchDraw();
+      scheduleThumbRefresh(targetLayerId);
+
+      canvas.consumePendingInpaintResult();
+      stage.batchDraw();
+      return true;
+    } catch (err) {
+      console.error("Failed to apply inpaint as layer:", err);
       return false;
     }
   }
@@ -1701,6 +1824,11 @@
       void canvas.flattenLayers();
       return;
     }
+    if (e.key === "\\" || e.key === "|") {
+      e.preventDefault();
+      canvas.toggleShowOriginal();
+      return;
+    }
 
     if (canvas.activeTool === "transform") {
       if (e.key === "Enter") {
@@ -1819,18 +1947,18 @@
   });
 
   $effect(() => {
-    // Toggle mask-layer visibility when the pending-result hide state changes.
+    // Toggle layer visibility when showingOriginal or pending-result hide state changes.
     // Only the Konva node's visibility is touched, never the layer model's
     // `visible`, so the panel toggle and mask export (which reads the model) are
     // unaffected.
+    const showOrig = canvas.showingOriginal;
     const hide = hideInpaintMask;
     void canvas.layers;
     if (!stage) return;
     for (const layer of canvas.layers) {
-      if (layer.type !== "mask") continue;
       const kLayer = konvaLayers.get(layer.id);
       if (!kLayer) continue;
-      kLayer.visible(layer.visible && !hide);
+      kLayer.visible(!showOrig && layer.visible && !(layer.type === "mask" && hide));
     }
     stage.batchDraw();
   });

@@ -112,6 +112,13 @@
       </button>
       {#if layer.type === 'raster'}
         <button
+          onclick={(e) => { e.stopPropagation(); canvas.setActiveLayer(layer.id); canvas.sendActiveLayerToMask(); }}
+          class="w-5 h-5 flex items-center justify-center rounded text-neutral-500 hover:text-indigo-400 hover:bg-neutral-700"
+          title={locale.t('canvas.send_to_mask')}
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" class="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20"/></svg>
+        </button>
+        <button
           onclick={(e) => { e.stopPropagation(); canvas.mergeDownLayer(layer.id); }}
           class="w-5 h-5 flex items-center justify-center rounded text-neutral-500 hover:text-neutral-200 hover:bg-neutral-700"
           title={locale.t('canvas.layer.merge_down')}

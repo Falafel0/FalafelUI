@@ -4647,5 +4647,7 @@ const de: Record<string, string> = {
   "canvas.downscale_mask": "Maskengröße zurücksetzen",
   "canvas.send_to_mask": "Auf Maskenebene übertragen",
   "canvas.layer.denoise": "Denoise",
+  "canvas.show_original": "Vorher / Original",
+  "canvas.original_active": "Original anzeigen (Vorher)",
 };
 export default de;

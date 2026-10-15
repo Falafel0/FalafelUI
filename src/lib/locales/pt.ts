@@ -4646,5 +4646,7 @@ const pt: Record<string, string> = {
   "canvas.downscale_mask": "Redefinir tamanho da máscara",
   "canvas.send_to_mask": "Enviar para camada de máscara",
   "canvas.layer.denoise": "Denoise",
+  "canvas.show_original": "Antes / Original",
+  "canvas.original_active": "Visualizando original (Antes)",
 };
 export default pt;

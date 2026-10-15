@@ -114,6 +114,12 @@
       return;
     }
 
+    if (e.key === "\\" || e.key === "|") {
+      e.preventDefault();
+      canvas.toggleShowOriginal();
+      return;
+    }
+
     switch (e.key.toLowerCase()) {
       case "b": canvas.setTool("brush"); break;
       case "e": canvas.setTool("eraser"); break;
@@ -258,6 +264,21 @@
       {/if}
     </div>
   {/if}
+
+  <div class="w-px h-6 bg-neutral-700 mx-2"></div>
+
+  <!-- Before / After comparison toggle -->
+  <button
+    type="button"
+    onclick={() => canvas.toggleShowOriginal()}
+    class="px-2 py-1 text-[10px] rounded border transition-colors flex items-center gap-1 cursor-pointer {canvas.showingOriginal
+      ? 'border-amber-500 text-amber-300 bg-amber-500/20'
+      : 'border-neutral-700 text-neutral-300 hover:border-neutral-500 hover:text-white'}"
+    title="{locale.t('canvas.show_original')} ( \ )"
+  >
+    <svg xmlns="http://www.w3.org/2000/svg" class="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+    <span>{canvas.showingOriginal ? locale.t('canvas.original_active') : locale.t('canvas.show_original')}</span>
+  </button>
 
   <div class="w-px h-6 bg-neutral-700 mx-2"></div>
 

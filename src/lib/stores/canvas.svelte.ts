@@ -128,6 +128,7 @@ class CanvasStore {
   showCheckerboard = $state(true);
   cursorPos = $state<{ x: number; y: number } | null>(null);
   referenceImageUrl = $state<string | null>(null);
+  showingOriginal = $state(false);
   originalInpaintInputImageName = $state<string | null>(null);
   originalInpaintWidth = $state<number | null>(null);
   originalInpaintHeight = $state<number | null>(null);
@@ -213,6 +214,8 @@ class CanvasStore {
   private _stageOps: {
     mergeDown?: (id: string) => Promise<boolean>;
     flatten?: () => Promise<boolean>;
+    duplicateLayer?: (sourceId: string, newId: string) => Promise<boolean>;
+    applyInpaintAsLayer?: () => Promise<boolean>;
     acceptStagingToLayer?: (asNewLayer: boolean) => Promise<boolean>;
     getLayerDataUrls?: () => Promise<Record<string, string>>;
     loadLayersFromProject?: (project: FalafelProjectDocument) => Promise<void>;
@@ -234,6 +237,8 @@ class CanvasStore {
   registerStageOps(ops: {
     mergeDown?: (id: string) => Promise<boolean>;
     flatten?: () => Promise<boolean>;
+    duplicateLayer?: (sourceId: string, newId: string) => Promise<boolean>;
+    applyInpaintAsLayer?: () => Promise<boolean>;
     acceptStagingToLayer?: (asNewLayer: boolean) => Promise<boolean>;
     getLayerDataUrls?: () => Promise<Record<string, string>>;
     loadLayersFromProject?: (project: FalafelProjectDocument) => Promise<void>;
@@ -538,6 +543,22 @@ class CanvasStore {
     this.initCanvas(generation.width, generation.height);
   }
 
+  async applyInpaintAsLayer(): Promise<boolean> {
+    if (this._stageOps.applyInpaintAsLayer) {
+      return await this._stageOps.applyInpaintAsLayer();
+    }
+    return false;
+  }
+
+  consumePendingInpaintResult() {
+    this.clearPendingInpaintResult();
+    this.clearMask();
+  }
+
+  toggleShowOriginal() {
+    this.showingOriginal = !this.showingOriginal;
+  }
+
   get canApplyInpaintResult(): boolean {
     return generation.mode === "inpainting" && this.pendingResultPreviewUrl !== null;
   }
@@ -739,6 +760,9 @@ class CanvasStore {
   }
 
   get effectiveReferenceImage(): string | null {
+    if (this.showingOriginal) {
+      return this.referenceImageUrl;
+    }
     if (generation.mode === "inpainting") {
       // A just-generated result is previewed as the background; below it the base
       // override (or session original) shows through until the user applies/undoes.
@@ -842,6 +866,20 @@ class CanvasStore {
 
   setInpaintDrawMode(mode: "mask" | "regular") {
     this.inpaintDrawMode = mode;
+    if (mode === "mask") {
+      const maskLayer = this.layers.find((l) => l.type === "mask");
+      if (maskLayer && this.activeLayerId !== maskLayer.id) {
+        this.activeLayerId = maskLayer.id;
+      }
+    } else {
+      const active = this.layers.find((l) => l.id === this.activeLayerId);
+      if (active?.type === "mask") {
+        const rasterLayer = this.layers.find((l) => l.type === "raster");
+        if (rasterLayer) {
+          this.activeLayerId = rasterLayer.id;
+        }
+      }
+    }
   }
 
   sendActiveLayerToMask(): boolean {
@@ -859,6 +897,7 @@ class CanvasStore {
 
     if (sourceLayerMeta.id === maskLayerMeta.id) {
       this.activeLayerId = maskLayerMeta.id;
+      this.inpaintDrawMode = "mask";
       return true;
     }
 
@@ -895,6 +934,11 @@ class CanvasStore {
     maskLayer.batchDraw?.();
 
     this.activeLayerId = maskLayerMeta.id;
+    this.inpaintDrawMode = "mask";
+    if (this._stageOps.getMaskCanvas) {
+      const maskCanvas = this._stageOps.getMaskCanvas();
+      void this.syncMaskToGeneration(maskCanvas, false);
+    }
     return true;
   }
 
@@ -961,7 +1005,7 @@ class CanvasStore {
     this.layerThumbnails = next;
   }
 
-  duplicateLayer(id: string): string | null {
+  async duplicateLayer(id: string): Promise<string | null> {
     const layer = this.layers.find((l) => l.id === id);
     if (!layer) return null;
     const newId = genLayerId();
@@ -976,6 +1020,9 @@ class CanvasStore {
       },
     ];
     this.activeLayerId = newId;
+    if (this._stageOps.duplicateLayer) {
+      await this._stageOps.duplicateLayer(id, newId);
+    }
     return newId;
   }
 
@@ -1014,9 +1061,9 @@ class CanvasStore {
     this.layers = this.layers.map((l) => (l.id === id ? { ...l, blendMode } : l));
   }
 
-  duplicateActiveLayer(): string | null {
+  async duplicateActiveLayer(): Promise<string | null> {
     if (!this.activeLayerId) return null;
-    return this.duplicateLayer(this.activeLayerId);
+    return await this.duplicateLayer(this.activeLayerId);
   }
 
   async mergeDownLayer(id: string) {
@@ -1059,6 +1106,13 @@ class CanvasStore {
   }
 
   async acceptStagingToNewLayer() {
+    if (this.canApplyInpaintResult) {
+      const ok = await this.applyInpaintAsLayer();
+      if (ok) {
+        this.clearStaging();
+      }
+      return;
+    }
     if (this._stageOps.acceptStagingToLayer) {
       await this._stageOps.acceptStagingToLayer(true);
       this.clearStaging();
@@ -1108,6 +1162,14 @@ class CanvasStore {
 
   setActiveLayer(id: string) {
     this.activeLayerId = id;
+    const layer = this.layers.find((l) => l.id === id);
+    if (layer) {
+      if (layer.type === "mask") {
+        this.inpaintDrawMode = "mask";
+      } else {
+        this.inpaintDrawMode = "regular";
+      }
+    }
   }
 
   // Clear all content from a layer (via Konva stage ref)
