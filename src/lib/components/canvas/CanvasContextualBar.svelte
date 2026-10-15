@@ -3,6 +3,7 @@
   import { generation } from "../../stores/generation.svelte.js";
   import { progress } from "../../stores/progress.svelte.js";
   import { locale } from "../../stores/locale.svelte.js";
+  import { scrubbable } from "../../utils/scrubbable.js";
 
   interface Props {
     onGenerate?: () => void;
@@ -72,7 +73,19 @@
     <!-- Denoise Slider (only shown when pixels exist under frame and not in fresh txt2img) -->
     {#if action === "img2img" || action === "inpaint" || action === "outpaint"}
       <div class="hidden md:flex items-center gap-1.5 px-2 py-1 rounded-xl bg-neutral-900 border border-neutral-800 shrink-0" title={locale.t("canvas.contextual.denoise")}>
-        <span class="text-[10px] text-neutral-400 font-mono">D:</span>
+        <span
+          use:scrubbable={{
+            value: () => generation.denoise,
+            min: 0.05,
+            max: 1,
+            step: 0.05,
+            decimals: 2,
+            onchange: (v) => { generation.denoise = v; },
+            onend: () => { generation.saveSettings(); },
+          }}
+          class="text-[10px] text-neutral-400 font-mono cursor-ew-resize hover:text-indigo-300 select-none"
+          title={locale.t("common.scrub_tip")}
+        >D:</span>
         <input
           type="range"
           bind:value={generation.denoise}

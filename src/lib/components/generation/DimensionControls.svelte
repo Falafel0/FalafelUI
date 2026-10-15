@@ -483,9 +483,24 @@
       class="w-full bg-neutral-800 border border-neutral-700 rounded-lg px-3 py-1.5 text-sm text-neutral-100 focus:outline-none focus:border-indigo-500 transition-colors"
     />
     {#if recommended && familyLabel}
-      <p class="text-[10px] text-neutral-500 mt-1">
-        <span class="inline-block h-1.5 w-1.5 rounded-full bg-emerald-400 mr-1 align-middle" aria-hidden="true"></span>{locale.t('generation.dimensions.recommended', { model: familyLabel, res: recommendedLabel })}
-      </p>
+      {@const targetSide = recommended.min}
+      {@const isOptimal = sideLength >= recommended.min && sideLength <= recommended.max}
+      <div class="mt-2 flex items-center justify-between">
+        <button
+          type="button"
+          onclick={() => applySideLength(targetSide)}
+          class="inline-flex items-center gap-1.5 rounded-md px-2 py-1 text-[11px] font-medium transition-colors {isOptimal
+            ? 'border border-emerald-500/30 bg-emerald-500/10 text-emerald-300'
+            : 'border border-amber-500/40 bg-amber-500/15 text-amber-200 hover:bg-amber-500/25 hover:border-amber-400 cursor-pointer'}"
+          title={isOptimal ? locale.t('generation.dimensions.optimal_tip') : locale.t('generation.dimensions.apply_recommended_tip')}
+        >
+          <span>{isOptimal ? '✓' : '✨'}</span>
+          <span>{locale.t('generation.dimensions.recommended_badge', { model: familyLabel, res: recommendedLabel })}</span>
+          {#if !isOptimal}
+            <span class="underline decoration-dotted text-[10px] ml-1 opacity-90 font-semibold">{locale.t('common.apply')}</span>
+          {/if}
+        </button>
+      </div>
     {/if}
   </div>
 

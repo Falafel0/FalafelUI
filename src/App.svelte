@@ -49,6 +49,7 @@
   import ComfyUiVersionBadge from "./lib/components/updater/ComfyUiVersionBadge.svelte";
   import { comfyuiUpdate } from "./lib/stores/comfyuiUpdate.svelte.js";
   import DownloadBanner from "./lib/components/downloads/DownloadBanner.svelte";
+  import StationStatusBar from "./lib/components/station/StationStatusBar.svelte";
   import { downloads } from "./lib/stores/downloads.svelte.js";
   import { compare } from "./lib/stores/compare.svelte.js";
   import { artistInsert } from "./lib/stores/artistInsert.svelte.js";
@@ -3217,7 +3218,21 @@
           generation.styleReferenceImage = null;
           generation.saveSettings();
         }
-        gallery.showToast(toastMsg, "error", classified.durationMs ? { durationMs: classified.durationMs } : false);
+        if (classified.isOom || classified.messageKey === "generation.error.out_of_memory") {
+          gallery.showToast(toastMsg, "error", {
+            durationMs: 12000,
+            actionLabel: locale.t("generation.oom_reduce_resolution"),
+            onAction: () => {
+              generation.width = Math.min(generation.width, 832);
+              generation.height = Math.min(generation.height, 832);
+              generation.batchSize = 1;
+              generation.saveSettings();
+              gallery.showToast(locale.t("generation.oom_recovery_applied"), "success");
+            },
+          });
+        } else {
+          gallery.showToast(toastMsg, "error", classified.durationMs ? { durationMs: classified.durationMs } : false);
+        }
         void maybeOsNotify(
           locale.t("notifications.os.generation_error.title"),
           locale.t("notifications.os.generation_error.body"),
@@ -4047,6 +4062,7 @@
       <SettingsPage {userRole} />
     {/if}
     </div>
+    <StationStatusBar />
   </main>
 </div>
 <MusicBottomPlayer onOpen={() => { music.view = "generate"; currentPage = "music"; }} />

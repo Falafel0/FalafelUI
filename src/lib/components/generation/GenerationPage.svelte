@@ -24,6 +24,7 @@
   import { h3Guide } from "../../stores/h3Guide.svelte.js";
   import InfoTip from "../ui/InfoTip.svelte";
   import EditableValue from "../ui/EditableValue.svelte";
+  import { scrubbable } from "../../utils/scrubbable.js";
   import ProgressBar from "../progress/ProgressBar.svelte";
   import PreviewImage from "../progress/PreviewImage.svelte";
   import CanvasEditor from "../canvas/CanvasEditor.svelte";
@@ -1735,7 +1736,21 @@
           {:else}
           <div use:scrollCapture>
             <label class="flex items-center justify-between text-xs text-neutral-400 mb-1">
-              <span>{locale.t('generation.image.denoise')}<InfoTip text={locale.t('generation.image.denoise_tip')} /></span>
+              <span
+                use:scrubbable={{
+                  value: () => generation.denoise,
+                  min: 0,
+                  max: 1,
+                  step: 0.01,
+                  decimals: 2,
+                  onchange: (v) => { generation.denoise = v; },
+                  onend: () => { generation.saveSettings(); },
+                }}
+                class="cursor-ew-resize hover:text-indigo-300 transition-colors select-none"
+                title={locale.t('common.scrub_tip')}
+              >
+                {locale.t('generation.image.denoise')}<InfoTip text={locale.t('generation.image.denoise_tip')} />
+              </span>
               <EditableValue value={generation.denoise} min={0} max={1} step={0.01} decimals={2} onchange={(v) => generation.denoise = v} />
             </label>
             <input

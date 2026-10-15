@@ -1,6 +1,7 @@
 <script lang="ts">
   import { tick } from "svelte";
   import { locale } from "../../stores/locale.svelte.js";
+  import { scrubbable } from "../../utils/scrubbable.js";
 
   interface Props {
     value: number;
@@ -60,9 +61,17 @@
   />
 {:else}
   <button
-    class="text-neutral-300 cursor-text tabular-nums hover:text-indigo-300 transition-colors"
+    use:scrubbable={{
+      value: () => value,
+      min,
+      max,
+      step,
+      decimals,
+      onchange,
+    }}
+    class="text-neutral-300 cursor-ew-resize tabular-nums hover:text-indigo-300 transition-colors"
     onclick={startEdit}
-    title={locale.t('common.click_to_type')}
+    title={locale.t('common.scrub_or_click_tip')}
   >
     {decimals > 0 ? locale.formatDecimal(value, decimals) : locale.formatInteger(value)}{suffix}
   </button>

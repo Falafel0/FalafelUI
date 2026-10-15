@@ -11,6 +11,8 @@ export interface ClassifiedGenerationError {
   durationMs?: number;
   /** True when the failure is style-transfer related and that state should be auto-cleared. */
   clearStyleTransfer?: boolean;
+  /** True when the failure is GPU CUDA Out of Memory, enabling quick recovery actions. */
+  isOom?: boolean;
 }
 
 /** Longer dwell time so users can actually read the actionable guidance. */
@@ -171,7 +173,7 @@ export function classifyGenerationError(input: ErrorInput): ClassifiedGeneration
     haystack.includes("cuda error: out of memory") ||
     (haystack.includes("alloc") && haystack.includes("memory") && haystack.includes("cuda"))
   ) {
-    return { messageKey: "generation.error.out_of_memory", durationMs: ACTIONABLE_MS };
+    return { messageKey: "generation.error.out_of_memory", durationMs: 12000, isOom: true };
   }
 
   // 3. Out of *host* memory (or disk) while streaming weights. comfy-aimdo's

@@ -85,6 +85,58 @@ export const KREA2_SAMPLING: SamplingRecommendation = {
   facefixSteps: 10,
 };
 
+export const PONY_SAMPLING: SamplingRecommendation = {
+  steps: 28,
+  cfg: 6.0,
+  samplerName: "euler_ancestral",
+  scheduler: "karras",
+  upscaleSteps: 12,
+  facefixSteps: 10,
+};
+
+export const ILLUSTRIOUS_SAMPLING: SamplingRecommendation = {
+  steps: 28,
+  cfg: 6.0,
+  samplerName: "euler",
+  scheduler: "normal",
+  upscaleSteps: 10,
+  facefixSteps: 10,
+};
+
+export const SDXL_SAMPLING: SamplingRecommendation = {
+  steps: 30,
+  cfg: 6.5,
+  samplerName: "dpmpp_2m",
+  scheduler: "karras",
+  upscaleSteps: 12,
+  facefixSteps: 10,
+};
+
+export const SD15_SAMPLING: SamplingRecommendation = {
+  steps: 25,
+  cfg: 7.0,
+  samplerName: "dpmpp_2m",
+  scheduler: "karras",
+  upscaleSteps: 10,
+  facefixSteps: 8,
+};
+
+export const FLUX_DEV_SAMPLING: SamplingRecommendation = {
+  steps: 20,
+  cfg: 1.0,
+  samplerName: "euler",
+  scheduler: "simple",
+  upscaleSteps: 8,
+};
+
+export const FLUX_SCHNELL_SAMPLING: SamplingRecommendation = {
+  steps: 4,
+  cfg: 1.0,
+  samplerName: "euler",
+  scheduler: "simple",
+  upscaleSteps: 2,
+};
+
 /**
  * A conservative middle for a model nothing is known about.
  *
@@ -127,5 +179,48 @@ export function recommendedSamplingFor(
   ) {
     return JUICE_SAMPLING;
   }
+  if (fam === "pony" || name.includes("pony")) return PONY_SAMPLING;
+  if (fam === "illustrious" || name.includes("illustrious") || name.includes("animagine")) return ILLUSTRIOUS_SAMPLING;
+  if (fam === "flux1s") return FLUX_SCHNELL_SAMPLING;
+  if (fam.startsWith("flux")) return FLUX_DEV_SAMPLING;
+  if (fam === "sdxl" || name.includes("xl")) return SDXL_SAMPLING;
+  if (fam === "sd15" || name.includes("v1-5") || name.includes("1.5")) return SD15_SAMPLING;
   return null;
 }
+
+/**
+ * Ideal baseline resolution for a given model family.
+ */
+export function recommendedResolutionFor(family?: string | null): { width: number; height: number } | null {
+  const fam = (family ?? "").toLowerCase();
+  switch (fam) {
+    case "sd15":
+      return { width: 512, height: 512 };
+    case "sdxl":
+    case "pony":
+    case "illustrious":
+    case "anima":
+    case "nanosaur":
+    case "krea2":
+    case "sd3":
+    case "cascade":
+    case "kolors":
+    case "pixart":
+    case "hunyuandit":
+    case "flux":
+    case "flux1d":
+    case "flux1s":
+    case "flux1krea":
+    case "flux2d":
+    case "flux2klein9b":
+    case "flux2klein9bbase":
+    case "flux2klein4b":
+    case "flux2klein4bbase":
+      return { width: 1024, height: 1024 };
+    case "wan":
+      return { width: 832, height: 480 };
+    default:
+      return null;
+  }
+}
+

@@ -6,6 +6,7 @@
   import InfoTip from "../ui/InfoTip.svelte";
   import EditableValue from "../ui/EditableValue.svelte";
   import { scrollCapture } from "../../utils/scrollCapture.js";
+  import { scrubbable } from "../../utils/scrubbable.js";
   import {
     NOVELAI_DEFAULTS,
     NOVELAI_NOISE_SCHEDULES,
@@ -17,8 +18,10 @@
     BETA57_SCHEDULER,
     JUICE_SAMPLING,
     NANOSAUR_SAMPLING,
+    recommendedSamplingFor,
     type SamplingRecommendation,
   } from "../../utils/samplingRecommendation.js";
+  import { MODEL_FAMILY_LABELS } from "../../utils/modelFamily.js";
   import { connection } from "../../stores/connection.svelte.js";
   import { checkNodeAvailable, downloadModel } from "../../utils/api.js";
   import { ipcListen } from "../../utils/ipc.js";
@@ -266,6 +269,39 @@
 
   const beta57Enabled = $derived(generation.scheduler === BETA57_SCHEDULER);
 
+  const activeRecommendation = $derived.by(() => {
+    return recommendedSamplingFor(
+      generation.diffusionModel || generation.checkpoint,
+      generation.modelFamily,
+      generation.hasTurboModelVariant,
+    );
+  });
+
+  const familyLabel = $derived.by(() => {
+    if (generation.modelFamily === "unknown") return null;
+    return MODEL_FAMILY_LABELS[generation.modelFamily] ?? generation.modelFamily.toUpperCase();
+  });
+
+  const isCurrentSamplingOptimal = $derived.by(() => {
+    if (!activeRecommendation) return true;
+    return (
+      generation.steps === activeRecommendation.steps &&
+      Math.abs(generation.cfg - activeRecommendation.cfg) < 0.05 &&
+      generation.samplerName === activeRecommendation.samplerName &&
+      generation.scheduler === activeRecommendation.scheduler
+    );
+  });
+
+  const showGeneralFamilyRec = $derived(
+    activeRecommendation !== null &&
+      !isCurrentSamplingOptimal &&
+      !hasAnimaRecommendation &&
+      !hasJuiceRecommendation &&
+      !hasNanosaurRecommendation &&
+      !isKreaTurbo &&
+      !generation.isNovelAi
+  );
+
   let animaRecOpen = $state(true);
   let juiceRecOpen = $state(true);
   let nanosaurRecOpen = $state(true);
@@ -365,6 +401,27 @@
 </script>
 
 <div class="space-y-3">
+  {#if showGeneralFamilyRec && activeRecommendation && familyLabel}
+    <div class="rounded-lg border border-indigo-700/50 bg-indigo-900/20 p-2.5 flex items-center justify-between gap-2">
+      <div class="min-w-0">
+        <p class="text-xs text-indigo-300 font-medium flex items-center gap-1.5">
+          <span>✨</span>
+          <span>{locale.t('generation.sampler.family_recommended', { model: familyLabel })}</span>
+        </p>
+        <p class="text-[11px] text-neutral-300 mt-0.5 font-mono">
+          {activeRecommendation.samplerName} / {activeRecommendation.scheduler} • {activeRecommendation.steps} {locale.t('generation.sampler.steps_short')} • CFG {activeRecommendation.cfg}
+        </p>
+      </div>
+      <button
+        type="button"
+        class="shrink-0 px-2.5 py-1 text-xs rounded bg-indigo-600 hover:bg-indigo-500 text-white font-medium transition-colors cursor-pointer"
+        onclick={() => applyRecommendation(activeRecommendation!)}
+      >
+        {locale.t('common.apply')}
+      </button>
+    </div>
+  {/if}
+
   {#if hasAnimaRecommendation}
     <div class="rounded-lg border border-indigo-700/50 bg-indigo-900/15 overflow-hidden">
       <button
@@ -712,7 +769,20 @@
         />
       {:else}
         <label class="flex items-center justify-between text-xs text-neutral-400 mb-1">
-          <span>{locale.t('generation.sampler.steps')}<InfoTip text={locale.t('generation.sampler.steps_tip')} /></span>
+          <span
+            use:scrubbable={{
+              value: () => generation.steps,
+              min: 1,
+              max: 150,
+              step: 1,
+              onchange: (v) => { generation.steps = v; },
+              onend: () => { generation.saveSettings(); },
+            }}
+            class="cursor-ew-resize hover:text-indigo-300 transition-colors select-none"
+            title={locale.t('common.scrub_tip')}
+          >
+            {locale.t('generation.sampler.steps')}<InfoTip text={locale.t('generation.sampler.steps_tip')} />
+          </span>
           <EditableValue value={generation.steps} min={1} max={150} step={1} onchange={(v) => generation.steps = v} />
         </label>
         <input
@@ -727,7 +797,21 @@
     </div>
     <div use:scrollCapture>
       <label class="flex items-center justify-between text-xs text-neutral-400 mb-1">
-        <span>{generation.isNovelAi ? locale.t('generation.sampler.guidance') : locale.t('generation.sampler.cfg')}<InfoTip text={locale.t('generation.sampler.cfg_tip')} /></span>
+        <span
+          use:scrubbable={{
+            value: () => generation.cfg,
+            min: 0,
+            max: 30,
+            step: 0.1,
+            decimals: 1,
+            onchange: (v) => { generation.cfg = v; },
+            onend: () => { generation.saveSettings(); },
+          }}
+          class="cursor-ew-resize hover:text-indigo-300 transition-colors select-none"
+          title={locale.t('common.scrub_tip')}
+        >
+          {generation.isNovelAi ? locale.t('generation.sampler.guidance') : locale.t('generation.sampler.cfg')}<InfoTip text={locale.t('generation.sampler.cfg_tip')} />
+        </span>
         <EditableValue value={generation.cfg} min={0} max={30} step={0.1} decimals={1} onchange={(v) => generation.cfg = v} />
       </label>
       <input
