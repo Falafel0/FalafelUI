@@ -32,19 +32,19 @@
     { key: "Space + Drag", label: locale.t("canvas.shortcuts.pan_canvas") },
     { key: "Alt + Wheel", label: locale.t("canvas.shortcuts.zoom_canvas") },
     { key: "[ / ]", label: locale.t("canvas.shortcuts.brush_size") },
-    { key: "X", label: "Swap Colors" },
-    { key: "D", label: "Default Colors" },
+    { key: "X", label: locale.t("canvas.color_swap") },
+    { key: "D", label: locale.t("canvas.color_reset") },
   ];
 
   const transformShortcuts = [
     { key: "Enter", label: locale.t("canvas.shortcuts.commit_transform") },
     { key: "Esc", label: locale.t("canvas.shortcuts.cancel_transform") },
-    { key: "Del", label: "Clear Layer" },
+    { key: "Del", label: locale.t("canvas.clear") },
   ];
 
   const layerShortcuts = [
-    { key: "Ctrl + Z", label: "Undo" },
-    { key: "Ctrl + Y / ⇧Z", label: "Redo" },
+    { key: "Ctrl + Z", label: locale.t("canvas.undo") },
+    { key: "Ctrl + Y / ⇧Z", label: locale.t("canvas.redo") },
     { key: "Ctrl + J", label: locale.t("canvas.shortcuts.duplicate_layer") },
     { key: "Ctrl + E", label: locale.t("canvas.shortcuts.merge_down") },
     { key: "Ctrl + ⇧E", label: locale.t("canvas.shortcuts.flatten") },
@@ -58,6 +58,7 @@
   class="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm"
   role="dialog"
   aria-modal="true"
+  aria-labelledby="shortcuts-modal-title"
   tabindex="-1"
   onclick={(e) => {
     if (e.target === e.currentTarget) onclose();
@@ -71,7 +72,7 @@
     <div class="flex items-center justify-between border-b border-neutral-800 px-6 py-4">
       <div class="flex items-center gap-2">
         <span class="flex h-7 w-7 items-center justify-center rounded-lg bg-indigo-500/10 text-indigo-400 font-mono text-sm font-bold">?</span>
-        <h2 class="text-base font-semibold text-neutral-100">{locale.t("canvas.shortcuts.title")}</h2>
+        <h2 id="shortcuts-modal-title" class="text-base font-semibold text-neutral-100">{locale.t("canvas.shortcuts.title")}</h2>
       </div>
       <button
         type="button"
@@ -142,7 +143,7 @@
         <div>
           <h3 class="text-xs font-semibold uppercase tracking-wider text-neutral-400 mb-2.5 flex items-center gap-1.5">
             <span class="h-1.5 w-1.5 rounded-full bg-purple-400"></span>
-            Transform & Gizmo
+            {locale.t("canvas.shortcuts.transform")}
           </h3>
           <div class="space-y-1.5 rounded-xl border border-neutral-800 bg-neutral-950/60 p-2.5">
             {#each transformShortcuts as item}
