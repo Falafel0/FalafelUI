@@ -322,6 +322,19 @@
   }
 
   function sectionVisible(section: SectionId): boolean {
+    if (generation.simpleMode) {
+      if (
+        section === "sampler" ||
+        section === "controlnet" ||
+        section === "styleTransfer" ||
+        section === "styleRef" ||
+        section === "facefix" ||
+        section === "naiFaceDetail" ||
+        section === "upscaleHistory"
+      ) {
+        return false;
+      }
+    }
     // Video carries its own geometry, model trio and sampler settings inside the
     // video panel, so every image-pipeline section is inapplicable there.
     if (generation.mode === "video")
@@ -2278,6 +2291,16 @@
               {mode.label()}
             </button>
           {/each}
+          <button
+            type="button"
+            onclick={() => generation.toggleSimpleMode()}
+            class="px-2 py-1 text-[11px] rounded-md border transition-colors flex items-center gap-1 font-medium shrink-0 {generation.simpleMode
+              ? 'border-indigo-500/60 bg-indigo-950/70 text-indigo-300'
+              : 'border-neutral-700 bg-neutral-900 text-neutral-400'}"
+            title={locale.t('generation.ui_mode.tooltip')}
+          >
+            {generation.simpleMode ? locale.t('generation.ui_mode.simple') : locale.t('generation.ui_mode.pro')}
+          </button>
         </div>
       </div>
     {/if}
@@ -2337,6 +2360,22 @@
                   </button>
                 {/each}
               </div>
+              <button
+                type="button"
+                onclick={() => generation.toggleSimpleMode()}
+                class="px-2 py-1.5 text-xs rounded-md border transition-colors flex items-center gap-1 font-medium {generation.simpleMode
+                  ? 'border-indigo-500/60 bg-indigo-950/70 text-indigo-300 hover:bg-indigo-900/60'
+                  : 'border-neutral-700 bg-neutral-900 text-neutral-400 hover:text-neutral-200 hover:bg-neutral-800'}"
+                title={locale.t('generation.ui_mode.tooltip')}
+              >
+                {#if generation.simpleMode}
+                  <svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5 text-indigo-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z"/></svg>
+                  <span>{locale.t('generation.ui_mode.simple')}</span>
+                {:else}
+                  <svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5 text-neutral-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="4" x2="4" y1="21" y2="14"/><line x1="4" x2="4" y1="10" y2="3"/><line x1="12" x2="12" y1="21" y2="12"/><line x1="12" x2="12" y1="8" y2="3"/><line x1="20" x2="20" y1="21" y2="16"/><line x1="20" x2="20" y1="12" y2="3"/><line x1="1" x2="7" y1="14" y2="14"/><line x1="9" x2="15" y1="8" y2="8"/><line x1="17" x2="23" y1="16" y2="16"/></svg>
+                  <span>{locale.t('generation.ui_mode.pro')}</span>
+                {/if}
+              </button>
               <button
                 onclick={swapPanels}
                 class="p-1.5 rounded-md text-neutral-500 hover:text-neutral-200 hover:bg-neutral-800 transition-colors"
@@ -2519,6 +2558,22 @@
                   </button>
                 {/each}
               </div>
+              <button
+                type="button"
+                onclick={() => generation.toggleSimpleMode()}
+                class="px-2 py-1.5 text-xs rounded-lg border transition-colors flex items-center gap-1 font-medium shrink-0 {generation.simpleMode
+                  ? 'border-indigo-500/60 bg-indigo-950/70 text-indigo-300 hover:bg-indigo-900/60'
+                  : 'border-neutral-700 bg-neutral-900 text-neutral-400 hover:text-neutral-200 hover:bg-neutral-800'}"
+                title={locale.t('generation.ui_mode.tooltip')}
+              >
+                {#if generation.simpleMode}
+                  <svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5 text-indigo-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z"/></svg>
+                  <span>{locale.t('generation.ui_mode.simple')}</span>
+                {:else}
+                  <svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5 text-neutral-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="4" x2="4" y1="21" y2="14"/><line x1="4" x2="4" y1="10" y2="3"/><line x1="12" x2="12" y1="21" y2="12"/><line x1="12" x2="12" y1="8" y2="3"/><line x1="20" x2="20" y1="21" y2="16"/><line x1="20" x2="20" y1="12" y2="3"/><line x1="1" x2="7" y1="14" y2="14"/><line x1="9" x2="15" y1="8" y2="8"/><line x1="17" x2="23" y1="16" y2="16"/></svg>
+                  <span>{locale.t('generation.ui_mode.pro')}</span>
+                {/if}
+              </button>
               <button
                 onclick={swapPanels}
                 class="p-1.5 rounded-md text-neutral-500 hover:text-neutral-200 hover:bg-neutral-800 transition-colors"

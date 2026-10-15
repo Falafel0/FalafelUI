@@ -392,6 +392,15 @@ class GalleryStore {
    * completion even if persist hasn't finished yet.
    */
   private _persistPromises = new Map<string, Promise<string>>();
+  private _pendingDeletions = new Map<
+    string,
+    {
+      image: OutputImage;
+      galleryIndex: number;
+      sessionIndex: number;
+      timer: ReturnType<typeof setTimeout>;
+    }
+  >();
 
   private _imageKey(img: { prompt_id: string; filename: string }) {
     return `${img.prompt_id}::${img.filename}`;
@@ -2261,13 +2270,99 @@ class GalleryStore {
    * floating bar call deleteImage() directly: they are deliberate culling
    * flows meant for deleting image after image.
    */
+  /**
+   * Optimistically remove an image with a 5-second Undo grace period.
+   * Eliminates blocking browser dialogs and allows instant one-click recovery.
+   */
   async confirmDeleteImage(image: OutputImage): Promise<boolean> {
-    const message = image.linked_folder
-      ? locale.t("gallery.delete_linked_confirm", { folder: image.linked_folder })
-      : locale.t("gallery.delete_confirm");
-    if (!confirm(message)) return false;
-    await this.deleteImage(image);
+    const key = image.gallery_filename || image.filename || image.url || String(Math.random());
+
+    // Flush any pending deletion on this same key first
+    if (this._pendingDeletions.has(key)) {
+      await this.commitPendingDeletion(key);
+    }
+
+    const galleryIndex = this.images.indexOf(image);
+    const sessionIndex = this.sessionImages.indexOf(image);
+
+    // Optimistically remove from live arrays
+    const isTarget = (i: OutputImage) =>
+      i === image || (!!image.gallery_filename && i.gallery_filename === image.gallery_filename);
+    this.images = this.images.filter((i) => !isTarget(i));
+    this.sessionImages = this.sessionImages.filter((i) => !isTarget(i));
+
+    if (this.selectedImage && isTarget(this.selectedImage)) {
+      this.closeLightbox();
+    }
+    if (this.lastSelectedImage && isTarget(this.lastSelectedImage)) {
+      this.lastSelectedImage = null;
+    }
+
+    const timer = setTimeout(async () => {
+      await this.commitPendingDeletion(key);
+    }, 5000);
+
+    this._pendingDeletions.set(key, {
+      image,
+      galleryIndex,
+      sessionIndex,
+      timer,
+    });
+
+    this.showToast(locale.t("gallery.toast.image_deleted"), "info", {
+      durationMs: 5000,
+      actionLabel: locale.t("common.undo"),
+      onAction: () => {
+        this.restorePendingDeletion(key);
+      },
+    });
+
     return true;
+  }
+
+  restorePendingDeletion(key: string) {
+    const pending = this._pendingDeletions.get(key);
+    if (!pending) return;
+
+    clearTimeout(pending.timer);
+    this._pendingDeletions.delete(key);
+
+    // Restore back to images array
+    if (pending.galleryIndex >= 0 && pending.galleryIndex <= this.images.length) {
+      const next = [...this.images];
+      next.splice(pending.galleryIndex, 0, pending.image);
+      this.images = next;
+    } else {
+      this.images = [...this.images, pending.image];
+    }
+
+    // Restore back to sessionImages array
+    if (pending.sessionIndex >= 0 && pending.sessionIndex <= this.sessionImages.length) {
+      const next = [...this.sessionImages];
+      next.splice(pending.sessionIndex, 0, pending.image);
+      this.sessionImages = next;
+    }
+  }
+
+  async commitPendingDeletion(key: string) {
+    const pending = this._pendingDeletions.get(key);
+    if (!pending) return;
+
+    clearTimeout(pending.timer);
+    this._pendingDeletions.delete(key);
+
+    try {
+      const galleryFilename = await this.resolveGalleryFilename(pending.image);
+      if (galleryFilename) {
+        await deleteGalleryImage(galleryFilename);
+        this._forgetAssignments([galleryFilename]);
+      }
+      if (pending.image.url) {
+        URL.revokeObjectURL(pending.image.url);
+      }
+    } catch (e) {
+      console.error("Failed to commit gallery image deletion:", e);
+    }
   }
 
   /** Delete an image from the gallery. */

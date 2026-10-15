@@ -4546,5 +4546,17 @@ const ko: Record<string, string> = {
   "settings.prompt_assistant.companion_desktop": "호스트 컴퓨터의 데스크톱 앱에서 로그인하세요.",
   "settings.prompt_assistant.companion_auto_model": "자동",
   "settings.prompt_assistant.companion_model_hint": "기본 모델을 사용하려면 비워 두거나 계정에서 사용할 수 있는 모델을 불러오세요.",
+  "generation.ui_mode.simple": "간편",
+  "generation.ui_mode.pro": "전문가",
+  "generation.ui_mode.tooltip": "간편 모드와 전문가 모드 전환",
+  "settings.groups.general": "일반",
+  "settings.groups.engine": "엔진 및 하드웨어",
+  "settings.groups.generation": "생성 및 프롬프트",
+  "settings.groups.integrations": "연동 및 클라우드",
+  "settings.groups.system": "시스템 및 계정",
+  "bottom_panel.group.assets": "에셋",
+  "bottom_panel.group.session": "세션",
+  "gallery.toast.image_deleted": "이미지가 삭제되었습니다",
+  "common.undo": "실행 취소",
 };
 export default ko;

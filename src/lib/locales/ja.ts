@@ -4571,5 +4571,17 @@ const ja: Record<string, string> = {
   "settings.prompt_assistant.companion_desktop": "ホストコンピューターのデスクトップアプリからログインしてください。",
   "settings.prompt_assistant.companion_auto_model": "自動",
   "settings.prompt_assistant.companion_model_hint": "空欄で既定のモデルを使用するか、アカウントで利用可能なモデルを読み込んでください。",
+  "generation.ui_mode.simple": "シンプル",
+  "generation.ui_mode.pro": "プロ",
+  "generation.ui_mode.tooltip": "シンプルモードとプロモードを切り替える",
+  "settings.groups.general": "一般",
+  "settings.groups.engine": "エンジンとハードウェア",
+  "settings.groups.generation": "生成とプロンプト",
+  "settings.groups.integrations": "統合とクラウド",
+  "settings.groups.system": "システムとアカウント",
+  "bottom_panel.group.assets": "アセット",
+  "bottom_panel.group.session": "セッション",
+  "gallery.toast.image_deleted": "画像を削除しました",
+  "common.undo": "元に戻す",
 };
 export default ja;

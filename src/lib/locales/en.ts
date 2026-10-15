@@ -4500,5 +4500,17 @@ const en: Record<string, string> = {
   "settings.prompt_assistant.companion_desktop": "Sign in through the desktop app on the host computer.",
   "settings.prompt_assistant.companion_auto_model": "Automatic",
   "settings.prompt_assistant.companion_model_hint": "Leave empty for the companion’s default, or load the models available to your account.",
+  "generation.ui_mode.simple": "Simple",
+  "generation.ui_mode.pro": "Pro",
+  "generation.ui_mode.tooltip": "Toggle Simple or Pro interface mode",
+  "settings.groups.general": "General",
+  "settings.groups.engine": "Engine & Hardware",
+  "settings.groups.generation": "Generation & Prompts",
+  "settings.groups.integrations": "Integrations & Cloud",
+  "settings.groups.system": "System & Accounts",
+  "bottom_panel.group.assets": "Assets",
+  "bottom_panel.group.session": "Session",
+  "gallery.toast.image_deleted": "Image deleted",
+  "common.undo": "Undo",
 };
 export default en;

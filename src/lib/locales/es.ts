@@ -4575,5 +4575,17 @@ const es: Record<string, string> = {
   "settings.prompt_assistant.companion_desktop": "Inicia sesión desde la app de escritorio en el equipo anfitrión.",
   "settings.prompt_assistant.companion_auto_model": "Automático",
   "settings.prompt_assistant.companion_model_hint": "Déjalo vacío para usar el modelo predeterminado o carga los modelos disponibles para tu cuenta.",
+  "generation.ui_mode.simple": "Simple",
+  "generation.ui_mode.pro": "Pro",
+  "generation.ui_mode.tooltip": "Cambiar entre modo simple y profesional",
+  "settings.groups.general": "General",
+  "settings.groups.engine": "Motor y hardware",
+  "settings.groups.generation": "Generación y prompts",
+  "settings.groups.integrations": "Integraciones y nube",
+  "settings.groups.system": "Sistema y cuentas",
+  "bottom_panel.group.assets": "Recursos",
+  "bottom_panel.group.session": "Sesión",
+  "gallery.toast.image_deleted": "Imagen eliminada",
+  "common.undo": "Deshacer",
 };
 export default es;

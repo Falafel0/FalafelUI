@@ -4572,5 +4572,17 @@ const fr: Record<string, string> = {
   "settings.prompt_assistant.companion_desktop": "Connectez-vous dans l’application de bureau sur l’ordinateur hôte.",
   "settings.prompt_assistant.companion_auto_model": "Automatique",
   "settings.prompt_assistant.companion_model_hint": "Laissez vide pour le modèle par défaut ou chargez les modèles disponibles pour votre compte.",
+  "generation.ui_mode.simple": "Simple",
+  "generation.ui_mode.pro": "Pro",
+  "generation.ui_mode.tooltip": "Basculer entre le mode simple et pro",
+  "settings.groups.general": "Général",
+  "settings.groups.engine": "Moteur & matériel",
+  "settings.groups.generation": "Génération & prompts",
+  "settings.groups.integrations": "Intégrations & cloud",
+  "settings.groups.system": "Système & comptes",
+  "bottom_panel.group.assets": "Ressources",
+  "bottom_panel.group.session": "Session",
+  "gallery.toast.image_deleted": "Image supprimée",
+  "common.undo": "Annuler",
 };
 export default fr;

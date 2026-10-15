@@ -4547,5 +4547,17 @@ const zh: Record<string, string> = {
   "settings.prompt_assistant.companion_desktop": "请在主机电脑的桌面应用中登录。",
   "settings.prompt_assistant.companion_auto_model": "自动",
   "settings.prompt_assistant.companion_model_hint": "留空使用默认模型，或加载账户可用的模型。",
+  "generation.ui_mode.simple": "简易",
+  "generation.ui_mode.pro": "专业",
+  "generation.ui_mode.tooltip": "在简易与专业模式之间切换",
+  "settings.groups.general": "通用设置",
+  "settings.groups.engine": "引擎与硬件",
+  "settings.groups.generation": "生成与提示词",
+  "settings.groups.integrations": "集成与云服务",
+  "settings.groups.system": "系统与账户",
+  "bottom_panel.group.assets": "资产",
+  "bottom_panel.group.session": "会话",
+  "gallery.toast.image_deleted": "图像已删除",
+  "common.undo": "撤销",
 };
 export default zh;

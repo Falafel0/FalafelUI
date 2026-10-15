@@ -4548,5 +4548,17 @@ const de: Record<string, string> = {
   "settings.prompt_assistant.companion_desktop": "Melde dich über die Desktop-App auf dem Hostcomputer an.",
   "settings.prompt_assistant.companion_auto_model": "Automatisch",
   "settings.prompt_assistant.companion_model_hint": "Leer lassen für das Standardmodell oder die für dein Konto verfügbaren Modelle laden.",
+  "generation.ui_mode.simple": "Einfach",
+  "generation.ui_mode.pro": "Profi",
+  "generation.ui_mode.tooltip": "Zwischen einfachem und Pro-Modus wechseln",
+  "settings.groups.general": "Allgemein",
+  "settings.groups.engine": "Engine & Hardware",
+  "settings.groups.generation": "Generierung & Prompts",
+  "settings.groups.integrations": "Integrationen & Cloud",
+  "settings.groups.system": "System & Konten",
+  "bottom_panel.group.assets": "Assets",
+  "bottom_panel.group.session": "Sitzung",
+  "gallery.toast.image_deleted": "Bild gelöscht",
+  "common.undo": "Rückgängig",
 };
 export default de;

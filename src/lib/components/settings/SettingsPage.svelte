@@ -1282,6 +1282,40 @@
     { key: "developer", labelKey: "settings.developer.title", keywords: "developer dev mode debug unlock" },
   ];
 
+  interface SettingsGroup {
+    id: string;
+    labelKey: string;
+    keys: string[];
+  }
+
+  const settingsGroups: SettingsGroup[] = [
+    {
+      id: "general",
+      labelKey: "settings.groups.general",
+      keys: ["appearance", "notifications", "gallery", "about"],
+    },
+    {
+      id: "engine",
+      labelKey: "settings.groups.engine",
+      keys: ["connection", "performance", "gpu", "paths"],
+    },
+    {
+      id: "generation",
+      labelKey: "settings.groups.generation",
+      keys: ["quality", "autocomplete", "interrogator", "prompt_assistant"],
+    },
+    {
+      id: "integrations",
+      labelKey: "settings.groups.integrations",
+      keys: ["models", "modelRequests", "civitai", "novelai", "cloud"],
+    },
+    {
+      id: "system",
+      labelKey: "settings.groups.system",
+      keys: ["appMode", "queue", "account", "developer"],
+    },
+  ];
+
   function sectionVisible(key: string): boolean {
     if (!search.trim()) return true;
     const s = sections.find((sec) => sec.key === key);
@@ -2102,18 +2136,30 @@
   <div class="flex-1 flex min-h-0 overflow-hidden">
     {#if !mobileFriendly}
     <aside class="w-52 shrink-0 border-r border-neutral-800 bg-neutral-900/60 p-3 overflow-y-auto">
-      <nav class="space-y-0.5" aria-label={locale.t('settings.title')}>
-        {#each visibleCategories as cat (cat.key)}
-          <button
-            type="button"
-            onclick={() => selectCategory(cat.key)}
-            aria-current={activeCategory === cat.key ? 'page' : undefined}
-            class="w-full rounded-lg px-3 py-2 text-left text-sm transition-colors {activeCategory === cat.key
-              ? 'bg-indigo-600 text-white font-medium shadow-sm'
-              : 'text-neutral-400 hover:bg-neutral-800 hover:text-neutral-100'}"
-          >
-            {locale.t(cat.labelKey)}
-          </button>
+      <nav class="space-y-3.5" aria-label={locale.t('settings.title')}>
+        {#each settingsGroups as group}
+          {@const groupCats = visibleCategories.filter((c) => group.keys.includes(c.key))}
+          {#if groupCats.length > 0}
+            <div>
+              <div class="px-2.5 pb-1 text-[10px] font-semibold tracking-wider uppercase text-neutral-400">
+                {locale.t(group.labelKey)}
+              </div>
+              <div class="space-y-0.5">
+                {#each groupCats as cat (cat.key)}
+                  <button
+                    type="button"
+                    onclick={() => selectCategory(cat.key)}
+                    aria-current={activeCategory === cat.key ? 'page' : undefined}
+                    class="w-full rounded-lg px-2.5 py-1.5 text-left text-xs transition-colors {activeCategory === cat.key
+                      ? 'bg-indigo-600 text-white font-medium shadow-sm'
+                      : 'text-neutral-400 hover:bg-neutral-800 hover:text-neutral-100'}"
+                  >
+                    {locale.t(cat.labelKey)}
+                  </button>
+                {/each}
+              </div>
+            </div>
+          {/if}
         {/each}
         {#if visibleCategories.length === 0}
           <p class="px-3 py-2 text-xs text-neutral-500">{locale.t('settings.search_no_results')}</p>

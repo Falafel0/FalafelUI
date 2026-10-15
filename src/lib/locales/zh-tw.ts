@@ -4546,5 +4546,17 @@ const zhTw: Record<string, string> = {
   "settings.prompt_assistant.companion_desktop": "請在主機電腦的桌面應用程式登入。",
   "settings.prompt_assistant.companion_auto_model": "自動",
   "settings.prompt_assistant.companion_model_hint": "留空使用預設模型，或載入帳戶可用的模型。",
+  "generation.ui_mode.simple": "簡易",
+  "generation.ui_mode.pro": "專業",
+  "generation.ui_mode.tooltip": "在簡易與專業模式之間切換",
+  "settings.groups.general": "一般設定",
+  "settings.groups.engine": "引擎與硬體",
+  "settings.groups.generation": "生成與提示詞",
+  "settings.groups.integrations": "整合與雲端",
+  "settings.groups.system": "系統與帳戶",
+  "bottom_panel.group.assets": "資產",
+  "bottom_panel.group.session": "工作階段",
+  "gallery.toast.image_deleted": "圖片已刪除",
+  "common.undo": "復原",
 };
 export default zhTw;

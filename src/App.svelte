@@ -4692,7 +4692,19 @@
     {:else}
       <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg>
     {/if}
-    {gallery.toast.message}
+    <span>{gallery.toast.message}</span>
+    {#if gallery.toast.actionLabel && gallery.toast.onAction}
+      <button
+        type="button"
+        onclick={() => {
+          gallery.toast?.onAction?.();
+          gallery.clearToast();
+        }}
+        class="ml-2 px-2.5 py-0.5 rounded bg-white/20 hover:bg-white/30 text-xs font-semibold text-white transition-colors cursor-pointer"
+      >
+        {gallery.toast.actionLabel}
+      </button>
+    {/if}
   </div>
 {/if}
 

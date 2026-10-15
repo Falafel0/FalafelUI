@@ -4546,5 +4546,17 @@ const it: Record<string, string> = {
   "settings.prompt_assistant.companion_desktop": "Accedi dall’app desktop sul computer host.",
   "settings.prompt_assistant.companion_auto_model": "Automatico",
   "settings.prompt_assistant.companion_model_hint": "Lascia vuoto per il modello predefinito o carica i modelli disponibili per il tuo account.",
+  "generation.ui_mode.simple": "Semplice",
+  "generation.ui_mode.pro": "Pro",
+  "generation.ui_mode.tooltip": "Passa dalla modalità semplice a quella pro",
+  "settings.groups.general": "Generale",
+  "settings.groups.engine": "Motore & hardware",
+  "settings.groups.generation": "Generazione & prompt",
+  "settings.groups.integrations": "Integrazioni & cloud",
+  "settings.groups.system": "Sistema & account",
+  "bottom_panel.group.assets": "Risorse",
+  "bottom_panel.group.session": "Sessione",
+  "gallery.toast.image_deleted": "Immagine eliminata",
+  "common.undo": "Annulla",
 };
 export default it;

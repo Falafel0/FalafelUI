@@ -944,6 +944,8 @@ class GenerationStore {
    *  The first-ever preset application (while `modelPresetAppliedKey` is still unset) is
    *  exempt so a fresh profile still gets sane defaults; every later swap preserves. */
   advancedMode = $state(false);
+  /** When true, UI displays in Simple Mode hiding deep engineering panels. */
+  simpleMode = $state(false);
   /** When true, checkpoint/model swaps never overwrite width/height, regardless of advancedMode. */
   resolutionLocked = $state(false);
   regionalPrompts = $state<RegionalPromptSelection[]>([]);
@@ -2512,6 +2514,38 @@ class GenerationStore {
     });
   }
 
+  /** Apply sampling recommendation (steps, cfg, sampler, scheduler, upscale/facefix steps). */
+  applySamplingRecommendation(rec: SamplingRecommendation) {
+    this.steps = rec.steps;
+    this.cfg = rec.cfg;
+    this.samplerName = rec.samplerName;
+    this.scheduler = rec.scheduler;
+    if (rec.upscaleSteps !== undefined) this.upscaleSteps = rec.upscaleSteps;
+    if (rec.facefixSteps !== undefined) this.facefixSteps = rec.facefixSteps;
+    if (rec.upscaleDenoise !== undefined) this.upscaleDenoise = rec.upscaleDenoise;
+  }
+
+  /** Apply recommended sampling for currently active checkpoint / model family. */
+  applyRecommendedSamplingForActiveModel() {
+    if (this.isNovelAi) {
+      this.applyNovelAiRecommendedSampling();
+      return;
+    }
+    const rec = recommendedSamplingFor(this.checkpoint, this.modelFamily, this.hasTurboModelVariant);
+    if (rec) {
+      this.applySamplingRecommendation(rec);
+    }
+  }
+
+  /** Toggle Simple / Pro interface mode. When entering Simple Mode, optimal settings are auto-applied. */
+  toggleSimpleMode() {
+    this.simpleMode = !this.simpleMode;
+    if (this.simpleMode) {
+      this.applyRecommendedSamplingForActiveModel();
+    }
+    this.saveSettings();
+  }
+
   /**
    * The Enhance modal's "Curate it": V5 Full with cleaner, Curated-leaning
    * settings, plus extra avoids appended to the undesired content box. Prompt
@@ -2557,7 +2591,7 @@ class GenerationStore {
     // Record the key only once the preset is actually applied (below) — recording
     // it here would let the idempotency guard suppress the preset forever if the
     // user later disables Advanced Mode on the same model.
-    if (this.advancedMode && !isFirstPresetApplication) return;
+    if (this.advancedMode && !this.simpleMode && !isFirstPresetApplication) return;
 
     this.modelPresetAppliedKey = presetKey;
 
@@ -3155,6 +3189,7 @@ class GenerationStore {
     if (saved.osNotifyOnlyWhenUnfocused !== undefined) this.osNotifyOnlyWhenUnfocused = saved.osNotifyOnlyWhenUnfocused;
     if (saved.manualSaveMode !== undefined) this.manualSaveMode = saved.manualSaveMode;
     if (saved.advancedMode !== undefined) this.advancedMode = saved.advancedMode;
+    if (saved.simpleMode !== undefined) this.simpleMode = saved.simpleMode;
     if (saved.resolutionLocked !== undefined) this.resolutionLocked = saved.resolutionLocked;
     if (Array.isArray(saved.autoSaveDirs)) this.autoSaveDirs = saved.autoSaveDirs;
     if (saved.regionalPromptStrategy === "conditioning" || saved.regionalPromptStrategy === "inpaint_chain") {
@@ -3323,6 +3358,7 @@ class GenerationStore {
         osNotifyOnlyWhenUnfocused: this.osNotifyOnlyWhenUnfocused,
         manualSaveMode: this.manualSaveMode,
         advancedMode: this.advancedMode,
+        simpleMode: this.simpleMode,
         resolutionLocked: this.resolutionLocked,
         autoSaveDirs: this.autoSaveDirs,
         regionalPrompts: this.regionalPrompts,
@@ -3489,6 +3525,7 @@ class GenerationStore {
       osNotifyOnlyWhenUnfocused: this.osNotifyOnlyWhenUnfocused,
       manualSaveMode: this.manualSaveMode,
       advancedMode: this.advancedMode,
+      simpleMode: this.simpleMode,
       resolutionLocked: this.resolutionLocked,
       autoSaveDirs: this.autoSaveDirs,
       regionalPrompts: this.regionalPrompts,

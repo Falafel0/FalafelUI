@@ -4585,5 +4585,17 @@ const pl: Record<string, string> = {
   "settings.prompt_assistant.companion_desktop": "Zaloguj się w aplikacji desktopowej na komputerze hosta.",
   "settings.prompt_assistant.companion_auto_model": "Automatycznie",
   "settings.prompt_assistant.companion_model_hint": "Pozostaw puste dla modelu domyślnego lub wczytaj modele dostępne dla Twojego konta.",
+  "generation.ui_mode.simple": "Prosty",
+  "generation.ui_mode.pro": "Ekspert",
+  "generation.ui_mode.tooltip": "Przełącz między trybem prostym a eksperckim",
+  "settings.groups.general": "Ogólne",
+  "settings.groups.engine": "Silnik i sprzęt",
+  "settings.groups.generation": "Generowanie i prompty",
+  "settings.groups.integrations": "Integracje i chmura",
+  "settings.groups.system": "System i konta",
+  "bottom_panel.group.assets": "Zasoby",
+  "bottom_panel.group.session": "Sesja",
+  "gallery.toast.image_deleted": "Obraz usunięty",
+  "common.undo": "Cofnij",
 };
 export default pl;

@@ -4546,5 +4546,17 @@ const ru: Record<string, string> = {
   "settings.prompt_assistant.companion_desktop": "Войдите через настольное приложение на компьютере хоста.",
   "settings.prompt_assistant.companion_auto_model": "Автоматически",
   "settings.prompt_assistant.companion_model_hint": "Оставьте пустым для модели по умолчанию или загрузите модели, доступные вашему аккаунту.",
+  "generation.ui_mode.simple": "Простой",
+  "generation.ui_mode.pro": "Эксперт",
+  "generation.ui_mode.tooltip": "Переключение между простым и экспертным режимом",
+  "settings.groups.general": "Общие настройки",
+  "settings.groups.engine": "Движок и железо",
+  "settings.groups.generation": "Генерация и промпты",
+  "settings.groups.integrations": "Интеграции и облако",
+  "settings.groups.system": "Система и аккаунты",
+  "bottom_panel.group.assets": "Ассеты",
+  "bottom_panel.group.session": "Сессия",
+  "gallery.toast.image_deleted": "Изображение удалено",
+  "common.undo": "Отменить",
 };
 export default ru;
