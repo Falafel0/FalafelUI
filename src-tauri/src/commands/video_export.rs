@@ -303,6 +303,7 @@ fn ensure_private_dir(path: &Path) -> std::io::Result<()> {
         if e.kind() != std::io::ErrorKind::NotFound {
             return Err(e);
         }
+        #[allow(unused_mut)]
         let mut builder = std::fs::DirBuilder::new();
         #[cfg(unix)]
         {

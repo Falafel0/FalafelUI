@@ -175,6 +175,7 @@ impl WorkDir {
     /// recording is private to whoever sent it.
     async fn create() -> std::io::Result<Self> {
         let path = std::env::temp_dir().join(format!("mooshie-cover-{}", uuid::Uuid::new_v4()));
+        #[allow(unused_mut)]
         let mut builder = tokio::fs::DirBuilder::new();
         #[cfg(unix)]
         builder.mode(0o700);

@@ -70,11 +70,12 @@
     isPreviewCustom
       ? {
           valid: true,
-          has_comfyui: true,
-          has_venv: true,
+          is_mooshie_dir: true,
+          comfyui_path: "C:\\Users\\FSD\\MooshieUI_Old\\ComfyUI",
+          venv_path: "C:\\Users\\FSD\\MooshieUI_Old\\venv",
           has_models: true,
           model_count: 14,
-          error: null,
+          message: "Valid MooshieUI installation found",
         }
       : null
   );

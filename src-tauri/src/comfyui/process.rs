@@ -1168,10 +1168,9 @@ pub async fn start_comfyui_process(state: &AppState) -> Result<StartResult, AppE
         stop_owned_process(&state.comfyui_process, &config, None).await?;
     }
 
-    #[cfg(target_os = "windows")]
-    let python_path = format!("{}/Scripts/python.exe", config.venv_path);
-    #[cfg(not(target_os = "windows"))]
-    let python_path = format!("{}/bin/python", config.venv_path);
+    let python_path = crate::commands::api::resolve_venv_python_bin(&config.venv_path)
+        .to_string_lossy()
+        .to_string();
     let main_path = format!("{}/main.py", config.comfyui_path);
 
     // Detect stale venv: the uv trampoline executables and pyvenv.cfg embed
@@ -1682,10 +1681,9 @@ pub async fn start_worker_process(
         stop_owned_process(&worker.process, &config, Some(worker.id)).await?;
     }
 
-    #[cfg(target_os = "windows")]
-    let python_path = format!("{}/Scripts/python.exe", config.venv_path);
-    #[cfg(not(target_os = "windows"))]
-    let python_path = format!("{}/bin/python", config.venv_path);
+    let python_path = crate::commands::api::resolve_venv_python_bin(&config.venv_path)
+        .to_string_lossy()
+        .to_string();
     let main_path = format!("{}/main.py", config.comfyui_path);
 
     if config.venv_path.is_empty() || !std::path::Path::new(&python_path).exists() {

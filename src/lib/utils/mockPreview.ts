@@ -154,7 +154,7 @@ export function initMockPreview() {
 
       generation.checkpoint = "FalafelAnime_v1.safetensors";
       generation.positivePrompt = "1girl, solo, purple eyes, violet hair, glowing neon accents, cyberpunk city, detailed, masterpiece";
-      generation.sampler = "euler_ancestral";
+      generation.samplerName = "euler_ancestral";
       generation.scheduler = "karras";
       generation.steps = 28;
       generation.cfg = 6.5;

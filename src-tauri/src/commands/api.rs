@@ -9,6 +9,7 @@ use sha2::{Digest, Sha256};
 use tauri::{AppHandle, Emitter, State};
 
 use crate::comfyui::process::tokio_command_no_window;
+#[cfg(feature = "desktop")]
 use crate::comfyui::types::*;
 use crate::error::AppError;
 use crate::state::AppState;
@@ -3363,13 +3364,29 @@ pub fn resolve_uv_bin_pub(venv_path: &str) -> std::path::PathBuf {
 pub fn resolve_venv_python_bin(venv_path: &str) -> std::path::PathBuf {
     #[cfg(target_os = "windows")]
     {
-        std::path::Path::new(venv_path)
-            .join("Scripts")
-            .join("python.exe")
+        let base = std::path::Path::new(venv_path);
+        let scripts_python = base.join("Scripts").join("python.exe");
+        if scripts_python.exists() {
+            return scripts_python;
+        }
+        let root_python = base.join("python.exe");
+        if root_python.exists() {
+            return root_python;
+        }
+        scripts_python
     }
     #[cfg(not(target_os = "windows"))]
     {
-        std::path::Path::new(venv_path).join("bin").join("python")
+        let base = std::path::Path::new(venv_path);
+        let bin_python = base.join("bin").join("python");
+        if bin_python.exists() {
+            return bin_python;
+        }
+        let root_python = base.join("python");
+        if root_python.exists() {
+            return root_python;
+        }
+        bin_python
     }
 }
 
@@ -9055,16 +9072,7 @@ pub struct BackendSupport {
 
 /// Resolve the venv's Python interpreter path (platform-specific layout).
 fn venv_python_bin(venv_path: &str) -> std::path::PathBuf {
-    #[cfg(target_os = "windows")]
-    {
-        std::path::Path::new(venv_path)
-            .join("Scripts")
-            .join("python.exe")
-    }
-    #[cfg(not(target_os = "windows"))]
-    {
-        std::path::Path::new(venv_path).join("bin").join("python")
-    }
+    resolve_venv_python_bin(venv_path)
 }
 
 /// Probe whether the CUDA compiler (`nvcc`) is available on PATH.

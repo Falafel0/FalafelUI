@@ -1914,11 +1914,27 @@ fn resolve_pip_bin(venv_path: &str) -> PathBuf {
     let venv_base = Path::new(venv_path);
     #[cfg(target_os = "windows")]
     {
-        venv_base.join("Scripts").join("pip.exe")
+        let scripts_pip = venv_base.join("Scripts").join("pip.exe");
+        if scripts_pip.exists() {
+            return scripts_pip;
+        }
+        let root_pip = venv_base.join("pip.exe");
+        if root_pip.exists() {
+            return root_pip;
+        }
+        scripts_pip
     }
     #[cfg(not(target_os = "windows"))]
     {
-        venv_base.join("bin").join("pip")
+        let bin_pip = venv_base.join("bin").join("pip");
+        if bin_pip.exists() {
+            return bin_pip;
+        }
+        let root_pip = venv_base.join("pip");
+        if root_pip.exists() {
+            return root_pip;
+        }
+        bin_pip
     }
 }
 

@@ -2090,6 +2090,67 @@ pub struct ValidatedExistingInstall {
     pub message: String,
 }
 
+/// Canonicalize path and strip Windows verbatim `\\?\` prefix for compatibility with subprocesses.
+fn canonicalize_clean<P: AsRef<Path>>(path: P) -> std::io::Result<PathBuf> {
+    let canonical = std::fs::canonicalize(path)?;
+    #[cfg(target_os = "windows")]
+    {
+        let s = canonical.to_string_lossy();
+        if let Some(stripped) = s.strip_prefix(r"\\?\") {
+            return Ok(PathBuf::from(stripped));
+        }
+    }
+    Ok(canonical)
+}
+
+/// Recursively count model files in checkpoints and diffusion_models directories.
+fn count_model_files(models_dir: &Path) -> usize {
+    let mut count = 0;
+    for sub in &["checkpoints", "diffusion_models"] {
+        let dir = models_dir.join(sub);
+        if let Ok(entries) = std::fs::read_dir(&dir) {
+            for entry in entries.flatten() {
+                let p = entry.path();
+                if p.is_file() {
+                    if let Some(ext) = p.extension().and_then(|e| e.to_str()) {
+                        let lower = ext.to_ascii_lowercase();
+                        if lower == "safetensors" || lower == "ckpt" || lower == "pt" || lower == "gguf" {
+                            count += 1;
+                        }
+                    }
+                } else if p.is_dir() {
+                    if let Ok(sub_entries) = std::fs::read_dir(&p) {
+                        for sub_entry in sub_entries.flatten() {
+                            let sp = sub_entry.path();
+                            if let Some(ext) = sp.extension().and_then(|e| e.to_str()) {
+                                let lower = ext.to_ascii_lowercase();
+                                if lower == "safetensors" || lower == "ckpt" || lower == "pt" || lower == "gguf" {
+                                    count += 1;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+    count
+}
+
+/// Check if a python executable actually exists within the given venv or embedded directory.
+fn has_python_bin(venv_path: &Path) -> bool {
+    #[cfg(target_os = "windows")]
+    {
+        venv_path.join("Scripts").join("python.exe").exists()
+            || venv_path.join("python.exe").exists()
+    }
+    #[cfg(not(target_os = "windows"))]
+    {
+        venv_path.join("bin").join("python").exists()
+            || venv_path.join("python").exists()
+    }
+}
+
 /// Detect an existing MooshieUI installation in standard app data locations.
 #[tauri::command]
 pub async fn detect_existing_mooshie_install() -> Result<DetectedExistingInstall, AppError> {
@@ -2119,7 +2180,7 @@ pub async fn detect_existing_mooshie_install() -> Result<DetectedExistingInstall
                 if let Ok(ptr) = std::fs::read_to_string(candidate.join("data_dir.txt")) {
                     let trimmed = ptr.trim();
                     if !trimmed.is_empty() && Path::new(trimmed).exists() {
-                        PathBuf::from(trimmed)
+                        canonicalize_clean(trimmed).unwrap_or_else(|_| PathBuf::from(trimmed))
                     } else {
                         candidate.clone()
                     }
@@ -2130,19 +2191,8 @@ pub async fn detect_existing_mooshie_install() -> Result<DetectedExistingInstall
             let comfyui = actual_dir.join("comfyui");
             let venv = actual_dir.join("venv");
 
-            if comfyui.join("main.py").exists() && venv.exists() {
-                let mut model_count = 0;
-                let ckpt_dir = comfyui.join("models").join("checkpoints");
-                if let Ok(entries) = std::fs::read_dir(ckpt_dir) {
-                    for entry in entries.flatten() {
-                        let p = entry.path();
-                        if let Some(ext) = p.extension() {
-                            if ext == "safetensors" || ext == "ckpt" || ext == "pt" {
-                                model_count += 1;
-                            }
-                        }
-                    }
-                }
+            if comfyui.join("main.py").exists() && has_python_bin(&venv) {
+                let model_count = count_model_files(&comfyui.join("models"));
 
                 return Ok(DetectedExistingInstall {
                     found: true,
@@ -2182,56 +2232,48 @@ pub async fn validate_existing_install(path: String) -> Result<ValidatedExisting
         });
     }
 
-    let p = PathBuf::from(trimmed);
-    if !p.exists() || !p.is_dir() {
-        return Ok(ValidatedExistingInstall {
-            valid: false,
-            is_mooshie_dir: false,
-            comfyui_path: String::new(),
-            venv_path: String::new(),
-            has_models: false,
-            model_count: 0,
-            message: "Selected directory does not exist".to_string(),
-        });
-    }
+    let p = match canonicalize_clean(trimmed) {
+        Ok(c) if c.is_dir() => c,
+        _ => {
+            return Ok(ValidatedExistingInstall {
+                valid: false,
+                is_mooshie_dir: false,
+                comfyui_path: String::new(),
+                venv_path: String::new(),
+                has_models: false,
+                model_count: 0,
+                message: "Selected directory does not exist or cannot be accessed".to_string(),
+            });
+        }
+    };
 
     // Case 1: Mooshie / Falafel data directory (contains comfyui/main.py and venv)
     if p.join("comfyui").join("main.py").exists() {
         let comfyui = p.join("comfyui");
         let venv = p.join("venv");
-        let mut model_count = 0;
-        let ckpt_dir = comfyui.join("models").join("checkpoints");
-        if let Ok(entries) = std::fs::read_dir(ckpt_dir) {
-            for entry in entries.flatten() {
-                let ep = entry.path();
-                if let Some(ext) = ep.extension() {
-                    if ext == "safetensors" || ext == "ckpt" || ext == "pt" {
-                        model_count += 1;
-                    }
-                }
-            }
+        if has_python_bin(&venv) {
+            let model_count = count_model_files(&comfyui.join("models"));
+            return Ok(ValidatedExistingInstall {
+                valid: true,
+                is_mooshie_dir: true,
+                comfyui_path: comfyui.to_string_lossy().to_string(),
+                venv_path: venv.to_string_lossy().to_string(),
+                has_models: model_count > 0,
+                model_count,
+                message: format!("Valid Mooshie installation ({} checkpoints)", model_count),
+            });
         }
-
-        return Ok(ValidatedExistingInstall {
-            valid: true,
-            is_mooshie_dir: true,
-            comfyui_path: comfyui.to_string_lossy().to_string(),
-            venv_path: venv.to_string_lossy().to_string(),
-            has_models: model_count > 0,
-            model_count,
-            message: format!("Valid Mooshie installation ({} checkpoints)", model_count),
-        });
     }
 
     // Case 2: Direct ComfyUI folder (contains main.py)
     if p.join("main.py").exists() {
         let comfyui = p.clone();
-        let venv = if p.join("venv").exists() {
+        let venv = if has_python_bin(&p.join("venv")) {
             p.join("venv")
         } else if let Some(parent) = p.parent() {
-            if parent.join("venv").exists() {
+            if has_python_bin(&parent.join("venv")) {
                 parent.join("venv")
-            } else if parent.join("python_embeded").exists() {
+            } else if has_python_bin(&parent.join("python_embeded")) {
                 parent.join("python_embeded")
             } else {
                 p.join("venv")
@@ -2240,60 +2282,50 @@ pub async fn validate_existing_install(path: String) -> Result<ValidatedExisting
             p.join("venv")
         };
 
-        let mut model_count = 0;
-        let ckpt_dir = comfyui.join("models").join("checkpoints");
-        if let Ok(entries) = std::fs::read_dir(ckpt_dir) {
-            for entry in entries.flatten() {
-                let ep = entry.path();
-                if let Some(ext) = ep.extension() {
-                    if ext == "safetensors" || ext == "ckpt" || ext == "pt" {
-                        model_count += 1;
-                    }
-                }
-            }
-        }
+        let model_count = count_model_files(&comfyui.join("models"));
+        let valid = has_python_bin(&venv);
 
         return Ok(ValidatedExistingInstall {
-            valid: true,
+            valid,
             is_mooshie_dir: false,
             comfyui_path: comfyui.to_string_lossy().to_string(),
             venv_path: venv.to_string_lossy().to_string(),
             has_models: model_count > 0,
             model_count,
-            message: format!("ComfyUI folder recognized ({} checkpoints)", model_count),
+            message: if valid {
+                format!("ComfyUI folder recognized ({} checkpoints)", model_count)
+            } else {
+                "ComfyUI found, but Python environment (venv/python_embeded) was not detected".to_string()
+            },
         });
     }
 
     // Case 3: ComfyUI portable root (contains ComfyUI/main.py)
     if p.join("ComfyUI").join("main.py").exists() {
         let comfyui = p.join("ComfyUI");
-        let venv = if p.join("python_embeded").exists() {
+        let venv = if has_python_bin(&p.join("python_embeded")) {
             p.join("python_embeded")
-        } else {
+        } else if has_python_bin(&p.join("venv")) {
             p.join("venv")
+        } else {
+            p.join("python_embeded")
         };
 
-        let mut model_count = 0;
-        let ckpt_dir = comfyui.join("models").join("checkpoints");
-        if let Ok(entries) = std::fs::read_dir(ckpt_dir) {
-            for entry in entries.flatten() {
-                let ep = entry.path();
-                if let Some(ext) = ep.extension() {
-                    if ext == "safetensors" || ext == "ckpt" || ext == "pt" {
-                        model_count += 1;
-                    }
-                }
-            }
-        }
+        let model_count = count_model_files(&comfyui.join("models"));
+        let valid = has_python_bin(&venv);
 
         return Ok(ValidatedExistingInstall {
-            valid: true,
+            valid,
             is_mooshie_dir: false,
             comfyui_path: comfyui.to_string_lossy().to_string(),
             venv_path: venv.to_string_lossy().to_string(),
             has_models: model_count > 0,
             model_count,
-            message: format!("ComfyUI Portable recognized ({} checkpoints)", model_count),
+            message: if valid {
+                format!("ComfyUI Portable recognized ({} checkpoints)", model_count)
+            } else {
+                "ComfyUI Portable found, but python_embeded was not detected".to_string()
+            },
         });
     }
 
@@ -2344,6 +2376,10 @@ pub async fn link_existing_install(
         cfg.venv_path = validation.venv_path.clone();
         cfg.setup_complete = true;
         let _ = config::save_config(&cfg);
+
+        // Keep in-memory app state synchronized
+        let mut in_mem = state.config.write().await;
+        *in_mem = cfg;
     } else {
         // Standalone ComfyUI folder
         let base = data_dir(&app)?;
@@ -2355,6 +2391,10 @@ pub async fn link_existing_install(
         cfg.venv_path = validation.venv_path.clone();
         cfg.setup_complete = true;
         let _ = config::save_config(&cfg);
+
+        // Keep in-memory app state synchronized
+        let mut in_mem = state.config.write().await;
+        *in_mem = cfg;
     }
 
     // Deploy required custom nodes into the ComfyUI directory
@@ -2423,8 +2463,8 @@ fn scan_model_directories() -> Vec<DetectedModelDir> {
     // Windows: check common drive roots
     #[cfg(target_os = "windows")]
     {
-        for drive in &["C:", "D:", "E:", "F:", "G:"] {
-            let root = PathBuf::from(drive).join("\\");
+        for drive in &["C:\\", "D:\\", "E:\\", "F:\\", "G:\\"] {
+            let root = PathBuf::from(drive);
             for name in &["ComfyUI", "comfyui"] {
                 candidates.push((root.join(name).join("models"), "ComfyUI"));
             }
@@ -2749,7 +2789,7 @@ fn remove_dir_contents_except_inner(dir: &Path, keep: &[PathBuf]) -> std::io::Re
     let mut kept_any = false;
     for entry in std::fs::read_dir(dir)? {
         let path = entry?.path();
-        if keep.iter().any(|k| *k == path) {
+        if keep.contains(&path) {
             kept_any = true;
             continue;
         }

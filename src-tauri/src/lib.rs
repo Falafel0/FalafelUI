@@ -38,9 +38,12 @@ pub mod user_prefs;
 pub mod user_secrets;
 pub mod webserver;
 
+#[cfg(feature = "desktop")]
 use std::sync::Arc;
 
+#[cfg(feature = "desktop")]
 use config::load_persisted_config;
+#[cfg(feature = "desktop")]
 use state::AppState;
 
 /// Fix Wayland rendering in AppImage builds.
