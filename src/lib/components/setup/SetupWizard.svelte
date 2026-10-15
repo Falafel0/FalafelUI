@@ -61,11 +61,23 @@
   let installPath = $derived(useCustomPath && customInstallPath.trim() ? customInstallPath.trim() : "");
 
   // Existing Mooshie / ComfyUI installation detection & custom linking
+  const isPreviewCustom = typeof window !== "undefined" && new URLSearchParams(window.location.search).get("preview") === "setup_custom";
   let detectedExisting = $state<DetectedExistingInstall | null>(null);
-  let showExistingPicker = $state(false);
-  let customExistingPath = $state("");
+  let showExistingPicker = $state(isPreviewCustom);
+  let customExistingPath = $state(isPreviewCustom ? "C:\\Users\\FSD\\MooshieUI_Old" : "");
   let validatingExisting = $state(false);
-  let existingValidation = $state<ValidatedExistingInstall | null>(null);
+  let existingValidation = $state<ValidatedExistingInstall | null>(
+    isPreviewCustom
+      ? {
+          valid: true,
+          has_comfyui: true,
+          has_venv: true,
+          has_models: true,
+          model_count: 14,
+          error: null,
+        }
+      : null
+  );
   let linkingExisting = $state(false);
 
   // Detected model directories from other AI tools

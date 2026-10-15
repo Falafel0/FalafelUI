@@ -578,7 +578,7 @@
     if (reportEmail.trim()) bodyParts.push(`Email: ${reportEmail.trim()}`);
     if (bodyParts.length) bodyParts.push("");
     bodyParts.push(reportMessage.trim());
-    const mailtoUrl = `mailto:blob@mooshieblob.com?subject=${subject}&body=${encodeURIComponent(bodyParts.join("\n"))}`;
+    const mailtoUrl = `mailto:F95594731@gmail.com?subject=${subject}&body=${encodeURIComponent(bodyParts.join("\n"))}`;
     openExternalUrl(mailtoUrl);
     showReportModal = false;
     reportName = "";
@@ -1246,7 +1246,10 @@
   let activeCategory = $state(loadActiveCategory());
 
   function loadActiveCategory(): string {
-    try { return localStorage.getItem(ACTIVE_CATEGORY_KEY) ?? ""; } catch { return ""; }
+    try {
+      const param = typeof window !== "undefined" ? new URLSearchParams(window.location.search).get("section") : null;
+      return param ?? localStorage.getItem(ACTIVE_CATEGORY_KEY) ?? "";
+    } catch { return ""; }
   }
 
   function selectCategory(key: string) {

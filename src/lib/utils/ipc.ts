@@ -109,6 +109,9 @@ export async function ipcInvoke<T = unknown>(
   command: string,
   args?: Record<string, unknown>,
 ): Promise<T> {
+  if (typeof (window as any).__IPC_MOCK__ === "function") {
+    return (window as any).__IPC_MOCK__(command, args);
+  }
   if (isTauri) {
     const { invoke } = await import("@tauri-apps/api/core");
     return invoke<T>(command, args);

@@ -789,7 +789,9 @@
   }
 
   let setupComplete = $state<boolean | null>(null); // null = loading
-  let currentPage = $state<PrimaryPage>("generate");
+  let currentPage = $state<PrimaryPage>(
+    (typeof window !== "undefined" && (new URLSearchParams(window.location.search).get("page") as PrimaryPage)) || "generate"
+  );
   let mobileCurrentTab = $state<PrimaryPage>("generate");
   let mobileGenerateNavigationVersion = $state(0);
   let generationDoneToast = $state<GenerationDoneToast | null>(null);
