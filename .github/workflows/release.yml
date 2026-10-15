@@ -276,7 +276,7 @@ jobs:
           if [ "$INCLUDE_MACOS" = 'true' ]; then
             printf '%s\n' \
               '### macOS (Apple Silicon)' \
-              'Download the `_aarch64.dmg` for macOS 14 or later. Verify its SHA-256 against `SHA256SUMS`, copy MooshieUI to Applications, and open it. This app is ad-hoc signed and is not notarized by Apple; if blocked, use System Settings > Privacy & Security > Open Anyway.' \
+              'Download the `_aarch64.dmg` for macOS 14 or later. Verify its SHA-256 against `SHA256SUMS`, copy FalafelUI to Applications, and open it. This app is ad-hoc signed and is not notarized by Apple; if blocked, use System Settings > Privacy & Security > Open Anyway.' \
               'See [Mac installation and supported scope](https://github.com/${{ github.repository }}/blob/${{ github.event.inputs.tag || github.ref_name }}/docs/MACOS.md).' \
               '' >> /tmp/release-body.md
           fi
@@ -301,7 +301,7 @@ jobs:
             echo "Release ${TAG} already exists; updating notes and replacing assets."
             gh release edit "${TAG}" \
               --repo "${{ github.repository }}" \
-              --title "MooshieUI ${TAG}" \
+              --title "FalafelUI ${TAG}" \
               --notes-file /tmp/release-body.md
             upload_log="$(mktemp)"
             if ! gh release upload "${TAG}" \
@@ -325,7 +325,7 @@ jobs:
           else
             gh release create "${TAG}" \
               --repo "${{ github.repository }}" \
-              --title "MooshieUI ${TAG}" \
+              --title "FalafelUI ${TAG}" \
               --notes-file /tmp/release-body.md \
               release-files/*
           fi

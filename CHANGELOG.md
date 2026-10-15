@@ -1,5 +1,16 @@
 # Changelog
 
+## What's New in v1.0.0-falafel.1
+
+### FalafelUI Fork Debut
+- **Independent FalafelUI identity**: Rebranded application branding, logos, titles, and repository endpoints for standalone fork operation.
+- **New purple & violet visual styling**: Replaced yellow/orange accent palettes with deep purple and violet accents across the entire UI.
+- **Sponsorship cleanup**: Removed upstream Mooshie donation links and sponsor cards.
+- **Existing installation linking**: The setup wizard now automatically detects existing MooshieUI and ComfyUI installations, with support for choosing custom folder locations, linking models in place without re-downloading, and validating Python environments (both standard virtualenvs and ComfyUI portable `python_embeded`).
+- **Security & path hardening**: Added strict canonicalization, UNC prefix stripping, and security guards against symlink and path traversal attacks.
+
+---
+
 ## What's New in v2.3.22
 
 ### LAN Mode

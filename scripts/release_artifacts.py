@@ -28,7 +28,7 @@ def collect(source: Path, output: Path, tag: str, repo: str, macos: bool = False
         # Tauri's Mac updater archive omits architecture and version. Rename
         # the file, preserving the signed bytes and matching signature.
         if name.endswith((".app.tar.gz", ".app.tar.gz.sig")):
-            name = f"MooshieUI_{version}_aarch64.app.tar.gz" + (".sig" if name.endswith(".sig") else "")
+            name = f"FalafelUI_{version}_aarch64.app.tar.gz" + (".sig" if name.endswith(".sig") else "")
         destination = output / name
         if destination.exists():
             raise ValueError(f"Duplicate release asset: {name}")
