@@ -1,6 +1,6 @@
 <script lang="ts">
   import { locale } from "../../stores/locale.svelte.js";
-  import { exportLogsContent } from "../../utils/api.js";
+  import { exportLogsContent, freeComfyuiMemory } from "../../utils/api.js";
   import type { FriendlyError } from "../../errors/types.js";
   import ReportErrorModal from "./ReportErrorModal.svelte";
 
@@ -9,6 +9,22 @@
   let detailsOpen = $state(false);
   let copied = $state(false);
   let showReport = $state(false);
+  let purging = $state(false);
+  let purged = $state(false);
+
+  async function purgeVram() {
+    if (purging) return;
+    purging = true;
+    try {
+      await freeComfyuiMemory(true);
+      purged = true;
+      setTimeout(() => (purged = false), 4000);
+    } catch {
+      // ignore
+    } finally {
+      purging = false;
+    }
+  }
 
   async function copyDiagnostics() {
     try {
@@ -40,6 +56,25 @@
   {/if}
 
   <div class="mt-3 flex flex-wrap items-center gap-2">
+    {#if error.code === "out_of_memory"}
+      <button
+        type="button"
+        onclick={purgeVram}
+        disabled={purging}
+        class="rounded-lg {purged ? 'bg-emerald-600 hover:bg-emerald-500' : 'bg-amber-600 hover:bg-amber-500'} px-3 py-1.5 text-white transition-colors flex items-center gap-1.5 cursor-pointer disabled:opacity-50 text-xs font-medium"
+      >
+        {#if purged}
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>
+          {locale.t("station.status.vram_purged")}
+        {:else if purging}
+          <div class="h-3.5 w-3.5 animate-spin rounded-full border-2 border-white border-t-transparent"></div>
+          {locale.t("station.status.purging")}
+        {:else}
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg>
+          {locale.t("station.status.purge_vram")}
+        {/if}
+      </button>
+    {/if}
     {#if error.reportable}
       <button
         onclick={() => (showReport = true)}

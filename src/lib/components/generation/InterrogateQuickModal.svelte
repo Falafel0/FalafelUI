@@ -64,12 +64,15 @@
 
 <svelte:window onkeydown={handleKeydown} />
 
-<!-- svelte-ignore a11y_no_static_element_interactions a11y_click_events_have_key_events -->
 <div
   use:portal
   data-interrogate-quick-modal
   class="fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4"
+  role="dialog"
+  aria-modal="true"
+  tabindex="-1"
   onclick={(e) => { if (e.target === e.currentTarget) onclose(); }}
+  onkeydown={(e) => { if (e.key === 'Escape') onclose(); }}
 >
   <!-- svelte-ignore a11y_no_static_element_interactions -->
   <div

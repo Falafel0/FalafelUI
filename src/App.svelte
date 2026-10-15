@@ -4101,8 +4101,9 @@
 
             <!-- Board selector -->
             <div class="mb-3">
-              <label class="block text-[10px] text-neutral-500 mb-1 uppercase tracking-wider">{locale.t("gallery.board")}</label>
+              <label for="lightbox-board-select" class="block text-[10px] text-neutral-500 mb-1 uppercase tracking-wider">{locale.t("gallery.board")}</label>
               <select
+                id="lightbox-board-select"
                 class="w-full bg-neutral-800 border border-neutral-700 rounded px-2 py-1.5 text-xs text-neutral-200"
                 value={boardLabel(gallery.selectedImage)}
                 onchange={(e) => assignBoard(gallery.selectedImage!, (e.target as HTMLSelectElement).value)}
@@ -4164,7 +4165,7 @@
               {#each promptKeys as key}
                 {#if lightboxMetadata[key]}
                   <div class="mb-3">
-                    <label class="block text-[10px] text-neutral-500 mb-1 uppercase tracking-wider">{metadataLabel(key)}</label>
+                    <div class="block text-[10px] text-neutral-500 mb-1 uppercase tracking-wider">{metadataLabel(key)}</div>
                     <p class="text-neutral-200 whitespace-pre-wrap wrap-break-word leading-relaxed">{lightboxMetadata[key]}</p>
                   </div>
                 {/if}

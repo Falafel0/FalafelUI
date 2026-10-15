@@ -5,6 +5,9 @@
   import { locale } from "../../stores/locale.svelte.js";
   import BrushSettings from "./controls/BrushSettings.svelte";
   import ColorPicker from "./controls/ColorPicker.svelte";
+  import CanvasShortcutsModal from "./CanvasShortcutsModal.svelte";
+
+  let showShortcutsModal = $state(false);
 
   const tools: { id: ToolType; labelKey: string; hotkey: string; icon: string }[] = [
     {
@@ -77,6 +80,13 @@
 
     // Don't trigger if typing in an input
     if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement || e.target instanceof HTMLSelectElement) return;
+
+    // Toggle Shortcuts Modal (? or F1)
+    if (e.key === "?" || (e.shiftKey && e.key === "/") || e.key === "F1") {
+      e.preventDefault();
+      showShortcutsModal = !showShortcutsModal;
+      return;
+    }
 
     // Undo/Redo
     if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "z") {
@@ -262,5 +272,18 @@
       <svg xmlns="http://www.w3.org/2000/svg" class="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
       <span>PNG</span>
     </button>
+    <button
+      type="button"
+      onclick={() => (showShortcutsModal = true)}
+      class="w-6 h-6 flex items-center justify-center rounded border border-neutral-700 hover:border-indigo-500 text-neutral-400 hover:text-white hover:bg-neutral-800 text-[11px] font-mono font-bold transition-colors cursor-pointer"
+      title={locale.t("canvas.shortcuts.title")}
+      aria-label={locale.t("canvas.shortcuts.title")}
+    >
+      ?
+    </button>
   </div>
 </div>
+
+{#if showShortcutsModal}
+  <CanvasShortcutsModal onclose={() => (showShortcutsModal = false)} />
+{/if}

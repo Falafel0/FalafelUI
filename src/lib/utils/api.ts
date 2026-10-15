@@ -398,6 +398,10 @@ export async function clearAllQueues(): Promise<void> {
   return ipcInvoke("clear_all_queues");
 }
 
+export async function freeComfyuiMemory(unloadModels = true): Promise<void> {
+  return ipcInvoke("free_comfyui_memory", { unloadModels });
+}
+
 export async function reorderQueueItem(
   promptId: string,
   newPosition: number

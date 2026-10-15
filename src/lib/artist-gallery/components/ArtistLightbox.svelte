@@ -135,14 +135,20 @@
     <div class="flex w-full max-h-[92vh] flex-col items-center gap-3 overflow-y-auto p-4">
     {#if currentImage}
       <div class="flex items-start justify-center">
-        <img
-          use:cachedSrc={currentImage.imageUrl}
-          use:flipImage={{ slug: entry.slug, variant: clampedVariant }}
-          alt="{entry.tag} {currentImage.variantId}"
-          class="max-h-[80vh] max-w-[92vw] w-auto rounded-lg border border-neutral-800 object-contain shadow-2xl"
-          style="zoom: {zoomed ? 1.5 : 1}; transition: zoom 0.4s cubic-bezier(0.34, 1.56, 0.64, 1); cursor: {zoomed ? 'zoom-out' : 'zoom-in'};"
+        <button
+          type="button"
+          class="p-0 bg-transparent border-0 cursor-pointer inline-flex items-center justify-center focus:outline-none"
           onclick={toggleZoom}
-        />
+          aria-label={zoomed ? (locale.t('common.zoom_out') || 'Zoom out') : (locale.t('common.zoom_in') || 'Zoom in')}
+        >
+          <img
+            use:cachedSrc={currentImage.imageUrl}
+            use:flipImage={{ slug: entry.slug, variant: clampedVariant }}
+            alt="{entry.tag} {currentImage.variantId}"
+            class="max-h-[80vh] max-w-[92vw] w-auto rounded-lg border border-neutral-800 object-contain shadow-2xl"
+            style="zoom: {zoomed ? 1.5 : 1}; transition: zoom 0.4s cubic-bezier(0.34, 1.56, 0.64, 1); cursor: {zoomed ? 'zoom-out' : 'zoom-in'};"
+          />
+        </button>
       </div>
     {:else}
       <div

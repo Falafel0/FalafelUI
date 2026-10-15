@@ -6,13 +6,32 @@
   import { downloads } from "../../stores/downloads.svelte.js";
   import { generation } from "../../stores/generation.svelte.js";
   import { locale } from "../../stores/locale.svelte.js";
-  import { getGpuStats } from "../../utils/api.js";
+  import { getGpuStats, freeComfyuiMemory } from "../../utils/api.js";
   import { MODEL_FAMILY_LABELS } from "../../utils/modelFamily.js";
   import type { GpuStats } from "../../types/index.js";
 
   let gpuStats = $state<GpuStats[]>([]);
   let pollInterval: ReturnType<typeof setInterval> | null = null;
   let fetching = false;
+  let isPurging = $state(false);
+  let isPurged = $state(false);
+
+  async function handlePurgeVram() {
+    if (isPurging) return;
+    isPurging = true;
+    try {
+      await freeComfyuiMemory(true);
+      isPurged = true;
+      setTimeout(() => {
+        isPurged = false;
+      }, 3000);
+      await updateGpuStats();
+    } catch (err) {
+      console.error("Failed to purge VRAM:", err);
+    } finally {
+      isPurging = false;
+    }
+  }
 
   const primaryGpu = $derived(gpuStats.length > 0 ? gpuStats[0] : null);
 
@@ -136,6 +155,29 @@
             ></div>
           </div>
           <span class="font-mono text-[10px] text-neutral-500">({vramPercent}%)</span>
+          <button
+            type="button"
+            onclick={handlePurgeVram}
+            disabled={isPurging}
+            class="ml-0.5 inline-flex items-center gap-1 rounded px-1 py-0.5 text-[9px] font-medium transition-colors cursor-pointer {isPurged
+              ? 'bg-emerald-950/60 text-emerald-400 border border-emerald-800/60'
+              : 'text-neutral-400 hover:text-amber-300 hover:bg-neutral-800'}"
+            title={locale.t("station.status.purge_vram_tooltip")}
+            aria-label={locale.t("station.status.purge_vram")}
+          >
+            {#if isPurged}
+              <span class="text-emerald-400 font-bold">✓</span>
+              <span>{locale.t("station.status.vram_purged")}</span>
+            {:else if isPurging}
+              <div class="h-2 w-2 animate-spin rounded-full border border-neutral-400 border-t-transparent"></div>
+              <span>{locale.t("station.status.purging")}</span>
+            {:else}
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-2.5 w-2.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/>
+              </svg>
+              <span>{locale.t("station.status.purge")}</span>
+            {/if}
+          </button>
         </div>
 
         <!-- Temp & Util -->

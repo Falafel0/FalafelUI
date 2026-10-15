@@ -1404,6 +1404,20 @@ impl AppState {
         Ok(())
     }
 
+    pub async fn free_vram(&self, unload_models: bool) -> Result<(), AppError> {
+        let body = serde_json::json!({ "unload_models": unload_models, "free_memory": true });
+        for worker in &self.gpu_manager.workers {
+            let _ = self
+                .http_client
+                .post(format!("{}/free", worker.base_url()))
+                .json(&body)
+                .send()
+                .await;
+        }
+        let _ = self.api_post("/free", &body).await;
+        Ok(())
+    }
+
     pub async fn delete_queue_items(&self, ids: Vec<String>) -> Result<(), AppError> {
         let mut ids_to_delete: Vec<String> = Vec::new();
         for id in ids {

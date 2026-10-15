@@ -5213,8 +5213,9 @@
     <div class="space-y-3">
       <!-- Name -->
       <div>
-        <label class="block text-xs text-neutral-400 mb-1">{locale.t('settings.about.report_name_label')}</label>
+        <label for="report-modal-name" class="block text-xs text-neutral-400 mb-1">{locale.t('settings.about.report_name_label')}</label>
         <input
+          id="report-modal-name"
           type="text"
           bind:value={reportName}
           placeholder={locale.t('settings.about.report_name_placeholder')}
@@ -5224,8 +5225,9 @@
 
       <!-- Email -->
       <div>
-        <label class="block text-xs text-neutral-400 mb-1">{locale.t('settings.about.report_email_label')}</label>
+        <label for="report-modal-email" class="block text-xs text-neutral-400 mb-1">{locale.t('settings.about.report_email_label')}</label>
         <input
+          id="report-modal-email"
           type="email"
           bind:value={reportEmail}
           placeholder={locale.t('settings.about.report_email_placeholder')}
@@ -5235,8 +5237,9 @@
 
       <!-- Message -->
       <div>
-        <label class="block text-xs text-neutral-400 mb-1">{locale.t('settings.about.report_message_label')}</label>
+        <label for="report-modal-message" class="block text-xs text-neutral-400 mb-1">{locale.t('settings.about.report_message_label')}</label>
         <textarea
+          id="report-modal-message"
           bind:value={reportMessage}
           placeholder={locale.t('settings.about.report_message_placeholder')}
           rows="5"
@@ -5352,8 +5355,9 @@
     <h3 id="add-account-title" class="text-sm font-medium text-neutral-100">{locale.t('settings.lan.add_lan_account')}</h3>
     <div class="space-y-3">
       <div>
-        <label class="block text-xs text-neutral-400 mb-1">{locale.t('settings.lan.username')}</label>
+        <label for="lan-modal-username" class="block text-xs text-neutral-400 mb-1">{locale.t('settings.lan.username')}</label>
         <input
+          id="lan-modal-username"
           type="text"
           bind:value={lanNewUser}
           placeholder={locale.t('settings.lan.enter_username')}
@@ -5361,8 +5365,9 @@
         />
       </div>
       <div>
-        <label class="block text-xs text-neutral-400 mb-1">{locale.t('settings.lan.password')}</label>
+        <label for="lan-modal-password" class="block text-xs text-neutral-400 mb-1">{locale.t('settings.lan.password')}</label>
         <input
+          id="lan-modal-password"
           type="password"
           bind:value={lanNewPass}
           placeholder={locale.t('settings.lan.password_min_placeholder')}
@@ -5404,8 +5409,9 @@
     <h3 id="reset-password-title" class="text-sm font-medium text-neutral-100">{locale.t('settings.lan.reset_password')}</h3>
     <p class="text-xs text-neutral-400">{locale.t('settings.lan.reset_password_body', { user: resetTargetUser })}</p>
     <div>
-      <label class="block text-xs text-neutral-400 mb-1">{locale.t('settings.lan.temp_password')}</label>
+      <label for="lan-reset-temp-password" class="block text-xs text-neutral-400 mb-1">{locale.t('settings.lan.temp_password')}</label>
       <input
+        id="lan-reset-temp-password"
         type="password"
         bind:value={resetTempPass}
         placeholder={locale.t('settings.lan.password_min_placeholder')}

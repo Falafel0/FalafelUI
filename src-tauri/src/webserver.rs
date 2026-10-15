@@ -3192,6 +3192,14 @@ async fn dispatch_command(
             }
             Ok(serde_json::json!(null))
         }
+        "free_comfyui_memory" => {
+            let unload_models = args["unloadModels"].as_bool().unwrap_or(true);
+            state
+                .free_vram(unload_models)
+                .await
+                .map_err(|e| e.to_string())?;
+            Ok(serde_json::json!(null))
+        }
         "clear_all_queues" => {
             // 1. Drain held prompts and cancel them so their background tasks exit cleanly
             let held_prompts: Vec<crate::state::HeldPrompt> = {

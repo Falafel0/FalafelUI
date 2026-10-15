@@ -230,6 +230,15 @@ pub async fn clear_all_queues(state: State<'_, Arc<AppState>>) -> Result<(), App
 
 #[cfg(feature = "desktop")]
 #[tauri::command]
+pub async fn free_comfyui_memory(
+    state: State<'_, Arc<AppState>>,
+    unload_models: Option<bool>,
+) -> Result<(), AppError> {
+    state.free_vram(unload_models.unwrap_or(true)).await
+}
+
+#[cfg(feature = "desktop")]
+#[tauri::command]
 pub async fn delete_queue_item(
     state: State<'_, Arc<AppState>>,
     prompt_id: String,

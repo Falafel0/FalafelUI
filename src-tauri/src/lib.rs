@@ -616,6 +616,7 @@ pub fn run() {
             commands::api::recover_prompt_outputs,
             commands::api::interrupt_generation,
             commands::api::clear_all_queues,
+            commands::api::free_comfyui_memory,
             commands::api::delete_queue_item,
             commands::api::reorder_queue_item,
             commands::api::upload_image,

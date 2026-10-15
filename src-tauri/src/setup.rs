@@ -2114,7 +2114,11 @@ fn count_model_files(models_dir: &Path) -> usize {
                 if p.is_file() {
                     if let Some(ext) = p.extension().and_then(|e| e.to_str()) {
                         let lower = ext.to_ascii_lowercase();
-                        if lower == "safetensors" || lower == "ckpt" || lower == "pt" || lower == "gguf" {
+                        if lower == "safetensors"
+                            || lower == "ckpt"
+                            || lower == "pt"
+                            || lower == "gguf"
+                        {
                             count += 1;
                         }
                     }
@@ -2124,7 +2128,11 @@ fn count_model_files(models_dir: &Path) -> usize {
                             let sp = sub_entry.path();
                             if let Some(ext) = sp.extension().and_then(|e| e.to_str()) {
                                 let lower = ext.to_ascii_lowercase();
-                                if lower == "safetensors" || lower == "ckpt" || lower == "pt" || lower == "gguf" {
+                                if lower == "safetensors"
+                                    || lower == "ckpt"
+                                    || lower == "pt"
+                                    || lower == "gguf"
+                                {
                                     count += 1;
                                 }
                             }
@@ -2146,8 +2154,7 @@ fn has_python_bin(venv_path: &Path) -> bool {
     }
     #[cfg(not(target_os = "windows"))]
     {
-        venv_path.join("bin").join("python").exists()
-            || venv_path.join("python").exists()
+        venv_path.join("bin").join("python").exists() || venv_path.join("python").exists()
     }
 }
 
@@ -2295,7 +2302,8 @@ pub async fn validate_existing_install(path: String) -> Result<ValidatedExisting
             message: if valid {
                 format!("ComfyUI folder recognized ({} checkpoints)", model_count)
             } else {
-                "ComfyUI found, but Python environment (venv/python_embeded) was not detected".to_string()
+                "ComfyUI found, but Python environment (venv/python_embeded) was not detected"
+                    .to_string()
             },
         });
     }
