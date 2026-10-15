@@ -1,3 +1,28 @@
+## What's New in v1.2.0-falafel.0
+
+### Unified Canvas & Pro Photo Editor
+- **Non-Destructive Inpaint Layer**: Automatic snapshot of pre-inpaint state before every generation, allowing instant rollbacks without losing intermediate work.
+- **Layer Duplication**: One-click and shortcut (`Ctrl+J`) layer duplication preserving opacity, blend modes, and spatial coordinates.
+- **Original Image Comparison**: Instant before/after comparison toggle (`\`) with keyboard and UI access.
+- **Canvas Shortcuts & Help Matrix**: Quick reference modal (`?`) listing all layer, transform, tool, and inpainting hotkeys with full 12-locale translation.
+- **VRAM Purge Control**: Dedicated one-click button in the status bar and settings to purge ComfyUI cached models and freed GPU memory.
+- **Aspect Ratio Stage Letterboxing**: Responsive letterboxing and stage fitting when changing document dimensions.
+
+### Mask-Only Inpainting Crop & Stitch
+- **High-Resolution Mask Detail**: Ported and integrated `InpaintCropImproved` and `InpaintStitchImproved` nodes from `ComfyUI-Inpaint-CropAndStitch`.
+- **Automatic Node Dependency Installer**: Automatically downloads and installs required custom nodes if missing in ComfyUI.
+- **Dedicated Inpainting Controls**: Separate mask box resolution, context factor, edge blend feathering, HiPass edge reconstruction, and processing device selectors.
+- **Inpainting Mode Synchronization**: Seamless switching between Whole Picture and Masked Only inpainting modes across Canvas and Generation views.
+
+### Prompt Scheduling Alternations & Weight Limits
+- **Expanded Weight Limits**: Raised prompt emphasis weight limits to `10.0` (from `2.0` / `3.0`) in both prompt shortcut adjusters (`Ctrl+Up/Down`) and style presets.
+- **Alternating Prompt Tags (`<alt:N>`)**: Added support for alternating prompt schedules (`<alt:N>tag1, tag2</alt>`) cycling tags every `N` diffusion steps.
+- **Interactive Alternation Builder**: New "Alternations" mode in the Prompt Schedule Builder (`ScheduleBuilder.svelte`) with tag inputs, interval controls, preview, and dynamic insertion.
+- **Graph Compilation Pipeline**: Native `CLIPTextEncode` → `ConditioningSetTimestepRange` → `ConditioningCombine` scheduling pipeline in Rust templates with `<lora:...>` tag stripping.
+- **100% 12-Locale Parity**: Comprehensive localization coverage across all 12 supported languages (4,372 keys each).
+
+---
+
 ## What's New in v1.1.0-falafel.0
 
 ### Unified Canvas Studio
