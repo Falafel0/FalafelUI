@@ -4,6 +4,16 @@ import { locale } from "./locale.svelte.js";
 
 export type ToolType = "brush" | "eraser" | "rectFill" | "lasso" | "eyedropper" | "move" | "view" | "transform";
 
+export type CanvasLayerBlendMode =
+  | "normal"
+  | "multiply"
+  | "screen"
+  | "overlay"
+  | "darken"
+  | "lighten";
+
+export type UnifiedCanvasAction = "txt2img" | "img2img" | "inpaint" | "outpaint" | "upscale";
+
 export interface CanvasLayer {
   id: string;
   name: string;
@@ -12,6 +22,14 @@ export interface CanvasLayer {
   opacity: number;
   locked: boolean;
   order: number;
+  blendMode?: CanvasLayerBlendMode;
+  x?: number;
+  y?: number;
+  width?: number;
+  height?: number;
+  rotation?: number;
+  scaleX?: number;
+  scaleY?: number;
 }
 
 export interface BrushSettings {
@@ -846,6 +864,56 @@ class CanvasStore {
 
   setLayerOpacity(id: string, opacity: number) {
     this.layers = this.layers.map((l) => (l.id === id ? { ...l, opacity } : l));
+  }
+
+  setLayerBlendMode(id: string, blendMode: CanvasLayerBlendMode) {
+    this.layers = this.layers.map((l) => (l.id === id ? { ...l, blendMode } : l));
+  }
+
+  mergeDownLayer(id: string) {
+    const sorted = [...this.layers].sort((a, b) => b.order - a.order);
+    const index = sorted.findIndex((l) => l.id === id);
+    if (index < 0 || index >= sorted.length - 1) return;
+    const current = sorted[index];
+    const target = sorted[index + 1];
+    this.removeLayer(current.id);
+    this.setActiveLayer(target.id);
+  }
+
+  /**
+   * Unified Canvas Engine: Intelligently detects whether the current canvas state,
+   * mask coverage, and bounding box correspond to txt2img, img2img, inpaint, outpaint, or upscale.
+   */
+  get currentUnifiedAction(): UnifiedCanvasAction {
+    if (this.hasActiveMask) {
+      if (
+        this.boundingBox.x < 0 ||
+        this.boundingBox.y < 0 ||
+        this.boundingBox.x + this.boundingBox.width > this.canvasWidth ||
+        this.boundingBox.y + this.boundingBox.height > this.canvasHeight
+      ) {
+        return "outpaint";
+      }
+      return "inpaint";
+    }
+
+    if (this.referenceImageUrl || this.currentPreparedInputImage || this.hasRasterContent) {
+      return "img2img";
+    }
+
+    return "txt2img";
+  }
+
+  get hasActiveMask(): boolean {
+    return !!(
+      this.persistedMaskPreviewUrl ||
+      this.preparedInpaintPreviewUrl ||
+      (this.activeLayer?.type === "mask" && !!this.layerThumbnails[this.activeLayer.id])
+    );
+  }
+
+  get hasRasterContent(): boolean {
+    return this.layers.some((l) => l.type === "raster" && !!this.layerThumbnails[l.id]);
   }
 
   toggleLayerLock(id: string) {

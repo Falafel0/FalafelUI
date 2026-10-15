@@ -638,7 +638,7 @@
           <div 
             class="h-full bg-indigo-600 dark:bg-indigo-500 transition-all ease-linear"
             style="width: {progressPercent}%"
-          />
+          ></div>
         </div>
       </div>
       
@@ -658,7 +658,7 @@
           {#each tips as _, index}
             <div
               class="w-1.5 h-1.5 rounded-full transition-colors {index === currentTipIndex ? 'bg-indigo-600 dark:bg-indigo-500' : 'bg-neutral-300 dark:bg-neutral-700'}"
-            />
+            ></div>
           {/each}
         </div>
         

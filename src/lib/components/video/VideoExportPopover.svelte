@@ -46,7 +46,8 @@
   // remain first-class options because Discord, Slack, Teams, and Signal will not animate an
   // AVIF inline - they post it as a file attachment.
   let format = $state<ExportFormat>("avif");
-  let presetIndex = $state(1);
+  const DEFAULT_PRESET_INDEX = 1;
+  let presetIndex = $state(DEFAULT_PRESET_INDEX);
   let advanced = $state(false);
   let fps = $state(24);
   let width = $state(640);
@@ -56,6 +57,7 @@
   // Proportional to this clip's own length rather than a flat constant - see
   // defaultCrossfadeFrames - so a short clip does not lose a disproportionate
   // slice of itself to the crossfade.
+  // svelte-ignore state_referenced_locally
   let crossfadeFrames = $state(defaultCrossfadeFrames(frameCount));
   let sizeTarget = $state<SizeTarget>("discord");
   // MP4 is the only format that can carry the clip's audio, and H3 always writes
@@ -132,7 +134,7 @@
   }
 
   // Seed fps/width/quality from the default preset. Runs once, at init.
-  applyPreset(presetIndex);
+  applyPreset(DEFAULT_PRESET_INDEX);
 
   $effect(() => {
     probeVideoExport()

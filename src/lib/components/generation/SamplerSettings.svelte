@@ -32,7 +32,7 @@
     kreaFewStepLoraFor,
     type KreaTurboSteps,
   } from "../../utils/kreaFewStep.js";
-  import { onMount } from "svelte";
+  import { onMount, onDestroy } from "svelte";
 
   const RDBT_ANIMA_FILENAME = "rdbt_v1.0_anima_b1_16-step.safetensors";
   const RDBT_ANIMA_URL =
@@ -108,8 +108,10 @@
     })();
   });
 
+  let _ipcCleanups: (() => void)[] = [];
+
   onMount(async () => {
-    await ipcListen("download:progress", (event: any) => {
+    const unlisten = await ipcListen("download:progress", (event: any) => {
       const data = event.payload as { filename: string; downloaded: number; total: number; done: boolean };
       if (data.filename === RDBT_ANIMA_FILENAME) {
         if (data.done) {
@@ -137,6 +139,11 @@
         }
       }
     });
+    _ipcCleanups.push(unlisten);
+  });
+
+  onDestroy(() => {
+    _ipcCleanups.forEach((fn) => fn());
   });
 
   async function toggleRdbtAnima() {

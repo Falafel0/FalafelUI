@@ -1,6 +1,6 @@
 <script lang="ts">
   import { ipcInvoke, ipcListen, isTauri, isBrowserMode } from "../../utils/ipc.js";
-  import { onMount } from "svelte";
+  import { onMount, onDestroy } from "svelte";
   import logo from "../../assets/logo.png";
   import { locale, LOCALE_OPTIONS } from "../../stores/locale.svelte.js";
   import {
@@ -194,6 +194,8 @@
       : 0
   );
 
+  let _ipcCleanups: (() => void)[] = [];
+
   onMount(async () => {
     // Detect system language if no saved preference
     locale.detectSystemLocale();
@@ -252,7 +254,7 @@
     phase = "ready";
 
     // Listen for progress events
-    await ipcListen("setup:progress", (event: any) => {
+    const unlistenProgress = await ipcListen("setup:progress", (event: any) => {
       const data = event.payload as {
         step: string;
         message: string;
@@ -270,13 +272,14 @@
         phase = "choose-mode";
       }
     });
+    _ipcCleanups.push(unlistenProgress);
 
     // Listen for terminal log lines
     interface LogPayload {
       text: string;
       is_update: boolean;
     }
-    await ipcListen("setup:log", (event: any) => {
+    const unlistenLog = await ipcListen("setup:log", (event: any) => {
       const payload = event.payload as LogPayload;
       if (payload.is_update && logLines.length > 0) {
         logLines[logLines.length - 1] = payload.text;
@@ -290,9 +293,10 @@
         }
       });
     });
+    _ipcCleanups.push(unlistenLog);
 
     // Listen for download progress
-    await ipcListen("download:progress", (event: any) => {
+    const unlistenDownload = await ipcListen("download:progress", (event: any) => {
       const data = event.payload as {
         filename: string;
         downloaded: number;
@@ -309,6 +313,11 @@
         downloadTotalBytes = data.total;
       }
     });
+    _ipcCleanups.push(unlistenDownload);
+  });
+
+  onDestroy(() => {
+    _ipcCleanups.forEach((fn) => fn());
   });
 
   const gpuOptions = $derived([

@@ -32,6 +32,7 @@
   }: Props = $props();
 
   let currentTab = $state<Exclude<MobileTab, "video">>("generate");
+  // svelte-ignore state_referenced_locally
   let lastNavigationVersion = $state(navigationVersion);
 
   function go(tab: MobileTab) {

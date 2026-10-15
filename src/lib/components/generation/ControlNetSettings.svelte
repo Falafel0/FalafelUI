@@ -26,7 +26,7 @@
     type ControlNetModelEntry,
   } from "../../config/controlnet-presets.js";
   import { ipcListen, isTauri, authHeaders } from "../../utils/ipc.js";
-  import { onMount } from "svelte";
+  import { onMount, onDestroy } from "svelte";
   import InfoTip from "../ui/InfoTip.svelte";
   import { scrollCapture } from "../../utils/scrollCapture.js";
 
@@ -111,8 +111,10 @@
     }
   }
 
+  let _ipcCleanups: (() => void)[] = [];
+
   onMount(async () => {
-    await ipcListen("download:progress", (event: any) => {
+    const unlistenDownload = await ipcListen("download:progress", (event: any) => {
       const data = event.payload as {
         filename: string;
         downloaded: number;
@@ -127,7 +129,9 @@
         dlTotal = data.total;
       }
     });
-    await ipcListen("install:progress", (event: any) => {
+    _ipcCleanups.push(unlistenDownload);
+
+    const unlistenInstall = await ipcListen("install:progress", (event: any) => {
       const data = event.payload as {
         node_name: string;
         step: string;
@@ -137,6 +141,8 @@
       installStep = data.step;
       installMessage = data.message;
     });
+    _ipcCleanups.push(unlistenInstall);
+
     // Check the preprocessor package and the core Anima LLLite nodes.
     // AnimaLLLiteApply is checked by input signature, not just by name: the old
     // kohya-ss custom node registers the same class name with a `lllite_name`
@@ -154,7 +160,12 @@
 
     // Register the preprocessor preview listener once for the component lifetime
     // to avoid leaks and races on repeated previews.
-    await ipcListen("comfyui:controlnet_preprocessor", handlePreprocessorPreviewEvent);
+    const unlistenPreprocessor = await ipcListen("comfyui:controlnet_preprocessor", handlePreprocessorPreviewEvent);
+    _ipcCleanups.push(unlistenPreprocessor);
+  });
+
+  onDestroy(() => {
+    _ipcCleanups.forEach((fn) => fn());
   });
 
   function isModelInstalled(entry: ControlNetModelEntry): boolean {

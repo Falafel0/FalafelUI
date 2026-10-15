@@ -10,6 +10,7 @@ globs: src/**/*.svelte,src/**/*.svelte.ts,src/**/*.ts
 
 - `ipcInvoke()` / `ipcListen()` only — wrappers in `src/lib/utils/api.ts`.
 - Never `invoke()`/`listen()` from `@tauri-apps/api` in components.
+- **Listener cleanup**: Always capture the `UnlistenFn` returned by `ipcListen()` and call it in `onDestroy()` to avoid memory/event leaks (note: `async onMount` does NOT auto-cleanup returned promises).
 
 ## Svelte 5 state & Stores
 
@@ -17,6 +18,7 @@ globs: src/**/*.svelte,src/**/*.svelte.ts,src/**/*.ts
 - **Computed values inside stores**: Use native `get` accessors (e.g. `get percentage() { ... }`), do NOT use `$derived`.
 - **Computed values inside components**: Use `$derived` for component-local computed properties.
 - **Component state**: Use `$state` for component-local state only. Read shared state directly from stores.
+- **Props capturing**: Avoid passing reactive `$props()` directly into store factories or `$state(...)` initializers without a getter or `$effect`, as they only capture the initial prop value.
 - **Props passing**: Do NOT pass props between components for shared state; read directly from store singletons.
 - **Mutate arrays**: Reassign with spread (e.g. `this.arr = [...this.arr, item]`), not `.push()`/`.splice()`.
 - **`saveSettings()` is explicit**: Invoke manually after mutations.
@@ -52,7 +54,7 @@ globs: src/**/*.svelte,src/**/*.svelte.ts,src/**/*.ts
   - `neutral-700` (#404040) → Active borders, dividers
   - `neutral-500` (#737373) → Placeholder, muted text
   - `neutral-300` (#d4d4d4) → Primary text
-- **Accent colors**: Remapped in `app.css` to `--theme-accent-*`. Default is gold; alternativesNord/Solarized set via `data-palette`.
+- **Accent colors**: Remapped in `app.css` to `--theme-accent-*`. Default is Falafel violet/purple (`#a855f7`); alternatives Nord/Solarized/Gruvbox/Catppuccin set via `data-palette`.
 - **Hover Reveal**: Use Tailwind `group` + `group-hover:` utility class patterns.
 - **Mobile / Touch Targets**:
   - Minimum hit area of 44px (`touch-target` class).
@@ -64,3 +66,8 @@ globs: src/**/*.svelte,src/**/*.svelte.ts,src/**/*.ts
 ## Images
 
 - Use `loadGalleryImageDisplay()` / `loadGalleryImagePng()` for gallery assets.
+
+## Detailed Architecture & Audit Guides
+
+- See [`docs/FRONTEND_AGENT_AUDIT.md`](../../docs/FRONTEND_AGENT_AUDIT.md) for full audit findings, dual-mode gotchas, mock preview harness instructions, and memory leak mitigations.
+- See [`docs/UI_UX_AUDIT.md`](../../docs/UI_UX_AUDIT.md) for UI/UX guidelines, progressive disclosure patterns, and professional workstation ergonomics.

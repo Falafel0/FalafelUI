@@ -108,40 +108,46 @@
       {#each catalog as entry (entry.id)}
         {@const recommended = entry.id === promptAssistant.recommendedModelId}
         {@const installed = isInstalled(entry.id)}
-        <button
+        <div
           class="w-full rounded-lg border p-3 text-left transition-colors {selectedId ===
           entry.id
             ? 'border-[var(--theme-accent-500)] bg-neutral-800'
             : 'border-neutral-700 bg-neutral-800/30 hover:bg-neutral-800/60'}"
-          onclick={() => {
-            selectedId = entry.id;
-            selectedVariant = promptAssistant.defaultVariantKey(entry.id);
-          }}
         >
-          <div class="flex items-center justify-between">
-            <span class="font-medium text-neutral-100">{entry.name}</span>
-            <span class="flex gap-1">
-              {#if recommended}
-                <span class="rounded bg-[var(--theme-accent-600)] px-1.5 py-0.5 text-[10px] text-black">
-                  {locale.t("prompt_assistant.recommended")}
-                </span>
-              {/if}
-              {#if installed}
-                <span class="rounded bg-green-700 px-1.5 py-0.5 text-[10px] text-white">
-                  {locale.t("prompt_assistant.installed")}
-                </span>
-              {/if}
-            </span>
-          </div>
-          <p class="mt-1 text-xs text-neutral-400">{entry.best_for}</p>
-          <p class="mt-1 text-[11px] text-green-400">{entry.pros}</p>
-          <p class="text-[11px] text-amber-400/80">{entry.cons}</p>
+          <button
+            type="button"
+            class="w-full text-left"
+            onclick={() => {
+              selectedId = entry.id;
+              selectedVariant = promptAssistant.defaultVariantKey(entry.id);
+            }}
+          >
+            <div class="flex items-center justify-between">
+              <span class="font-medium text-neutral-100">{entry.name}</span>
+              <span class="flex gap-1">
+                {#if recommended}
+                  <span class="rounded bg-[var(--theme-accent-600)] px-1.5 py-0.5 text-[10px] text-black">
+                    {locale.t("prompt_assistant.recommended")}
+                  </span>
+                {/if}
+                {#if installed}
+                  <span class="rounded bg-green-700 px-1.5 py-0.5 text-[10px] text-white">
+                    {locale.t("prompt_assistant.installed")}
+                  </span>
+                {/if}
+              </span>
+            </div>
+            <p class="mt-1 text-xs text-neutral-400">{entry.best_for}</p>
+            <p class="mt-1 text-[11px] text-green-400">{entry.pros}</p>
+            <p class="text-[11px] text-amber-400/80">{entry.cons}</p>
+          </button>
 
           {#if selectedId === entry.id}
             <div class="mt-2 flex flex-wrap gap-1.5">
               {#each entry.variants as v}
                 {@const selectable = fits(v)}
                 <button
+                  type="button"
                   disabled={!selectable}
                   title={!selectable
                     ? locale.t("prompt_assistant.needs_vram", {
@@ -164,7 +170,7 @@
               {/each}
             </div>
           {/if}
-        </button>
+        </div>
       {/each}
     </div>
 

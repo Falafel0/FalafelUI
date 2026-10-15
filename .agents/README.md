@@ -41,6 +41,15 @@ Invoke by name or slash-style request (`/push`, `/release`, etc.):
 
 When editing conventions, update `.agents/rules/` first, then re-sync the targets above.
 
+## Core Documentation & Specifications
+
+| Document | Purpose |
+|----------|---------|
+| [DEVELOPMENT_CYCLE_AND_ROADMAP.md](../docs/DEVELOPMENT_CYCLE_AND_ROADMAP.md) | Phased milestones (M1–M4), OKRs, Quality Gates and Definition of Done |
+| [UNIFIED_CANVAS_STUDIO_SPEC.md](../docs/UNIFIED_CANVAS_STUDIO_SPEC.md) | Unified Canvas Studio (txt2img + img2img + inpaint + upscale) architecture |
+| [FRONTEND_AGENT_AUDIT.md](../docs/FRONTEND_AGENT_AUDIT.md) | Complete frontend audit, dual-mode gotchas, mock preview harness |
+| [UI_UX_AUDIT.md](../docs/UI_UX_AUDIT.md) | UI/UX guidelines, progressive disclosure, and professional workstation ergonomics |
+
 ## Also see
 
 - [AGENTS.md](../AGENTS.md) — repo entry for all agents

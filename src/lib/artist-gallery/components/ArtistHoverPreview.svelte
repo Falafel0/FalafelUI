@@ -12,7 +12,9 @@
 
   let { manifestUrl, slugOrTag }: Props = $props();
 
-  const store = createArtistGalleryStore(manifestUrl);
+  // svelte-ignore state_referenced_locally
+  const url = manifestUrl; // capture initial value intentionally
+  const store = createArtistGalleryStore(url);
 
   let entry = $state<ArtistEntry | null>(null);
   let loading = $state(false);

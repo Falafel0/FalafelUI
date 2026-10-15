@@ -13,7 +13,7 @@
   import { downloadModel, installPipPackage } from "../../utils/api.js";
   import { isBrowserMode } from "../../utils/ipc.js";
   import { ipcListen } from "../../utils/ipc.js";
-  import { onMount } from "svelte";
+  import { onMount, onDestroy } from "svelte";
   import InfoTip from "../ui/InfoTip.svelte";
 
   interface Props {
@@ -52,11 +52,12 @@
 
   let dlBytes = $state(0);
   let dlTotal = $state(0);
-
   const dlPercent = $derived(dlTotal > 0 ? Math.round((dlBytes / dlTotal) * 100) : 0);
 
+  let _ipcCleanups: (() => void)[] = [];
+
   onMount(async () => {
-    await ipcListen("download:progress", (event: any) => {
+    const unlisten = await ipcListen("download:progress", (event: any) => {
       const data = event.payload as {
         filename: string;
         downloaded: number;
@@ -71,6 +72,11 @@
         dlTotal = data.total;
       }
     });
+    _ipcCleanups.push(unlisten);
+  });
+
+  onDestroy(() => {
+    _ipcCleanups.forEach((fn) => fn());
   });
 
   function getModelOptions() {

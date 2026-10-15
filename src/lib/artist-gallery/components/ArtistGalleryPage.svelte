@@ -48,7 +48,9 @@
     }
   });
 
-  const store = createArtistGalleryStore(manifestUrl);
+  // svelte-ignore state_referenced_locally - capture initial value intentionally
+  const url = manifestUrl;
+  const store = createArtistGalleryStore(url);
 
   type SortField = ArtistSortField;
   type SortDir = ArtistSortDir;

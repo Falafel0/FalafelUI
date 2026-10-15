@@ -1949,6 +1949,7 @@ class GenerationStore {
   }
 
   private _storeReady = false;
+  private _saveTimer: ReturnType<typeof setTimeout> | null = null;
 
   constructor() {
     this.loadPromptHistory();
@@ -3183,7 +3184,24 @@ class GenerationStore {
     }
   }
 
-  async saveSettings() {
+  saveSettings() {
+    if (this._saveTimer) clearTimeout(this._saveTimer);
+    this._saveTimer = setTimeout(() => {
+      this._saveTimer = null;
+      this._saveSettingsImmediate();
+    }, 300);
+  }
+
+  /** Flush any pending debounced save immediately. */
+  flushSettings() {
+    if (this._saveTimer) {
+      clearTimeout(this._saveTimer);
+      this._saveTimer = null;
+      this._saveSettingsImmediate();
+    }
+  }
+
+  private async _saveSettingsImmediate() {
     if (!this._storeReady) return;
     try {
       const modeToggles = this.modeTogglesWithCurrent();

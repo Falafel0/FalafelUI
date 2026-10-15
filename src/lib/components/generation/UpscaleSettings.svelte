@@ -4,7 +4,7 @@
   import { locale } from "../../stores/locale.svelte.js";
   import { downloadModel } from "../../utils/api.js";
   import { ipcListen } from "../../utils/ipc.js";
-  import { onMount } from "svelte";
+  import { onMount, onDestroy } from "svelte";
   import InfoTip from "../ui/InfoTip.svelte";
   import EditableValue from "../ui/EditableValue.svelte";
   import { scrollCapture } from "../../utils/scrollCapture.js";
@@ -66,8 +66,10 @@
     generation.upscaleModel ? (extractScaleFromModel(generation.upscaleModel) ?? 4) : 4
   );
 
+  let _ipcCleanups: (() => void)[] = [];
+
   onMount(async () => {
-    await ipcListen("download:progress", (event: any) => {
+    const unlisten = await ipcListen("download:progress", (event: any) => {
       const data = event.payload as {
         filename: string;
         downloaded: number;
@@ -82,6 +84,11 @@
         dlTotal = data.total;
       }
     });
+    _ipcCleanups.push(unlisten);
+  });
+
+  onDestroy(() => {
+    _ipcCleanups.forEach((fn) => fn());
   });
 
   // All options: installed models + recommended that aren't installed yet

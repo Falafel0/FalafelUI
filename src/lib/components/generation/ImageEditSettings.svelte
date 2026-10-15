@@ -4,7 +4,7 @@
   import { locale } from "../../stores/locale.svelte.js";
   import { uploadImageBytes, readClipboardImageSafe, downloadModel } from "../../utils/api.js";
   import { ipcListen } from "../../utils/ipc.js";
-  import { onMount } from "svelte";
+  import { onMount, onDestroy } from "svelte";
   import InfoTip from "../ui/InfoTip.svelte";
   import EditableValue from "../ui/EditableValue.svelte";
 
@@ -61,8 +61,10 @@
     }
   }
 
+  let _ipcCleanups: (() => void)[] = [];
+
   onMount(async () => {
-    await ipcListen("download:progress", (event: any) => {
+    const unlisten = await ipcListen("download:progress", (event: any) => {
       const data = event.payload as { downloaded: number; total: number; done: boolean };
       if (data.done) {
         dlBytes = 0;
@@ -72,6 +74,11 @@
         dlTotal = data.total;
       }
     });
+    _ipcCleanups.push(unlisten);
+  });
+
+  onDestroy(() => {
+    _ipcCleanups.forEach((fn) => fn());
   });
 
   $effect(() => {

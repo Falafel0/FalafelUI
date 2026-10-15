@@ -64,6 +64,7 @@
   }
   let { mobileFriendly = false }: Props = $props();
 
+  // svelte-ignore state_referenced_locally - layout keys are fixed at mount for this shell
   const storageSuffix = mobileFriendly ? ".mobile" : ".desktop";
   const DIMENSIONS_LAYOUT_KEY = `mooshieui.generation.dimensions.layout.v1${storageSuffix}`;
   const SECTION_LAYOUT_KEY = `mooshieui.generation.sections.layout.v1${storageSuffix}`;

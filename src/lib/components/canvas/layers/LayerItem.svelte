@@ -109,6 +109,15 @@
       >
         <svg xmlns="http://www.w3.org/2000/svg" class="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
       </button>
+      {#if layer.type === 'raster'}
+        <button
+          onclick={(e) => { e.stopPropagation(); canvas.mergeDownLayer(layer.id); }}
+          class="w-5 h-5 flex items-center justify-center rounded text-neutral-500 hover:text-neutral-200 hover:bg-neutral-700"
+          title="Merge Down"
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" class="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m7 15 5 5 5-5"/><path d="M12 9v11"/><path d="M4 4h16"/></svg>
+        </button>
+      {/if}
       <button
         onclick={(e) => { e.stopPropagation(); if (canDelete) canvas.removeLayer(layer.id); }}
         class="w-5 h-5 flex items-center justify-center rounded text-neutral-500 hover:text-red-400 hover:bg-neutral-700 {canDelete ? '' : 'opacity-40 cursor-not-allowed'}"
@@ -135,9 +144,25 @@
     </button>
   </div>
 
-  <!-- Opacity sub-row (active layer only) -->
+  <!-- Opacity & Blend Mode sub-row (active layer only) -->
   {#if isActive}
     <div class="flex items-center gap-2 px-2 py-1.5 border-t border-neutral-700/60 bg-neutral-900/40">
+      {#if layer.type === 'raster'}
+        <select
+          value={layer.blendMode ?? 'normal'}
+          onchange={(e) => canvas.setLayerBlendMode(layer.id, (e.target as HTMLSelectElement).value as any)}
+          onclick={(e) => e.stopPropagation()}
+          class="bg-neutral-800 text-[10px] text-neutral-300 rounded border border-neutral-700 px-1 py-0.5 outline-none focus:border-indigo-500 cursor-pointer"
+          title="Blend Mode"
+        >
+          <option value="normal">Normal</option>
+          <option value="multiply">Multiply</option>
+          <option value="screen">Screen</option>
+          <option value="overlay">Overlay</option>
+          <option value="darken">Darken</option>
+          <option value="lighten">Lighten</option>
+        </select>
+      {/if}
       <span class="text-[10px] text-neutral-500 shrink-0">{locale.t('canvas.opacity')}</span>
       <input
         type="range"

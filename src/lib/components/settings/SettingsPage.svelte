@@ -1145,7 +1145,7 @@
   let updateDownloaded = $state(0);
   let updateTotal = $state(0);
   let browserUpdateMode = $state<BrowserUpdateMode>("local");
-  let updateObj: any | null = null;
+  let updateObj = $state<any | null>(null);
 
   const updatePercent = $derived(updateTotal > 0 ? Math.round((updateDownloaded / updateTotal) * 100) : 0);
 
