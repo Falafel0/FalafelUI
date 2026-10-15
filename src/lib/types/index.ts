@@ -372,6 +372,13 @@ export interface GenerationParams {
   input_image: string | null;
   mask_image: string | null;
   grow_mask_by: number | null;
+  inpaint_area?: string;
+  inpaint_mask_width?: number | null;
+  inpaint_mask_height?: number | null;
+  inpaint_mask_blend?: number;
+  inpaint_mask_hipass?: number;
+  inpaint_context_factor?: number;
+  inpaint_device_mode?: string;
   upscale_enabled: boolean;
   upscale_method: string;
   upscale_model: string | null;

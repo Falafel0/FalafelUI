@@ -788,6 +788,19 @@ class GenerationStore {
   inputImage = $state<string | null>(null);
   maskImage = $state<string | null>(null);
   growMaskBy = $state(6);
+  /** Inpaint area: "whole" = entire image (default), "mask_only" = crop→sample→stitch. */
+  inpaintArea = $state<"whole" | "mask_only">("whole");
+  /** Box resolution the cropped mask area is upscaled to for mask_only sampling. */
+  inpaintMaskWidth = $state(1024);
+  inpaintMaskHeight = $state(1024);
+  /** Mask edge blend pixels (0-64) — feeds InpaintCrop `mask_blend_pixels`. */
+  inpaintMaskBlend = $state(32);
+  /** Ignore mask values below this (0-1) — `mask_hipass_filter`. */
+  inpaintMaskHipass = $state(0.1);
+  /** Grow context crop around mask by this factor (>=1). */
+  inpaintContextFactor = $state(1.5);
+  /** "cpu (compatible)" or "gpu (much faster)". */
+  inpaintDeviceMode = $state<"cpu (compatible)" | "gpu (much faster)">("cpu (compatible)");
   differentialDiffusion = $state(false);
   upscaleEnabled = $state(false);
   upscaleMethod = $state<"algorithmic" | "model" | "seedvr2">("algorithmic");
@@ -2959,6 +2972,14 @@ class GenerationStore {
     if (saved.batchSize) this.batchSize = saved.batchSize;
     if (saved.denoise !== undefined) this.denoise = saved.denoise;
     if (saved.differentialDiffusion !== undefined) this.differentialDiffusion = saved.differentialDiffusion;
+    if (saved.growMaskBy !== undefined) this.growMaskBy = saved.growMaskBy;
+    if (saved.inpaintArea === "whole" || saved.inpaintArea === "mask_only") this.inpaintArea = saved.inpaintArea;
+    if (typeof saved.inpaintMaskWidth === "number") this.inpaintMaskWidth = saved.inpaintMaskWidth;
+    if (typeof saved.inpaintMaskHeight === "number") this.inpaintMaskHeight = saved.inpaintMaskHeight;
+    if (typeof saved.inpaintMaskBlend === "number") this.inpaintMaskBlend = saved.inpaintMaskBlend;
+    if (typeof saved.inpaintMaskHipass === "number") this.inpaintMaskHipass = saved.inpaintMaskHipass;
+    if (typeof saved.inpaintContextFactor === "number") this.inpaintContextFactor = saved.inpaintContextFactor;
+    if (saved.inpaintDeviceMode) this.inpaintDeviceMode = saved.inpaintDeviceMode;
     // The parked bucket. The active one is loaded from the flat fields below,
     // which also carries a pre-split store forward: its single prompt lands
     // on whichever side the saved mode was on, and the other starts empty.
@@ -3267,6 +3288,14 @@ class GenerationStore {
         batchSize: this.batchSize,
         denoise: this.denoise,
         differentialDiffusion: this.differentialDiffusion,
+        growMaskBy: this.growMaskBy,
+        inpaintArea: this.inpaintArea,
+        inpaintMaskWidth: this.inpaintMaskWidth,
+        inpaintMaskHeight: this.inpaintMaskHeight,
+        inpaintMaskBlend: this.inpaintMaskBlend,
+        inpaintMaskHipass: this.inpaintMaskHipass,
+        inpaintContextFactor: this.inpaintContextFactor,
+        inpaintDeviceMode: this.inpaintDeviceMode,
         upscaleEnabled: this.upscaleEnabled,
         upscaleMethod: this.upscaleMethod,
         upscaleModel: this.upscaleModel,
@@ -3436,6 +3465,14 @@ class GenerationStore {
       denoise: this.denoise,
       refineOnly: this.refineOnly,
       differentialDiffusion: this.differentialDiffusion,
+      growMaskBy: this.growMaskBy,
+      inpaintArea: this.inpaintArea,
+      inpaintMaskWidth: this.inpaintMaskWidth,
+      inpaintMaskHeight: this.inpaintMaskHeight,
+      inpaintMaskBlend: this.inpaintMaskBlend,
+      inpaintMaskHipass: this.inpaintMaskHipass,
+      inpaintContextFactor: this.inpaintContextFactor,
+      inpaintDeviceMode: this.inpaintDeviceMode,
       upscaleEnabled: this.upscaleEnabled,
       upscaleMethod: this.upscaleMethod,
       upscaleModel: this.upscaleModel,
@@ -4171,6 +4208,13 @@ class GenerationStore {
       input_image: this.inputImage,
       mask_image: this.maskImage,
       grow_mask_by: this.growMaskBy,
+      inpaint_area: this.inpaintArea,
+      inpaint_mask_width: this.inpaintArea === "mask_only" ? this.inpaintMaskWidth : null,
+      inpaint_mask_height: this.inpaintArea === "mask_only" ? this.inpaintMaskHeight : null,
+      inpaint_mask_blend: this.inpaintArea === "mask_only" ? this.inpaintMaskBlend : 0,
+      inpaint_mask_hipass: this.inpaintMaskHipass,
+      inpaint_context_factor: this.inpaintContextFactor,
+      inpaint_device_mode: this.inpaintDeviceMode,
       upscale_enabled: this.upscaleEnabled,
       upscale_method: this.upscaleMethod,
       upscale_model: this.upscaleModel,

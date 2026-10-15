@@ -181,6 +181,29 @@ pub struct GenerationParams {
     pub input_image: Option<String>,
     pub mask_image: Option<String>,
     pub grow_mask_by: Option<u32>,
+    /// Inpaint area mode: "whole" (default) processes the full image;
+    /// "mask_only" crops to the mask bbox via InpaintCrop/Stitch, samples at
+    /// box resolution, then stitches back into the original (no B&W/uncrop bugs).
+    #[serde(default = "default_inpaint_area")]
+    pub inpaint_area: String,
+    /// Box resolution the cropped mask area is upscaled to for mask_only sampling.
+    /// Falls back to `width`/`height` when absent.
+    #[serde(default)]
+    pub inpaint_mask_width: Option<u32>,
+    #[serde(default)]
+    pub inpaint_mask_height: Option<u32>,
+    /// Mask edge blend pixel count → InpaintCrop `mask_blend_pixels` (0-64).
+    #[serde(default)]
+    pub inpaint_mask_blend: u32,
+    /// Ignore mask values below this (0-1) — `mask_hipass_filter`.
+    #[serde(default = "default_mask_hipass")]
+    pub inpaint_mask_hipass: f64,
+    /// Grow the context crop around the mask by this factor (>=1.0).
+    #[serde(default = "default_context_extend")]
+    pub inpaint_context_factor: f64,
+    /// "gpu (much faster)" or "cpu (compatible)" for InpaintCrop/Stitch.
+    #[serde(default = "default_device_mode")]
+    pub inpaint_device_mode: String,
     pub upscale_enabled: bool,
     pub upscale_method: String,
     pub upscale_model: Option<String>,
@@ -606,6 +629,22 @@ pub struct StageContext {
 
 fn default_int8_fast_convrot() -> bool {
     true
+}
+
+fn default_inpaint_area() -> String {
+    "whole".to_string()
+}
+
+fn default_mask_hipass() -> f64 {
+    0.1
+}
+
+fn default_context_extend() -> f64 {
+    1.5
+}
+
+fn default_device_mode() -> String {
+    "cpu (compatible)".to_string()
 }
 
 fn default_output_bit_depth() -> String {

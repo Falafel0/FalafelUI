@@ -1234,6 +1234,7 @@ class CanvasStore {
     this.activeLayerId = null;
     this.layerThumbnails = {};
     this.persistedMaskPreviewUrl = null;
+    this.maskEditedSinceResult = false;
     this.pendingMaskRestoreUrl = null;
     this._pendingPaste = null;
     this._preCropGenDims = null;
@@ -1365,9 +1366,11 @@ class CanvasStore {
     }
     exportCtx.putImageData(imgData, 0, 0);
 
-    // Persist/update uploaded mask preview only when we actually sync to ComfyUI.
+    // Persist the mask preview overlay — always, so auto-commit (uploadToComfy=false)
+    // keeps the visual overlay in sync with the actual mask pixels.
+    this.persistedMaskPreviewUrl = exportCanvas.toDataURL("image/png");
+
     if (uploadToComfy) {
-      this.persistedMaskPreviewUrl = exportCanvas.toDataURL("image/png");
       const result = await this.exportLayerAsImage(exportCanvas, "canvas_mask.png");
       generation.maskImage = result.name;
     }

@@ -160,6 +160,13 @@
       >
         {locale.t('canvas.regular_inpaint')}
       </button>
+      <button
+        onclick={() => { canvas.clearMask(); canvas.clearStaging(); }}
+        class="px-2 py-1 text-[10px] rounded border border-neutral-700 text-neutral-400 hover:border-red-500 hover:text-red-300 transition-colors"
+        title={locale.t('canvas.clear_mask')}
+      >
+        {locale.t('canvas.clear_mask')}
+      </button>
     </div>
 
     <div class="w-px h-6 bg-neutral-700 mr-2"></div>

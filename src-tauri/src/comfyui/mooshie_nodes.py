@@ -1401,6 +1401,117 @@ class MooshieMusicLoadAudio:
                 pass
 
 
+class MooshieImageCropByMask:
+    """Crop an image to the bounding box of a mask with optional padding.
+    Returns the cropped image, cropped mask, crop coordinates, and a
+    target upscale size that fits within max_width×max_height while
+    preserving the crop's aspect ratio (never stretches thin regions)."""
+
+    @classmethod
+    def INPUT_TYPES(cls):
+        return {
+            "required": {
+                "image": ("IMAGE",),
+                "mask": ("MASK",),
+                "padding": ("INT", {"default": 32, "min": 0, "max": 256}),
+                "max_width": ("INT", {"default": 1024, "min": 64, "max": 8192}),
+                "max_height": ("INT", {"default": 1024, "min": 64, "max": 8192}),
+            }
+        }
+
+    RETURN_TYPES = ("IMAGE", "MASK", "INT", "INT", "INT", "INT", "INT", "INT")
+    RETURN_NAMES = ("image", "mask", "x", "y", "width", "height", "target_width", "target_height")
+    FUNCTION = "crop"
+    CATEGORY = "MooshieUI"
+
+    def crop(self, image, mask, padding, max_width, max_height):
+        # image: [B, H, W, C] float32 — take first batch item
+        # mask:  [B, H, W] float32
+        img = image[0]
+        m = mask[0]
+        h, w = m.shape
+
+        # Find bounding box of non-zero mask pixels
+        ys, xs = torch.where(m > 0.01)
+        if len(ys) == 0:
+            return (image, mask, 0, 0, w, h, max_width, max_height)
+
+        x0 = max(0, int(xs.min().item()) - padding)
+        y0 = max(0, int(ys.min().item()) - padding)
+        x1 = min(w, int(xs.max().item()) + 1 + padding)
+        y1 = min(h, int(ys.max().item()) + 1 + padding)
+
+        crop_w = x1 - x0
+        crop_h = y1 - y0
+        # Ensure at least 8px to avoid degenerate crops
+        if crop_w < 8:
+            x0 = max(0, x0 - 4)
+            x1 = min(w, x1 + 4)
+            crop_w = x1 - x0
+        if crop_h < 8:
+            y0 = max(0, y0 - 4)
+            y1 = min(h, y1 + 4)
+            crop_h = y1 - y0
+
+        # Compute target upscale size: fit within max_width×max_height
+        # while preserving the crop's aspect ratio
+        scale = min(max_width / max(1, crop_w), max_height / max(1, crop_h), 1.0)
+        target_w = max(8, round(crop_w * scale))
+        target_h = max(8, round(crop_h * scale))
+
+        cropped_img = img[y0:y1, x0:x1, :].unsqueeze(0)
+        cropped_mask = m[y0:y1, x0:x1].unsqueeze(0)
+
+        return (cropped_img, cropped_mask, x0, y0, crop_w, crop_h, target_w, target_h)
+
+
+class MooshieImageUncrop:
+    """Paste a cropped image back into the original at the saved position."""
+
+    @classmethod
+    def INPUT_TYPES(cls):
+        return {
+            "required": {
+                "cropped_image": ("IMAGE",),
+                "original_image": ("IMAGE",),
+                "x": ("INT", {"default": 0, "min": 0}),
+                "y": ("INT", {"default": 0, "min": 0}),
+            }
+        }
+
+    RETURN_TYPES = ("IMAGE",)
+    RETURN_NAMES = ("image",)
+    FUNCTION = "uncrop"
+    CATEGORY = "MooshieUI"
+
+    def uncrop(self, cropped_image, original_image, x, y):
+        import torch.nn.functional as F
+
+        cropped = cropped_image[0]  # [Hc, Wc, C]
+        orig = original_image[0].clone()  # [Ho, Wo, C]
+        hc, wc = cropped.shape[:2]
+        ho, wo = orig.shape[:2]
+
+        # Clamp position within original bounds
+        x = max(0, min(x, wo - 1))
+        y = max(0, min(y, ho - 1))
+
+        # Compute available space in original at (x,y)
+        avail_w = wo - x
+        avail_h = ho - y
+
+        # Resize cropped to fit the available hole if needed
+        if wc != avail_w or hc != avail_h:
+            cropped = cropped.permute(2, 0, 1).unsqueeze(0)  # [1, C, Hc, Wc]
+            cropped = F.interpolate(cropped, size=(avail_h, avail_w), mode='bilinear', align_corners=False)
+            cropped = cropped.squeeze(0).permute(1, 2, 0)  # [H, W, C]
+
+        result = orig
+        result[y:y+avail_h, x:x+avail_w, :] = cropped
+
+        return result.unsqueeze(0)
+
+
 NODE_CLASS_MAPPINGS = {
     "MooshieYuE2Plan": MooshieYuE2Plan,
     "MooshieYuE2Music": MooshieYuE2Music,
@@ -1415,6 +1526,8 @@ NODE_CLASS_MAPPINGS = {
     "MooshieDiffusionLoaderPath": MooshieDiffusionLoaderPath,
     "MooshieSaveVideo": MooshieSaveVideo,
     "MooshieLoadVideoPath": MooshieLoadVideoPath,
+    "MooshieImageCropByMask": MooshieImageCropByMask,
+    "MooshieImageUncrop": MooshieImageUncrop,
 }
 
 from .h3_drafts import NODE_CLASS_MAPPINGS as H3_DRAFT_NODES, register_routes as register_h3_draft_routes
@@ -1442,4 +1555,6 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "MooshieDiffusionLoaderPath": "Mooshie Diffusion Model Loader (path)",
     "MooshieSaveVideo": "Mooshie Save Video",
     "MooshieLoadVideoPath": "Mooshie Load Video (Path)",
+    "MooshieImageCropByMask": "Mooshie Image Crop By Mask",
+    "MooshieImageUncrop": "Mooshie Image Uncrop",
 }

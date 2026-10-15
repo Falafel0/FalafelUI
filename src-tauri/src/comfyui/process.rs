@@ -1114,6 +1114,14 @@ pub async fn start_comfyui_process(state: &AppState) -> Result<StartResult, AppE
             )
             .await
             .map_err(AppError::ProcessSpawnFailed)?;
+            super::nodes::ensure_required_inpaint_crop_stitch_nodes(
+                &config.comfyui_path,
+                &config.venv_path,
+                config.network_proxy.as_deref(),
+                config.pip_index_url.as_deref(),
+            )
+            .await
+            .map_err(AppError::ProcessSpawnFailed)?;
         }
     }
 
@@ -1641,6 +1649,14 @@ pub async fn start_worker_process(
             .await
             .map_err(AppError::ProcessSpawnFailed)?;
             super::nodes::ensure_required_gguf_nodes(
+                &config.comfyui_path,
+                &config.venv_path,
+                config.network_proxy.as_deref(),
+                config.pip_index_url.as_deref(),
+            )
+            .await
+            .map_err(AppError::ProcessSpawnFailed)?;
+            super::nodes::ensure_required_inpaint_crop_stitch_nodes(
                 &config.comfyui_path,
                 &config.venv_path,
                 config.network_proxy.as_deref(),

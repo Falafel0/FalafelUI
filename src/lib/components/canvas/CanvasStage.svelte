@@ -712,12 +712,29 @@
     if (!stage || konvaLayers.get(maskMeta.id) !== kLayer) return;
 
     kLayer.destroyChildren();
+    // Place the restored mask proportionally within the new canvas, letterboxed
+    // when the aspect ratio changed (e.g. 1:1 → 16:9). The mask is stretched to
+    // fill while preserving its original proportions; areas outside the mask's
+    // native aspect ratio are left unmasked (transparent).
+    const maskAspect = img.naturalWidth / img.naturalHeight;
+    const canvasAspect = canvas.canvasWidth / canvas.canvasHeight;
+    let drawW = canvas.canvasWidth;
+    let drawH = canvas.canvasHeight;
+    let drawX = 0;
+    let drawY = 0;
+    if (maskAspect > canvasAspect) {
+      drawH = canvas.canvasWidth / maskAspect;
+      drawY = (canvas.canvasHeight - drawH) / 2;
+    } else if (maskAspect < canvasAspect) {
+      drawW = canvas.canvasHeight * maskAspect;
+      drawX = (canvas.canvasWidth - drawW) / 2;
+    }
     const kImage = new Konva.Image({
       image: img,
-      x: 0,
-      y: 0,
-      width: canvas.canvasWidth,
-      height: canvas.canvasHeight,
+      x: drawX,
+      y: drawY,
+      width: drawW,
+      height: drawH,
       listening: false,
     });
     kLayer.add(kImage);
