@@ -451,6 +451,7 @@
 
 <!-- Backdrop (portaled to body to escape overflow containers) -->
 <!-- svelte-ignore a11y_no_static_element_interactions -->
+<!-- svelte-ignore a11y_click_events_have_key_events -->
 <div
   use:portal
   class="fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4"
@@ -466,6 +467,7 @@
       <h2 class="text-lg font-semibold text-neutral-100 flex-1">{locale.t('generation.interrogate.title')}</h2>
       <button
         onclick={onclose}
+        aria-label={locale.t('common.close')}
         class="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-neutral-700 text-neutral-400 hover:text-neutral-200 transition-colors"
       >
         <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6L6 18"/><path d="M6 6l12 12"/></svg>

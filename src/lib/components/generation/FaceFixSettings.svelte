@@ -18,6 +18,7 @@
       onclick={() => (generation.facefixEnabled = !generation.facefixEnabled)}
       role="switch"
       aria-checked={generation.facefixEnabled}
+      aria-label={locale.t('generation.facefix.title')}
     >
       <span
         class="absolute top-0.5 left-0.5 w-4 h-4 rounded-full bg-white transition-transform {generation.facefixEnabled
@@ -94,6 +95,7 @@
         onclick={() => (generation.facefixAutoPrompt = !generation.facefixAutoPrompt)}
         role="switch"
         aria-checked={generation.facefixAutoPrompt}
+        aria-label={locale.t('generation.facefix.auto_prompt')}
       >
         <span
           class="absolute top-0.5 left-0.5 w-4 h-4 rounded-full bg-white transition-transform {generation.facefixAutoPrompt

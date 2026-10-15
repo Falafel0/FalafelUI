@@ -582,6 +582,9 @@ class MooshieSaveImage:
         from PIL import Image
 
         img_np = (255.0 * frame).clip(0, 255).astype(np.uint8)
+        # Handle grayscale images (2 dims) by expanding to RGB
+        if img_np.ndim == 2:
+            img_np = np.stack([img_np] * 3, axis=-1)
         # Output RGBA (alpha=255) so the PNG has an alpha channel.
         h, w, _ = img_np.shape
         rgba = np.full((h, w, 4), 255, dtype=np.uint8)
@@ -605,6 +608,8 @@ class MooshieSaveImage:
         Payload: tightly packed RGBA bytes, row-major. 16-bit samples are
         native-endian u16 pairs (matches `zune-jpegxl`'s expected layout).
         """
+        if frame.ndim == 2:
+            frame = np.stack([frame] * 3, axis=-1)
         h, w, _ = frame.shape
         if w > 0xFFFF or h > 0xFFFF:
             raise ValueError(
@@ -653,6 +658,8 @@ class MooshieSaveImage:
         # PIL cannot write 16-bit RGB, so we build the PNG manually.
         import zlib
 
+        if arr.ndim == 2:
+            arr = np.stack([arr] * 3, axis=-1)
         h, w, _ = arr.shape
         # Convert to big-endian (PNG stores 16-bit values as BE)
         arr_be = arr.astype(">u2")

@@ -769,8 +769,9 @@
 
       {#if generation.controlnetPreprocessor !== null}
         <div>
-          <label class="block text-xs text-neutral-400 mb-1">{locale.t('generation.controlnet.preprocessor_label')}</label>
+          <label for="cn-preprocessor-input" class="block text-xs text-neutral-400 mb-1">{locale.t('generation.controlnet.preprocessor_label')}</label>
           <input
+            id="cn-preprocessor-input"
             type="text"
             bind:value={generation.controlnetPreprocessor}
             placeholder={locale.t('generation.controlnet.preprocessor_placeholder')}

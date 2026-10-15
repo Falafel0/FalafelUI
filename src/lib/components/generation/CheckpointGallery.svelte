@@ -362,7 +362,8 @@
         {@const imgUrl = currentImageUrl(name)}
         {@const imgCount = getDisplayImages(name).length}
         {@const imgIdx = imageIndex[name] ?? 0}
-        <!-- svelte-ignore a11y_no_static_element_interactions a11y_click_events_have_key_events -->
+        <!-- svelte-ignore a11y_no_static_element_interactions -->
+        <!-- svelte-ignore a11y_click_events_have_key_events -->
         <div
           use:lazyFetch={name}
           class="aspect-[3/4] flex flex-col rounded-lg border bg-neutral-900/60 overflow-hidden transition-all text-left cursor-pointer group {isActive
@@ -414,6 +415,8 @@
             {/if}
 
             {#if !isLoading}
+              <!-- svelte-ignore a11y_no_static_element_interactions -->
+              <!-- svelte-ignore a11y_click_events_have_key_events -->
               <div
                 class="absolute left-1 bottom-1 z-10 flex gap-0.5"
                 onclick={(e) => e.stopPropagation()}
@@ -441,7 +444,8 @@
                 <div class="absolute bottom-1 right-1 bg-black/70 text-[10px] text-neutral-300 px-1.5 py-0.5 rounded-full tabular-nums">
                   {imgIdx + 1}/{imgCount}
                 </div>
-                <!-- svelte-ignore a11y_no_static_element_interactions a11y_click_events_have_key_events -->
+                <!-- svelte-ignore a11y_no_static_element_interactions -->
+                <!-- svelte-ignore a11y_click_events_have_key_events -->
                 <div
                   class="absolute inset-0 flex items-center justify-between px-1 opacity-0 hover:opacity-100 transition-opacity"
                   onclick={(e) => e.stopPropagation()}

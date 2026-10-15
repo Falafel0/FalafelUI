@@ -263,6 +263,7 @@
         {/if}
 
         <!-- svelte-ignore a11y_no_static_element_interactions -->
+        <!-- svelte-ignore a11y_click_events_have_key_events -->
         <div
           bind:this={dropZone}
           class="cursor-pointer select-none rounded-lg border border-dashed border-neutral-700 px-3 py-3 text-center text-neutral-500 transition-colors hover:border-neutral-500"

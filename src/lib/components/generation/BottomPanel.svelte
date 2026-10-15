@@ -614,6 +614,7 @@
               <div class="grid gap-2" style="grid-template-columns: repeat(auto-fill, minmax(min({imageCardSize}px, 100%), 1fr)); align-content: start;">
               {#each filteredSessionImages as image}
                 <div
+                  role="group"
                   class="relative w-full rounded-lg overflow-hidden border transition-colors {hoveredImage === image ? 'border-indigo-500' : 'border-neutral-800'}"
                   style="aspect-ratio: 1 / 1;"
                   oncontextmenu={(e) => { if (oncontextmenu) { e.preventDefault(); oncontextmenu(image, e.clientX, e.clientY); } }}

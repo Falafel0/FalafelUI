@@ -52,7 +52,7 @@
 </script>
 
 <div>
-  <label class="block text-xs text-neutral-400 mb-2">{locale.t('settings.paths.open_folder.title')}</label>
+  <div class="block text-xs text-neutral-400 mb-2">{locale.t('settings.paths.open_folder.title')}</div>
   <div class="grid grid-cols-3 gap-1.5">
     {#each categories as cat}
       <button

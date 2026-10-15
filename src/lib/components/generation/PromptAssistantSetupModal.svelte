@@ -73,11 +73,13 @@
   onclick={onClose}
   role="presentation"
 >
+  <!-- svelte-ignore a11y_click_events_have_key_events -->
   <div
     class="max-h-[85vh] w-full max-w-2xl overflow-y-auto rounded-xl border border-neutral-700 bg-neutral-900 p-5 shadow-2xl"
     onclick={(e) => e.stopPropagation()}
     role="dialog"
     aria-modal="true"
+    tabindex="-1"
   >
     <div class="mb-3 flex items-center justify-between">
       <h2 class="text-lg font-semibold text-neutral-100">

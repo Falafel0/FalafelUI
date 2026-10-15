@@ -643,7 +643,7 @@
             <p class="text-sm text-neutral-200">{locale.t('setup.remote_desc')}</p>
             <p class="text-xs text-neutral-500">{locale.t('setup.remote_server_build_note')}</p>
             <div>
-              <label class="block text-xs text-neutral-400 mb-1">{locale.t('settings.connection.server_url')}</label>
+              <div class="block text-xs text-neutral-400 mb-1">{locale.t('settings.connection.server_url')}</div>
               <input
                 type="text"
                 bind:value={remoteServerUrl}
@@ -938,7 +938,7 @@
           <div class="px-3 pb-3 space-y-3">
             <p class="text-[10px] text-neutral-500">{locale.t('setup.connection_hint')}</p>
             <div>
-              <label class="block text-[10px] text-neutral-400 mb-1">{locale.t('settings.connection.network_proxy')}</label>
+              <div class="block text-[10px] text-neutral-400 mb-1">{locale.t('settings.connection.network_proxy')}</div>
               <input
                 type="text"
                 bind:value={networkProxy}
@@ -948,7 +948,7 @@
               <p class="text-[10px] text-neutral-600 mt-1">{locale.t('settings.connection.network_proxy_desc')}</p>
             </div>
             <div>
-              <label class="block text-[10px] text-neutral-400 mb-1">{locale.t('settings.connection.pip_index_url')}</label>
+              <div class="block text-[10px] text-neutral-400 mb-1">{locale.t('settings.connection.pip_index_url')}</div>
               <input
                 type="text"
                 bind:value={pipIndexUrl}

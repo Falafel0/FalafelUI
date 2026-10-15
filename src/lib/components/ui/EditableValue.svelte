@@ -46,8 +46,7 @@
   }
 </script>
 
-<!-- svelte-ignore a11y_no_static_element_interactions -->
-<span onclick={(e) => e.preventDefault()}>
+<span class="inline-flex items-center">
 {#if editing}
   <input
     bind:this={inputEl}
@@ -61,6 +60,7 @@
   />
 {:else}
   <button
+    type="button"
     use:scrubbable={{
       value: () => value,
       min,

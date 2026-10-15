@@ -2250,7 +2250,7 @@
             {#if config.browser_mode}
               <div class="flex items-center justify-between pt-2 border-t border-neutral-800">
                 <div>
-                  <label class="text-xs text-neutral-300 font-medium">{locale.t('settings.lan.enable')}</label>
+                  <div class="text-xs text-neutral-300 font-medium">{locale.t('settings.lan.enable')}</div>
                   <p class="text-xs text-neutral-500 mt-0.5">
                     {locale.t('settings.lan.enable_desc')}
                   </p>
@@ -2267,7 +2267,7 @@
               </div>
               <div class="flex items-center justify-between pt-2 border-t border-neutral-800">
                 <div>
-                  <label class="text-xs text-neutral-300 font-medium">{locale.t('settings.browser_shutdown.enable')}</label>
+                  <div class="text-xs text-neutral-300 font-medium">{locale.t('settings.browser_shutdown.enable')}</div>
                   <p class="text-xs text-neutral-500 mt-0.5">
                     {locale.t('settings.browser_shutdown.enable_desc')}
                   </p>
@@ -2641,7 +2641,7 @@
 
           <div class="px-5 pb-5 space-y-4">
           <div>
-            <label class="block text-xs text-neutral-400 mb-1">{locale.t('settings.connection.server_mode')}<span class="text-amber-400">*</span></label>
+            <div class="block text-xs text-neutral-400 mb-1">{locale.t('settings.connection.server_mode')}<span class="text-amber-400">*</span></div>
             <select
               bind:value={config.server_mode}
               onchange={() => { autoSave(); }}
@@ -2667,6 +2667,7 @@
               onclick={() => { config!.auto_start = config!.auto_start === false; autoSave(); }}
               role="switch"
               aria-checked={config.auto_start !== false}
+              aria-label={locale.t('settings.connection.auto_start')}
             >
               <div class="w-4 h-4 rounded-full bg-white shadow transition-transform {config.auto_start !== false ? 'translate-x-5' : 'translate-x-0.5'}"></div>
             </button>
@@ -2675,7 +2676,7 @@
 
           <div class="grid grid-cols-3 gap-3">
             <div class="col-span-2">
-              <label class="block text-xs text-neutral-400 mb-1">{locale.t('settings.connection.server_url')}<span class="text-amber-400">*</span></label>
+              <div class="block text-xs text-neutral-400 mb-1">{locale.t('settings.connection.server_url')}<span class="text-amber-400">*</span></div>
               <input
                 type="text"
                 bind:value={config.server_url}
@@ -2688,7 +2689,7 @@
               {/if}
             </div>
             <div>
-              <label class="block text-xs text-neutral-400 mb-1">{locale.t('settings.connection.port')}<span class="text-amber-400">*</span></label>
+              <div class="block text-xs text-neutral-400 mb-1">{locale.t('settings.connection.port')}<span class="text-amber-400">*</span></div>
               <input
                 type="number"
                 bind:value={config.server_port}
@@ -2699,7 +2700,7 @@
               />
             </div>
             <div>
-              <label class="block text-xs text-neutral-400 mb-1">{locale.t('settings.connection.network_proxy')}</label>
+              <div class="block text-xs text-neutral-400 mb-1">{locale.t('settings.connection.network_proxy')}</div>
               <input
                 type="text"
                 bind:value={config.network_proxy}
@@ -2710,7 +2711,7 @@
               <p class="text-xs text-neutral-500 mt-1">{locale.t('settings.connection.network_proxy_desc')}</p>
             </div>
             <div>
-              <label class="block text-xs text-neutral-400 mb-1">{locale.t('settings.connection.pip_index_url')}</label>
+              <div class="block text-xs text-neutral-400 mb-1">{locale.t('settings.connection.pip_index_url')}</div>
               <input
                 type="text"
                 bind:value={config.pip_index_url}
@@ -2721,7 +2722,7 @@
               <p class="text-xs text-neutral-500 mt-1">{locale.t('settings.connection.pip_index_url_desc')}</p>
             </div>
             <div class="col-span-3">
-              <label class="block text-xs text-neutral-400 mb-1">{locale.t("settings.connection.output_filename_template")}</label>
+              <div class="block text-xs text-neutral-400 mb-1">{locale.t("settings.connection.output_filename_template")}</div>
               <input
                 type="text"
                 bind:value={config.output_filename_template}
@@ -2742,7 +2743,7 @@
               </p>
             </div>
             <div class="col-span-3">
-              <label class="block text-xs text-neutral-400 mb-1">{locale.t("settings.connection.webhook_url")}</label>
+              <div class="block text-xs text-neutral-400 mb-1">{locale.t("settings.connection.webhook_url")}</div>
               <input
                 type="text"
                 bind:value={config.webhook_url}
@@ -2825,11 +2826,12 @@
             </div>
 
             <div>
-              <label class="flex items-center justify-between text-xs text-neutral-400 mb-1">
+              <label for="font-scale-range" class="flex items-center justify-between text-xs text-neutral-400 mb-1">
                 {locale.t('settings.appearance.font_scale')}
                 <span class="text-neutral-300">{Math.round(config.font_scale * 100)}%</span>
               </label>
               <input
+                id="font-scale-range"
                 type="range"
                 bind:value={config.font_scale}
                 onchange={() => { autoSave(); }}
@@ -2959,8 +2961,9 @@
           </div>
 
           <div>
-            <label class="block text-xs text-neutral-400 mb-1">{locale.t('settings.appearance.color_vision')}</label>
+            <label for="color-vision-select" class="block text-xs text-neutral-400 mb-1">{locale.t('settings.appearance.color_vision')}</label>
             <select
+              id="color-vision-select"
               bind:value={accessibility.visionSimulatorMode}
               onchange={() => accessibility.saveSettings()}
               class="w-full bg-neutral-800 border border-neutral-700 rounded-lg px-3 py-2 text-sm text-neutral-100 focus:outline-none focus:border-indigo-500 transition-colors"
@@ -3018,8 +3021,9 @@
           </div>
 
           <div>
-            <label class="block text-xs text-neutral-400 mb-1">{locale.t('settings.appearance.language')}</label>
+            <label for="language-select" class="block text-xs text-neutral-400 mb-1">{locale.t('settings.appearance.language')}</label>
             <select
+              id="language-select"
               bind:value={locale.current}
               onchange={() => locale.saveSettings()}
               class="w-full bg-neutral-800 border border-neutral-700 rounded-lg px-3 py-2 text-sm text-neutral-100 focus:outline-none focus:border-indigo-500 transition-colors"
@@ -3043,8 +3047,9 @@
 
           <div class="px-5 pb-5 space-y-4">
           <div>
-            <label class="block text-xs text-neutral-400 mb-1">{locale.t('settings.performance.vram_mode')}<span class="text-amber-400">*</span></label>
+            <label for="vram-mode-select" class="block text-xs text-neutral-400 mb-1">{locale.t('settings.performance.vram_mode')}<span class="text-amber-400">*</span></label>
             <select
+              id="vram-mode-select"
               bind:value={config.vram_mode}
               onchange={() => { autoSave(); }}
               class="w-full bg-neutral-800 border border-neutral-700 rounded-lg px-3 py-2 text-sm text-neutral-100 focus:outline-none focus:border-indigo-500 transition-colors"
@@ -3058,8 +3063,9 @@
           </div>
 
           <div>
-            <label class="block text-xs text-neutral-400 mb-1">{locale.t('settings.performance.attention_backend')}<span class="text-amber-400">*</span></label>
+            <label for="attention-backend-select" class="block text-xs text-neutral-400 mb-1">{locale.t('settings.performance.attention_backend')}<span class="text-amber-400">*</span></label>
             <select
+              id="attention-backend-select"
               value={config.attention_backend}
               onchange={(e) => { handleAttentionChange((e.target as HTMLSelectElement).value); }}
               disabled={attentionInstalling}
@@ -3140,7 +3146,7 @@
 
           {#if !isBrowserMode && comfyuiVersion}
           <div>
-            <label class="block text-xs text-neutral-400 mb-1">{locale.t('settings.performance.comfyui_version')}</label>
+            <div class="block text-xs text-neutral-400 mb-1">{locale.t('settings.performance.comfyui_version')}</div>
             <div class="rounded-lg border border-neutral-800 bg-neutral-950/50 p-3 space-y-2">
               <div class="space-y-1.5 text-[11px]">
                 <div class="flex items-start gap-2">
@@ -3486,8 +3492,9 @@
           {/if}
 
           <div>
-            <label class="block text-xs text-neutral-400 mb-1">{locale.t('settings.paths.comfyui_install')}</label>
+            <label for="comfyui-install-path" class="block text-xs text-neutral-400 mb-1">{locale.t('settings.paths.comfyui_install')}</label>
             <input
+              id="comfyui-install-path"
               type="text"
               bind:value={config.comfyui_path}
               class="w-full bg-neutral-800 border border-neutral-700 rounded-lg px-3 py-2 text-sm text-neutral-100 placeholder-neutral-500 focus:outline-none focus:border-indigo-500 transition-colors"
@@ -3496,8 +3503,9 @@
           </div>
 
           <div>
-            <label class="block text-xs text-neutral-400 mb-1">{locale.t('settings.paths.venv')}</label>
+            <label for="comfyui-venv-path" class="block text-xs text-neutral-400 mb-1">{locale.t('settings.paths.venv')}</label>
             <input
+              id="comfyui-venv-path"
               type="text"
               bind:value={config.venv_path}
               class="w-full bg-neutral-800 border border-neutral-700 rounded-lg px-3 py-2 text-sm text-neutral-100 placeholder-neutral-500 focus:outline-none focus:border-indigo-500 transition-colors"
@@ -3507,7 +3515,7 @@
 
           <div>
             <div class="flex items-center justify-between mb-1">
-              <label class="block text-xs text-neutral-400">{locale.t('settings.paths.shared_model_dirs')}<span class="text-amber-400">*</span></label>
+              <div class="block text-xs text-neutral-400">{locale.t('settings.paths.shared_model_dirs')}<span class="text-amber-400">*</span></div>
               <div class="flex gap-1.5">
                 {#if isTauri}
                 <button
@@ -3601,8 +3609,9 @@
           </div>
 
           <div>
-            <label class="block text-xs text-neutral-400 mb-1">{locale.t('settings.paths.extra_args')}<span class="text-amber-400">*</span></label>
+            <label for="comfyui-extra-args" class="block text-xs text-neutral-400 mb-1">{locale.t('settings.paths.extra_args')}<span class="text-amber-400">*</span></label>
             <input
+              id="comfyui-extra-args"
               type="text"
               value={config.extra_args.join(" ")}
               oninput={(e) => {
@@ -3684,7 +3693,7 @@
             {#if isAdmin}
             <!-- Gallery storage location -->
             <div>
-              <label class="block text-xs text-neutral-400 mb-1">{locale.t('settings.gallery.storage_label')}</label>
+              <div class="block text-xs text-neutral-400 mb-1">{locale.t('settings.gallery.storage_label')}</div>
               <p class="text-[10px] text-neutral-500 mb-2">{locale.t('settings.gallery.storage_desc')}</p>
               <div class="flex gap-1.5 items-center">
                 <div class="flex-1 bg-neutral-800 border border-neutral-700 rounded-lg px-3 py-2 text-sm text-neutral-300 truncate select-text" title={galleryPathDisplay}>
@@ -3776,7 +3785,7 @@
             <!-- Save directories -->
             <div>
               <div class="flex items-center justify-between mb-1.5">
-                <label class="text-xs text-neutral-400">{locale.t('settings.gallery.save_dirs_label')}</label>
+                <div class="text-xs text-neutral-400">{locale.t('settings.gallery.save_dirs_label')}</div>
                 <button
                   class="px-2 py-0.5 text-[10px] rounded border border-neutral-700 text-neutral-400 hover:border-indigo-500 hover:text-indigo-300 transition-colors"
                   onclick={() => {
@@ -3830,7 +3839,7 @@
             {#if isAdmin}
             <!-- Import from external directory -->
             <div>
-              <label class="block text-xs text-neutral-400 mb-1">{locale.t('settings.gallery.import_label')}</label>
+              <div class="block text-xs text-neutral-400 mb-1">{locale.t('settings.gallery.import_label')}</div>
               <p class="text-[10px] text-neutral-500 mb-2">{locale.t('settings.gallery.import_desc')}</p>
               <button
                 class="px-4 py-2 text-sm font-medium rounded-lg transition-colors {importBusy ? 'bg-neutral-700 text-neutral-400 cursor-not-allowed' : 'bg-indigo-600 hover:bg-indigo-500 text-white'}"
@@ -3938,7 +3947,7 @@
 
             <!-- Artist image cache (visible to all users) -->
             <div>
-              <label class="block text-xs text-neutral-400 mb-1">{locale.t('settings.gallery.artist_cache_label')}</label>
+              <div class="block text-xs text-neutral-400 mb-1">{locale.t('settings.gallery.artist_cache_label')}</div>
               <p class="text-[10px] text-neutral-500 mb-2">{locale.t('settings.gallery.artist_cache_desc')}</p>
               <div class="flex items-center gap-3">
                 <button
@@ -4027,7 +4036,7 @@
             {#if isAdmin}
             <!-- Current source -->
             <div>
-              <label class="block text-xs text-neutral-400 mb-1">{locale.t('settings.autocomplete.tag_source')}</label>
+              <div class="block text-xs text-neutral-400 mb-1">{locale.t('settings.autocomplete.tag_source')}</div>
               <div class="flex items-center gap-2 text-sm text-neutral-300">
                 {#if autocomplete.sourceMode === "builtin"}
                   <span class="inline-block w-2 h-2 rounded-full bg-indigo-400"></span>
@@ -4046,7 +4055,7 @@
 
             <!-- Load from URL -->
             <div>
-              <label class="block text-xs text-neutral-400 mb-1">{locale.t('settings.autocomplete.load_url')}</label>
+              <div class="block text-xs text-neutral-400 mb-1">{locale.t('settings.autocomplete.load_url')}</div>
               <div class="flex gap-2">
                 <input
                   type="text"
@@ -4067,7 +4076,7 @@
 
             <!-- Upload file -->
             <div>
-              <label class="block text-xs text-neutral-400 mb-1">{locale.t('settings.autocomplete.upload_file')}</label>
+              <div class="block text-xs text-neutral-400 mb-1">{locale.t('settings.autocomplete.upload_file')}</div>
               <label
                 class="inline-flex items-center gap-2 px-3 py-2 bg-neutral-800 border border-neutral-700 rounded-lg text-sm text-neutral-300 hover:border-indigo-500 transition-colors cursor-pointer"
               >
@@ -4114,11 +4123,12 @@
 
             <!-- Max results -->
             <div>
-              <label class="flex items-center justify-between text-xs text-neutral-400 mb-1">
+              <label for="max-suggestions-range" class="flex items-center justify-between text-xs text-neutral-400 mb-1">
                 {locale.t('settings.autocomplete.max_suggestions')}
                 <span class="text-neutral-300">{autocomplete.maxResults}</span>
               </label>
               <input
+                id="max-suggestions-range"
                 type="range"
                 value={autocomplete.maxResults}
                 oninput={(e) => { autocomplete.setMaxResults(parseInt((e.target as HTMLInputElement).value)); }}
@@ -4248,11 +4258,12 @@
             </p>
 
             <div>
-              <label class="flex items-center justify-between text-xs text-neutral-400 mb-1">
+              <label for="interrogator-general-threshold" class="flex items-center justify-between text-xs text-neutral-400 mb-1">
                 {locale.t('settings.interrogator.general_threshold')}
                 <span class="text-neutral-300">{locale.formatDecimal(config.interrogator_general_threshold, 2)}</span>
               </label>
               <input
+                id="interrogator-general-threshold"
                 type="range"
                 bind:value={config.interrogator_general_threshold}
                 onchange={() => { autoSave(); }}
@@ -4268,11 +4279,12 @@
             </div>
 
             <div>
-              <label class="flex items-center justify-between text-xs text-neutral-400 mb-1">
+              <label for="interrogator-character-threshold" class="flex items-center justify-between text-xs text-neutral-400 mb-1">
                 {locale.t('settings.interrogator.character_threshold')}
                 <span class="text-neutral-300">{locale.formatDecimal(config.interrogator_character_threshold, 2)}</span>
               </label>
               <input
+                id="interrogator-character-threshold"
                 type="range"
                 bind:value={config.interrogator_character_threshold}
                 onchange={() => { autoSave(); }}
@@ -4308,11 +4320,12 @@
 
             {#if config.interrogator_detect_artists}
             <div>
-              <label class="flex items-center justify-between text-xs text-neutral-400 mb-1">
+              <label for="interrogator-artist-threshold" class="flex items-center justify-between text-xs text-neutral-400 mb-1">
                 {locale.t('settings.interrogator.artist_threshold')}
                 <span class="text-neutral-300">{locale.formatDecimal(config.interrogator_artist_threshold, 2)}</span>
               </label>
               <input
+                id="interrogator-artist-threshold"
                 type="range"
                 bind:value={config.interrogator_artist_threshold}
                 onchange={() => { autoSave(); }}
@@ -4401,11 +4414,12 @@
             </div>
 
             <div>
-              <label class="flex items-center justify-between text-xs text-neutral-400 mb-1">
+              <label for="prompt-assistant-idle-timeout" class="flex items-center justify-between text-xs text-neutral-400 mb-1">
                 {locale.t('settings.prompt_assistant.idle_timeout')}
                 <span class="text-neutral-300">{config.prompt_assistant_idle_timeout_secs}s</span>
               </label>
               <input
+                id="prompt-assistant-idle-timeout"
                 type="range"
                 bind:value={config.prompt_assistant_idle_timeout_secs}
                 onchange={() => { autoSave(); }}
@@ -4441,8 +4455,9 @@
           <div class="px-5 pb-5 space-y-3">
             <p class="text-[10px] text-neutral-500">{locale.t('settings.civitai.api_key_desc')}</p>
             <div>
-              <label class="text-xs text-neutral-400 block mb-1">{locale.t('settings.civitai.api_key')}</label>
+              <label for="civitai-api-key" class="text-xs text-neutral-400 block mb-1">{locale.t('settings.civitai.api_key')}</label>
               <input
+                id="civitai-api-key"
                 type={civitaiEnvMode ? "text" : "password"}
                 autocomplete="off"
                 spellcheck="false"
@@ -4963,8 +4978,9 @@
     </div>
 
     <div>
-      <label class="block text-xs text-neutral-400 mb-1">{locale.t("settings.appearance.custom_theme_name")}</label>
+      <label for="draft-theme-name" class="block text-xs text-neutral-400 mb-1">{locale.t("settings.appearance.custom_theme_name")}</label>
       <input
+        id="draft-theme-name"
         type="text"
         bind:value={draftThemeName}
         class="w-full bg-neutral-800 border border-neutral-700 rounded-lg px-3 py-2 text-sm text-neutral-100"
@@ -4982,7 +4998,7 @@
       {#each THEME_TONE_FIELDS as field}
         <div class="grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto] gap-2 items-start">
           <div class="rounded border border-neutral-800 bg-neutral-900 p-2 space-y-1">
-            <label class="block text-[11px] text-neutral-400">{locale.t(field.labelKey)}</label>
+            <div class="block text-[11px] text-neutral-400">{locale.t(field.labelKey)}</div>
             <div class="flex gap-2">
               <input
                 type="color"
@@ -5000,7 +5016,7 @@
             </div>
           </div>
           <div class="rounded border border-neutral-800 bg-neutral-900 p-2 space-y-1">
-            <label class="block text-[11px] text-neutral-400">{locale.t(field.labelKey)}</label>
+            <div class="block text-[11px] text-neutral-400">{locale.t(field.labelKey)}</div>
             <div class="flex gap-2">
               <input
                 type="color"
@@ -5027,16 +5043,16 @@
 
     <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
       <div class="rounded-lg border border-neutral-800 bg-neutral-950/60 p-3 space-y-2">
-        <label class="block text-xs text-neutral-400">{locale.t("settings.appearance.background_image")}</label>
+        <div class="block text-xs text-neutral-400">{locale.t("settings.appearance.background_image")}</div>
         <input type="file" accept="image/*" onchange={(event) => setDraftThemeImage("background", event)} class="block w-full text-xs text-neutral-300" />
-        <label class="flex items-center justify-between text-xs text-neutral-400">
+        <label for="draft-theme-bg-fade" class="flex items-center justify-between text-xs text-neutral-400">
           {locale.t("settings.appearance.background_fade")}
           <span>{Math.round(draftThemeBackgroundFade * 100)}%</span>
         </label>
-        <input type="range" min="0.35" max="0.95" step="0.05" bind:value={draftThemeBackgroundFade} class="w-full accent-indigo-500" />
+        <input id="draft-theme-bg-fade" type="range" min="0.35" max="0.95" step="0.05" bind:value={draftThemeBackgroundFade} class="w-full accent-indigo-500" />
       </div>
       <div class="rounded-lg border border-neutral-800 bg-neutral-950/60 p-3 space-y-2">
-        <label class="block text-xs text-neutral-400">{locale.t("settings.appearance.logo_image")}</label>
+        <div class="block text-xs text-neutral-400">{locale.t("settings.appearance.logo_image")}</div>
         <input type="file" accept="image/*" onchange={(event) => setDraftThemeImage("logo", event)} class="block w-full text-xs text-neutral-300" />
         <div class="h-14 w-14 rounded-lg border border-neutral-700 bg-neutral-900 flex items-center justify-center overflow-hidden">
           {#if draftThemeLogoImage}

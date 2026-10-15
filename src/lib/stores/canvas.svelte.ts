@@ -425,6 +425,15 @@ class CanvasStore {
     this.initCanvas(source.width, source.height);
   }
 
+  private pushInpaintBaseSnapshot(snapshot: InpaintBaseSnapshot) {
+    const history = [...this.inpaintBaseHistory, snapshot];
+    if (history.length > 20) {
+      const evicted = history.shift();
+      if (evicted?.owned && evicted.previewUrl) URL.revokeObjectURL(evicted.previewUrl);
+    }
+    this.inpaintBaseHistory = history;
+  }
+
   setPreparedInpaintOverride(source: {
     previewUrl: string;
     width: number;
@@ -438,19 +447,16 @@ class CanvasStore {
     // back to it, and so the same mask can be re-hydrated onto the incoming
     // result (letting "Generate" re-roll the same region without repainting).
     const outgoingMask = this.snapshotInpaintMask();
-    this.inpaintBaseHistory = [
-      ...this.inpaintBaseHistory,
-      {
-        previewUrl: this.preparedInpaintPreviewUrl ?? this.referenceImageUrl,
-        uploadedInputName: generation.inputImage,
-        width: generation.width,
-        height: generation.height,
-        maskSnapshotUrl: outgoingMask,
-        // Only a prepared preview is an owned object URL; the session-original
-        // referenceImageUrl is owned elsewhere and must not be revoked here.
-        owned: this.preparedInpaintPreviewUrl ? this.preparedInpaintOwned : false,
-      },
-    ];
+    this.pushInpaintBaseSnapshot({
+      previewUrl: this.preparedInpaintPreviewUrl ?? this.referenceImageUrl,
+      uploadedInputName: generation.inputImage,
+      width: generation.width,
+      height: generation.height,
+      maskSnapshotUrl: outgoingMask,
+      // Only a prepared preview is an owned object URL; the session-original
+      // referenceImageUrl is owned elsewhere and must not be revoked here.
+      owned: this.preparedInpaintPreviewUrl ? this.preparedInpaintOwned : false,
+    });
 
     // Swap in the new base. Do NOT revoke the outgoing prepared URL: the history
     // entry above now owns it.
@@ -499,19 +505,16 @@ class CanvasStore {
     }
 
     const outgoingMask = this.snapshotInpaintMask();
-    this.inpaintBaseHistory = [
-      ...this.inpaintBaseHistory,
-      {
-        previewUrl: this.preparedInpaintPreviewUrl ?? this.referenceImageUrl,
-        uploadedInputName: generation.inputImage,
-        width: generation.width,
-        height: generation.height,
-        maskSnapshotUrl: outgoingMask,
-        // Only a prepared preview is an owned object URL; the session-original
-        // referenceImageUrl is owned elsewhere and must not be revoked here.
-        owned: this.preparedInpaintPreviewUrl ? this.preparedInpaintOwned : false,
-      },
-    ];
+    this.pushInpaintBaseSnapshot({
+      previewUrl: this.preparedInpaintPreviewUrl ?? this.referenceImageUrl,
+      uploadedInputName: generation.inputImage,
+      width: generation.width,
+      height: generation.height,
+      maskSnapshotUrl: outgoingMask,
+      // Only a prepared preview is an owned object URL; the session-original
+      // referenceImageUrl is owned elsewhere and must not be revoked here.
+      owned: this.preparedInpaintPreviewUrl ? this.preparedInpaintOwned : false,
+    });
 
     // Transfer the pending result into the prepared override. Do NOT revoke the
     // pending URL: the prepared override now owns it. Do NOT revoke the outgoing
@@ -567,6 +570,11 @@ class CanvasStore {
     this.clearPreparedInpaintOverride();
     this.clearPendingInpaintResult();
     this.clearInpaintBaseHistory();
+    this.pendingMaskRestoreUrl = null;
+    this.persistedMaskPreviewUrl = null;
+    this._pendingPaste = null;
+    this._preCropGenDims = null;
+    this.resetMaskScale();
     generation.inputImage = this.originalInpaintInputImageName;
     generation.width = this.originalInpaintWidth;
     generation.height = this.originalInpaintHeight;
@@ -584,6 +592,12 @@ class CanvasStore {
     this.originalInpaintWidth = null;
     this.originalInpaintHeight = null;
     this.referenceImageUrl = null;
+    this.inpaintDrawMode = "mask";
+    this.persistedMaskPreviewUrl = null;
+    this.pendingMaskRestoreUrl = null;
+    this._pendingPaste = null;
+    this._preCropGenDims = null;
+    this.resetMaskScale();
   }
 
   private clearInpaintBaseHistory() {
@@ -779,13 +793,18 @@ class CanvasStore {
 
       // The viewport is applied as a layer transform; reset it so the snapshot
       // captures canvas-space pixels, then restore it.
-      const origScale = layer.scaleX();
+      // Force layer visible so Konva's toCanvas returns actual mask content even
+      // when the mask is hidden while a pending result is on screen.
+      const origScaleX = layer.scaleX();
+      const origScaleY = layer.scaleY();
       const origX = layer.x();
       const origY = layer.y();
+      const origVisible = layer.visible();
       layer.scaleX(1);
       layer.scaleY(1);
       layer.x(0);
       layer.y(0);
+      layer.visible(true);
       try {
         const layerCanvas = layer.toCanvas({
           pixelRatio: 1,
@@ -797,10 +816,11 @@ class CanvasStore {
       } catch (error) {
         console.error("Failed to snapshot inpaint mask:", error);
       } finally {
-        layer.scaleX(origScale);
-        layer.scaleY(origScale);
+        layer.scaleX(origScaleX);
+        layer.scaleY(origScaleY);
         layer.x(origX);
         layer.y(origY);
+        layer.visible(origVisible);
       }
     }
 
@@ -1151,6 +1171,10 @@ class CanvasStore {
     this.layers = [];
     this.activeLayerId = null;
     this.layerThumbnails = {};
+    this.persistedMaskPreviewUrl = null;
+    this.pendingMaskRestoreUrl = null;
+    this._pendingPaste = null;
+    this._preCropGenDims = null;
 
     this.addLayer("raster", locale.t("canvas.layer.background"));
     this.addLayer("mask", locale.t("canvas.layer.inpaint_mask"));
@@ -1534,18 +1558,21 @@ class CanvasStore {
       }
     }
 
-    // Resolve mode based on intelligent canvas router (txt2img, img2img, inpaint, outpaint)
-    const unifiedAction = this.currentUnifiedAction;
-    if (unifiedAction === "inpaint" || unifiedAction === "outpaint") {
-      generation.mode = "inpainting";
-    } else if (unifiedAction === "img2img") {
-      generation.mode = "img2img";
-    } else if (hasRaster && hasMask) {
-      generation.mode = "inpainting";
-    } else if (hasRaster) {
-      generation.mode = "img2img";
-    } else {
-      generation.mode = "txt2img";
+    // Resolve mode based on intelligent canvas router (txt2img, img2img, inpaint, outpaint).
+    // Preserve video mode if currently active.
+    if (generation.mode !== "video") {
+      const unifiedAction = this.currentUnifiedAction;
+      if (unifiedAction === "inpaint" || unifiedAction === "outpaint") {
+        generation.mode = "inpainting";
+      } else if (unifiedAction === "img2img") {
+        generation.mode = "img2img";
+      } else if (hasRaster && hasMask) {
+        generation.mode = "inpainting";
+      } else if (hasRaster) {
+        generation.mode = "img2img";
+      } else {
+        generation.mode = "txt2img";
+      }
     }
 
     // Use per-layer denoise from the first visible mask layer

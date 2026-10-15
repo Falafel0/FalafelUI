@@ -10,9 +10,9 @@
   import ColorTooltip from "../ui/ColorTooltip.svelte";
 
   // Hide the editable inpaint mask while a finished result is being previewed, so
-  // the clean output is visible. Keep it shown before any result, during a re-roll
-  // (progress.isGenerating), and once the user paints more mask (markMaskEdited).
-  const hideInpaintMask = $derived(canvas.shouldHideInpaintMask && !progress.isGenerating);
+  // the clean output is visible. The mask un-hides once the user edits or paints
+  // more mask (markMaskEdited), avoiding flicker on re-roll.
+  const hideInpaintMask = $derived(canvas.shouldHideInpaintMask);
 
   let containerEl: HTMLDivElement | undefined = $state();
   let stage: Konva.Stage | null = null;
@@ -1538,7 +1538,7 @@
     }
   }
 
-  function handlePointerLeave() {
+  function handlePointerLeave(e?: Konva.KonvaEventObject<MouseEvent | TouchEvent>) {
     tooltipVisible = false;
     canvas.isPointerOverStage = false;
     canvas.cursorPos = null;
@@ -1555,6 +1555,13 @@
     if (isPanning) {
       isPanning = false;
       lastPointerPos = null;
+    }
+
+    // If a drawing operation is active when pointer leaves stage, finalize it cleanly
+    // so strokes and shapes aren't lost or left in dangling state.
+    if ((isDrawing || isDrawingRect || isLasso) && e) {
+      handlePointerUp(e);
+      return;
     }
 
     if (isDrawing) {
@@ -1868,32 +1875,39 @@
       if (!kLayer) continue;
 
       // Reset layer transform temporarily for export
-      const origScale = kLayer.scaleX();
+      const origScaleX = kLayer.scaleX();
+      const origScaleY = kLayer.scaleY();
       const origX = kLayer.x();
       const origY = kLayer.y();
+      const origVisible = kLayer.visible();
       kLayer.scaleX(1);
       kLayer.scaleY(1);
       kLayer.x(0);
       kLayer.y(0);
+      kLayer.visible(true);
 
-      const layerCanvas = kLayer.toCanvas({
-        pixelRatio: 1,
-        width: canvas.canvasWidth,
-        height: canvas.canvasHeight,
-      });
+      try {
+        const layerCanvas = kLayer.toCanvas({
+          pixelRatio: 1,
+          width: canvas.canvasWidth,
+          height: canvas.canvasHeight,
+        });
 
-      ctx.globalAlpha = layer.opacity;
-      const blend = (layer.blendMode && layer.blendMode !== "normal") ? layer.blendMode : "source-over";
-      ctx.globalCompositeOperation = blend as GlobalCompositeOperation;
-      ctx.drawImage(layerCanvas, 0, 0);
-      ctx.globalAlpha = 1;
-      ctx.globalCompositeOperation = "source-over";
-
-      // Restore transform
-      kLayer.scaleX(origScale);
-      kLayer.scaleY(origScale);
-      kLayer.x(origX);
-      kLayer.y(origY);
+        ctx.globalAlpha = layer.opacity;
+        const blend = (layer.blendMode && layer.blendMode !== "normal") ? layer.blendMode : "source-over";
+        ctx.globalCompositeOperation = blend as GlobalCompositeOperation;
+        ctx.drawImage(layerCanvas, 0, 0);
+        ctx.globalAlpha = 1;
+        ctx.globalCompositeOperation = "source-over";
+      } catch (err) {
+        console.error("Failed to capture raster layer:", err);
+      } finally {
+        kLayer.scaleX(origScaleX);
+        kLayer.scaleY(origScaleY);
+        kLayer.x(origX);
+        kLayer.y(origY);
+        kLayer.visible(origVisible);
+      }
     }
 
     return offscreen;
@@ -1914,7 +1928,8 @@
       const kLayer = konvaLayers.get(layer.id);
       if (!kLayer) continue;
 
-      const origScale = kLayer.scaleX();
+      const origScaleX = kLayer.scaleX();
+      const origScaleY = kLayer.scaleY();
       const origX = kLayer.x();
       const origY = kLayer.y();
       // The mask node may be visually hidden while a result is previewed; Konva
@@ -1927,19 +1942,23 @@
       kLayer.y(0);
       kLayer.visible(true);
 
-      const layerCanvas = kLayer.toCanvas({
-        pixelRatio: 1,
-        width: canvas.canvasWidth,
-        height: canvas.canvasHeight,
-      });
+      try {
+        const layerCanvas = kLayer.toCanvas({
+          pixelRatio: 1,
+          width: canvas.canvasWidth,
+          height: canvas.canvasHeight,
+        });
 
-      ctx.drawImage(layerCanvas, 0, 0);
-
-      kLayer.scaleX(origScale);
-      kLayer.scaleY(origScale);
-      kLayer.x(origX);
-      kLayer.y(origY);
-      kLayer.visible(origVisible);
+        ctx.drawImage(layerCanvas, 0, 0);
+      } catch (err) {
+        console.error("Failed to capture mask layer:", err);
+      } finally {
+        kLayer.scaleX(origScaleX);
+        kLayer.scaleY(origScaleY);
+        kLayer.x(origX);
+        kLayer.y(origY);
+        kLayer.visible(origVisible);
+      }
     }
 
     return offscreen;

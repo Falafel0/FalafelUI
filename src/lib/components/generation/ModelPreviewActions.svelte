@@ -17,7 +17,8 @@
   }
 </script>
 
-<!-- svelte-ignore a11y_no_static_element_interactions a11y_click_events_have_key_events -->
+<!-- svelte-ignore a11y_no_static_element_interactions -->
+<!-- svelte-ignore a11y_click_events_have_key_events -->
 <div
   class="absolute right-1 top-1 z-10 flex flex-col gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity"
   onclick={stop}

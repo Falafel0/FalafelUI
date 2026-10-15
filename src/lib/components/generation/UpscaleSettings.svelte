@@ -161,6 +161,7 @@
       onclick={() => (generation.upscaleEnabled = !generation.upscaleEnabled)}
       role="switch"
       aria-checked={generation.upscaleEnabled}
+      aria-label={locale.t('generation.upscale.title')}
     >
       <span
         class="absolute top-0.5 left-0.5 w-4 h-4 rounded-full bg-white transition-transform {generation.upscaleEnabled

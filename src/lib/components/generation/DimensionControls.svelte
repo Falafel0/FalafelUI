@@ -634,7 +634,7 @@
   <!-- Inpaint Controls (Forge-style, canvas mode only) -->
   {#if isInpaintMode && canvas.isCanvasMode}
     <div class="pt-2 border-t border-neutral-800 space-y-2">
-      <label class="text-xs text-neutral-400">{locale.t('generation.inpaint.area')}</label>
+      <div class="text-xs text-neutral-400">{locale.t('generation.inpaint.area')}</div>
 
       <!-- Inpaint area: Whole picture / Only masked -->
       <div class="flex gap-1">
@@ -701,7 +701,7 @@
       </div>
 
       <!-- Masked content -->
-      <label class="text-[10px] text-neutral-500">{locale.t('generation.inpaint.masked_content')}</label>
+      <div class="text-[10px] text-neutral-500">{locale.t('generation.inpaint.masked_content')}</div>
       <div class="flex gap-1 flex-wrap">
         {#each [
           { value: 1, key: 'generation.inpaint.fill_original' },

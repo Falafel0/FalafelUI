@@ -40,7 +40,7 @@
   import { gallery } from "../../stores/gallery.svelte.js";
   import { directorTools, directorToolsAvailable } from "../../stores/directorTools.svelte.js";
   import { lazyThumbnail } from "../../utils/lazyThumbnail.js";
-  import type { OutputImage, InterrogationResult } from "../../types/index.js";
+  import type { OutputImage, InterrogationResult, GenerationMode } from "../../types/index.js";
   import { onMount, onDestroy, tick } from "svelte";
   import BottomPanel from "./BottomPanel.svelte";
   import ContextMenu from "../ui/ContextMenu.svelte";
@@ -750,6 +750,17 @@
       console.error("Failed to set up inpainting:", e);
       gallery.showToast(locale.t('generation.toast.failed_load'), "error");
     }
+  }
+
+  function selectMode(newMode: GenerationMode) {
+    if (generation.mode === "inpainting" && newMode !== "inpainting") {
+      canvas.isCanvasMode = false;
+      canvas.resetMaskScale();
+      generation.maskImage = null;
+      generation.postScaleWidth = null;
+      generation.postScaleHeight = null;
+    }
+    generation.mode = newMode;
   }
 
   // Context menu + interrogation for session images
@@ -1568,6 +1579,7 @@
   {/snippet}
 
   {#snippet dimensionsSection()}
+    <!-- svelte-ignore a11y_no_static_element_interactions -->
     <div bind:this={sectionRefs['dimensions']} data-drop-section="dimensions" class="relative rounded-lg bg-neutral-900/40 transition-[height,opacity] duration-150 {draggingSection === 'dimensions' ? 'h-0 overflow-hidden opacity-0 m-0! p-0! border-0!' : 'opacity-100'} border {metadataDropTarget === 'dimensions' ? 'border-indigo-500/70 ring-2 ring-indigo-500/40' : 'border-neutral-800'} transition-colors"
       ondragenter={(e) => onMetadataDragEnter(e, "dimensions")}
       ondragover={(e) => onMetadataDragOver(e, "dimensions")}
@@ -1601,6 +1613,7 @@
   {/snippet}
 
   {#snippet promptsSection()}
+    <!-- svelte-ignore a11y_no_static_element_interactions -->
     <div bind:this={sectionRefs['prompts']} data-drop-section="prompts" class="relative rounded-lg bg-neutral-900/40 transition-[height,opacity] duration-150 {draggingSection === 'prompts' ? 'h-0 overflow-hidden opacity-0 m-0! p-0! border-0!' : 'opacity-100'} border {metadataDropTarget === 'prompts' ? 'border-indigo-500/70 ring-2 ring-indigo-500/40' : 'border-neutral-800'} transition-colors"
       ondragenter={(e) => onMetadataDragEnter(e, "prompts")}
       ondragover={(e) => onMetadataDragOver(e, "prompts")}
@@ -1959,12 +1972,17 @@
           <div class="border-t border-neutral-800 pt-3">
             <UpscaleSettings />
           </div>
+
+          <div class="border-t border-neutral-800 pt-3">
+            <FaceFixSettings />
+          </div>
         </div>
       {/if}
     </div>
   {/snippet}
 
   {#snippet modelSection()}
+    <!-- svelte-ignore a11y_no_static_element_interactions -->
     <div bind:this={sectionRefs['model']} data-drop-section="model" class="relative rounded-lg bg-neutral-900/40 transition-[height,opacity] duration-150 {draggingSection === 'model' ? 'h-0 overflow-hidden opacity-0 m-0! p-0! border-0!' : 'opacity-100'} border {metadataDropTarget === 'model' ? 'border-indigo-500/70 ring-2 ring-indigo-500/40' : 'border-neutral-800'} transition-colors"
       ondragenter={(e) => onMetadataDragEnter(e, "model")}
       ondragover={(e) => onMetadataDragOver(e, "model")}
@@ -1998,6 +2016,7 @@
   {/snippet}
 
   {#snippet samplerSection()}
+    <!-- svelte-ignore a11y_no_static_element_interactions -->
     <div bind:this={sectionRefs['sampler']} data-drop-section="sampler" class="relative rounded-lg bg-neutral-900/40 transition-[height,opacity] duration-150 {draggingSection === 'sampler' ? 'h-0 overflow-hidden opacity-0 m-0! p-0! border-0!' : 'opacity-100'} border {metadataDropTarget === 'sampler' ? 'border-indigo-500/70 ring-2 ring-indigo-500/40' : 'border-neutral-800'} transition-colors"
       ondragenter={(e) => onMetadataDragEnter(e, "sampler")}
       ondragover={(e) => onMetadataDragOver(e, "sampler")}
@@ -2177,6 +2196,7 @@
   {/snippet}
 
   {#snippet facefixSection()}
+    <!-- svelte-ignore a11y_no_static_element_interactions -->
     <div bind:this={sectionRefs['facefix']} data-drop-section="facefix" class="relative rounded-lg bg-neutral-900/40 transition-[height,opacity] duration-150 {draggingSection === 'facefix' ? 'h-0 overflow-hidden opacity-0 m-0! p-0! border-0!' : 'opacity-100'} border {metadataDropTarget === 'facefix' ? 'border-indigo-500/70 ring-2 ring-indigo-500/40' : 'border-neutral-800'} transition-colors"
       ondragenter={(e) => onMetadataDragEnter(e, "facefix")}
       ondragover={(e) => onMetadataDragOver(e, "facefix")}
@@ -2210,6 +2230,7 @@
   {/snippet}
 
   {#snippet upscaleHistorySection()}
+    <!-- svelte-ignore a11y_no_static_element_interactions -->
     <div bind:this={sectionRefs['upscaleHistory']} data-drop-section="upscaleHistory" class="relative rounded-lg bg-neutral-900/40 transition-[height,opacity] duration-150 {draggingSection === 'upscaleHistory' ? 'h-0 overflow-hidden opacity-0 m-0! p-0! border-0!' : 'opacity-100'} border {metadataDropTarget === 'upscaleHistory' ? 'border-indigo-500/70 ring-2 ring-indigo-500/40' : 'border-neutral-800'} transition-colors"
       ondragenter={(e) => onMetadataDragEnter(e, "upscaleHistory")}
       ondragover={(e) => onMetadataDragOver(e, "upscaleHistory")}
@@ -2295,10 +2316,7 @@
           {/if}
           {#each modes as mode}
             <button
-              onclick={() => {
-                generation.mode = mode.id;
-                if (mode.id !== "inpainting") canvas.isCanvasMode = false;
-              }}
+              onclick={() => selectMode(mode.id)}
               class="min-w-0 flex-1 whitespace-nowrap text-[11px] leading-none px-2.5 py-2 rounded-md transition-colors {generation.mode === mode.id
                 ? 'bg-neutral-700 text-white'
                 : 'text-neutral-400 hover:text-neutral-200'}"
@@ -2363,10 +2381,7 @@
                 {/if}
                 {#each modes as mode}
                   <button
-                    onclick={() => {
-                      generation.mode = mode.id;
-                      if (mode.id !== "inpainting") canvas.isCanvasMode = false;
-                    }}
+                    onclick={() => selectMode(mode.id)}
                     class="flex-1 text-xs py-1.5 rounded-md transition-colors {generation.mode === mode.id
                       ? 'bg-neutral-700 text-white'
                       : 'text-neutral-400 hover:text-neutral-200'}"
@@ -2561,10 +2576,7 @@
                 {/if}
                 {#each modes as mode}
                   <button
-                    onclick={() => {
-                      generation.mode = mode.id;
-                      if (mode.id !== "inpainting") canvas.isCanvasMode = false;
-                    }}
+                    onclick={() => selectMode(mode.id)}
                     class="flex-1 text-xs py-1.5 rounded-md transition-colors {generation.mode === mode.id
                       ? 'bg-neutral-700 text-white'
                       : 'text-neutral-400 hover:text-neutral-200'}"
