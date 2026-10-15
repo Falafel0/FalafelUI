@@ -93,6 +93,30 @@ export function parseScheduledPrompt(raw: string): ParsedPrompt {
         continue;
       }
 
+      if (type === "alt") {
+        // Alternating syntax: <alt:N>tag1, tag2, tag3</alt>
+        const interval = parseInt(val1Str, 10);
+        if (isNaN(interval) || interval < 1) {
+          baseText += fullMatch;
+          continue;
+        }
+        // Split by comma, trim each tag
+        const tags = text.split(",").map((t) => t.trim()).filter((t) => t.length > 0);
+        if (tags.length === 0) {
+          baseText += fullMatch;
+          continue;
+        }
+        // Create a segment for each tag with the interval info
+        const tagsCount = tags.length;
+        for (let i = 0; i < tagsCount; i++) {
+          const start = i / tagsCount;
+          const end = (i + 1) / tagsCount;
+          segments.push({ text: tags[i], start, end, altInterval: interval });
+        }
+        // Do NOT add innerText to baseText
+        continue;
+      }
+
       const val1 = parseFloat(val1Str);
       let start: number;
       let end: number;
@@ -186,6 +210,11 @@ const TAG_COLORS: Record<string, { bg: string; border: string; glow: string }> =
     glow: "0 0 10px rgba(168, 85, 247, 0.35), 0 0 4px rgba(168, 85, 247, 0.20)",
   },
   fromto: {
+    bg: "rgba(168, 85, 247, 0.12)",
+    border: "rgba(168, 85, 247, 0.45)",
+    glow: "0 0 10px rgba(168, 85, 247, 0.35), 0 0 4px rgba(168, 85, 247, 0.20)",
+  },
+  alt: {
     bg: "rgba(168, 85, 247, 0.12)",
     border: "rgba(168, 85, 247, 0.45)",
     glow: "0 0 10px rgba(168, 85, 247, 0.35), 0 0 4px rgba(168, 85, 247, 0.20)",

@@ -2,7 +2,7 @@
   import { generation } from "../../stores/generation.svelte.js";
   import { locale } from "../../stores/locale.svelte.js";
 
-  type Mode = "fromto" | "from" | "to" | "range";
+  type Mode = "fromto" | "from" | "to" | "range" | "alt";
 
   let mode = $state<Mode>("fromto");
 
@@ -16,6 +16,10 @@
   let schedText = $state("");
   let schedStart = $state(0.5);
   let schedEnd = $state(0.8);
+
+  // Alternating (alt) inputs
+  let altInterval = $state(5);
+  let altTags = $state("");
 
   function clamp01(v: number): number {
     if (isNaN(v)) return 0;
@@ -53,6 +57,14 @@
       const sep = swapSeparator === "," ? ", " : ` ${swapSeparator} `;
       return `<fromto[${fmt(swapPivot)}]:${before}${sep}${after}>`;
     }
+    if (mode === "alt") {
+      const tagsText = altTags.trim();
+      if (!tagsText) return "";
+      const interval = Math.max(1, Math.floor(altInterval));
+      const tags = tagsText.split(",").map((t) => t.trim()).filter((t) => t.length > 0);
+      if (tags.length === 0) return "";
+      return `<alt:${interval}>${tags.join(", ")}</alt>`;
+    }
     const text = schedText.trim();
     if (!text) return "";
     if (mode === "from") return `<from:${fmt(schedStart)}>${text}</from>`;
@@ -69,6 +81,10 @@
     if (mode === "fromto") {
       const pivot = String(Math.round(clamp01(swapPivot) * 100));
       return locale.t("schedule.desc_fromto", { pivot });
+    }
+    if (mode === "alt") {
+      const interval = String(Math.max(1, Math.floor(altInterval)));
+      return locale.t("schedule.desc_alt", { interval });
     }
     if (mode === "from") {
       return locale.t("schedule.desc_from", { start: String(Math.round(clamp01(schedStart) * 100)) });
@@ -123,6 +139,7 @@
       { id: "from", label: locale.t("schedule.mode_from"), hint: locale.t("schedule.mode_from_hint") },
       { id: "to", label: locale.t("schedule.mode_to"), hint: locale.t("schedule.mode_to_hint") },
       { id: "range", label: locale.t("schedule.mode_range"), hint: locale.t("schedule.mode_range_hint") },
+      { id: "alt", label: locale.t("schedule.mode_alt"), hint: locale.t("schedule.mode_alt_hint") },
     ] as m (m.id)}
       <button
         type="button"
@@ -184,6 +201,34 @@
             <option value="|">|</option>
             <option value=",">,</option>
           </select>
+        </label>
+      </div>
+    </section>
+  {:else if mode === "alt"}
+    <section class="mb-3 space-y-2 rounded-lg border border-neutral-800 bg-neutral-950/50 p-3">
+      <p class="text-[11px] text-neutral-400">{locale.t("schedule.alt_desc")}</p>
+      <div>
+        <label for="sch-alt-tags" class="mb-1 block text-[10px] uppercase tracking-wide text-neutral-500">{locale.t("schedule.alt_tags")}</label>
+        <input
+          id="sch-alt-tags"
+          type="text"
+          bind:value={altTags}
+          placeholder={locale.t("schedule.alt_tags_placeholder")}
+          class="w-full rounded border border-neutral-700 bg-neutral-800 px-2 py-1 text-sm text-neutral-100 placeholder-neutral-500 focus:border-indigo-500 focus:outline-none"
+        />
+      </div>
+      <div class="flex items-center gap-3">
+        <label class="flex flex-1 items-center gap-2 text-[11px] text-neutral-400">
+          <span class="w-20 shrink-0">{locale.t("schedule.alt_interval")}</span>
+          <input
+            id="sch-alt-interval"
+            type="number"
+            min="1"
+            max="1000"
+            bind:value={altInterval}
+            class="flex-1 rounded border border-neutral-700 bg-neutral-800 px-2 py-1 text-sm text-neutral-100 focus:border-indigo-500 focus:outline-none"
+          />
+          <span class="w-16 shrink-0 text-right font-mono text-[11px] text-neutral-300">{locale.t("schedule.alt_interval_suffix")}</span>
         </label>
       </div>
     </section>
@@ -284,6 +329,10 @@
       <div>
         <dt class="text-indigo-300">&lt;range:A:B&gt;text&lt;/range&gt;</dt>
         <dd class="text-neutral-400">{locale.t("schedule.syntax_range")}</dd>
+      </div>
+      <div>
+        <dt class="text-indigo-300">&lt;alt:N&gt;tag1, tag2, tag3&lt;/alt&gt;</dt>
+        <dd class="text-neutral-400">{locale.t("schedule.syntax_alt")}</dd>
       </div>
     </dl>
   </details>

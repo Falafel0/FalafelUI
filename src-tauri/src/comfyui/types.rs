@@ -66,6 +66,15 @@ pub struct PromptSegment {
     pub text: String,
     pub start: f64,
     pub end: f64,
+    /// For alternating schedule (`<alt:N>...`): the step interval for each tag.
+    /// When present, the segment represents one tag in an alternating sequence
+    /// that should repeat every `interval` steps across the full generation.
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        alias = "altInterval"
+    )]
+    pub alt_interval: Option<u32>,
 }
 
 /// A `<segment:...>` auto-refinement region parsed from the positive prompt.

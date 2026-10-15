@@ -13,7 +13,7 @@ export interface PromptTextRange {
 
 /** MooshieUI + SwarmUI scheduling syntax. */
 export const PROMPT_SCHEDULE_REGEX = new RegExp(
-  `${SYNTAX_ANGLE_LOOKBEHIND}<(?:(from|to|range):(\\d+(?:\\.\\d+)?)(?::(\\d+(?:\\.\\d+)?))?>([ \\s\\S]*?)<\\/\\1>|fromto\\[(\\d+(?:\\.\\d+)?)\\]:([^>]+)>)`,
+  `${SYNTAX_ANGLE_LOOKBEHIND}<(?:(from|to|range|alt):(\\d+(?:\\.\\d+)?)(?::(\\d+(?:\\.\\d+)?))?>([ \\s\\S]*?)<\\/\\1>|fromto\\[(\\d+(?:\\.\\d+)?)\\]:([^>]+)>)`,
   "g",
 );
 

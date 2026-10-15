@@ -24,7 +24,7 @@ const BRACE_WRAP_RE = /^(?:\{.+\}|\[.+\])$/;
 
 function clampWeight(weight: number): number {
   const rounded = Math.round(weight * 100) / 100;
-  return Math.max(0, Math.min(2, rounded));
+  return Math.max(0, Math.min(10, rounded));
 }
 
 const isNeutral = (weight: number): boolean => Math.abs(weight - 1.0) < 0.001;

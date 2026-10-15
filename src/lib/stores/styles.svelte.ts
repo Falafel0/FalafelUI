@@ -66,7 +66,7 @@ function genId(): string {
 function clampWeight(w: unknown, fallback = 1.0): number {
   const n = typeof w === "number" ? w : Number(w);
   if (!Number.isFinite(n)) return fallback;
-  return Math.max(0, Math.min(3, n));
+  return Math.max(0, Math.min(10, n));
 }
 
 function sanitizeArtist(raw: any): StyleArtist | null {

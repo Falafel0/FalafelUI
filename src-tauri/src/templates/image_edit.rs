@@ -308,8 +308,14 @@ fn build_anima_restyler(params: &GenerationParams, seed: i64) -> WorkflowResult 
         params.positive_prompt.clone()
     };
 
-    let (pos_source, nid) =
-        build_scheduled_conditioning(&mut workflow, next_id, &clip_source, &positive_prompt, &[]);
+    let (pos_source, nid) = build_scheduled_conditioning(
+        &mut workflow,
+        next_id,
+        &clip_source,
+        &positive_prompt,
+        &[],
+        params.steps,
+    );
     next_id = nid;
 
     let (neg_source, nid) = build_scheduled_conditioning(
@@ -318,6 +324,7 @@ fn build_anima_restyler(params: &GenerationParams, seed: i64) -> WorkflowResult 
         &clip_source,
         &params.negative_prompt,
         &[],
+        params.steps,
     );
     next_id = nid;
 
@@ -331,6 +338,7 @@ fn build_anima_restyler(params: &GenerationParams, seed: i64) -> WorkflowResult 
             &clip_source,
             &params.positive_prompt,
             &[],
+            params.steps,
         );
         next_id = nid;
         source
@@ -716,6 +724,7 @@ fn build_kontext(params: &GenerationParams, seed: i64) -> WorkflowResult {
         &clip_source,
         &params.positive_prompt,
         &[],
+        params.steps,
     );
     next_id = nid;
 

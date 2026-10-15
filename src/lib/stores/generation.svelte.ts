@@ -4129,6 +4129,7 @@ class GenerationStore {
       text: translatePromptWeightSyntax(s.text),
       start: s.start,
       end: s.end,
+      alt_interval: s.altInterval ?? s.alt_interval,
     }));
     const regionalContext = regionalPromptingSupported
       ? buildRegionalContextPrompt(
@@ -4182,6 +4183,7 @@ class GenerationStore {
         text: translatePromptWeightSyntax(s.text),
         start: s.start,
         end: s.end,
+        alt_interval: s.altInterval ?? s.alt_interval,
       })),
       detail_segments: parsedSegmentDetails.segments.map((s) => ({
         target: s.target,
