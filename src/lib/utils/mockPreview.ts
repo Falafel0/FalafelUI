@@ -131,6 +131,20 @@ export function initMockPreview() {
       case "get_backend_status":
         return { running: true, pid: 1234, port: 8188 };
 
+      case "get_gpu_stats":
+        return [
+          {
+            index: 0,
+            name: "NVIDIA GeForce RTX 3060",
+            vram_used_mb: 2840,
+            vram_total_mb: 12288,
+            gpu_util: 18,
+            temperature: 46,
+            power_draw_w: 68,
+            worker: null,
+          },
+        ];
+
       case "get_gallery_images":
         return [];
 
