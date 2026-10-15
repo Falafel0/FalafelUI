@@ -5,6 +5,7 @@
   import { canvas, type ToolType } from "../../stores/canvas.svelte.js";
   import { canvasHistory } from "../../stores/canvasHistory.svelte.js";
   import { progress } from "../../stores/progress.svelte.js";
+  import { locale } from "../../stores/locale.svelte.js";
   import ColorTooltip from "../ui/ColorTooltip.svelte";
 
   // Hide the editable inpaint mask while a finished result is being previewed, so
@@ -207,6 +208,12 @@
     stage.on("mouseleave", handlePointerLeave);
     stage.on("wheel", handleWheel);
     stage.on("contextmenu", (e) => e.evt.preventDefault());
+
+    canvas.registerStageOps({
+      mergeDown: handleMergeDown,
+      flatten: handleFlatten,
+      acceptStagingToLayer: handleAcceptStagingToLayer,
+    });
 
     reorderStageLayers();
   }
@@ -462,8 +469,9 @@
     for (const layer of sorted) {
       const effectiveVisible =
         layer.visible && !(layer.type === "mask" && hideInpaintMask);
+      let kLayer: Konva.Layer;
       if (!konvaLayers.has(layer.id)) {
-        const kLayer = new Konva.Layer({
+        kLayer = new Konva.Layer({
           id: layer.id,
           opacity: layer.opacity,
           visible: effectiveVisible,
@@ -481,9 +489,15 @@
 
         konvaLayers.set(layer.id, kLayer);
       } else {
-        const kLayer = konvaLayers.get(layer.id)!;
+        kLayer = konvaLayers.get(layer.id)!;
         kLayer.opacity(layer.opacity);
         kLayer.visible(effectiveVisible);
+      }
+
+      // Apply CSS mixBlendMode to HTML5 canvas element of this Konva Layer
+      const canvasEl = (kLayer as any).getCanvas?.()?._canvas as HTMLCanvasElement | undefined;
+      if (canvasEl) {
+        canvasEl.style.mixBlendMode = layer.blendMode || "normal";
       }
     }
 
@@ -670,6 +684,143 @@
     kLayer.add(kImage);
     kLayer.batchDraw();
     scheduleThumbRefresh(maskMeta.id);
+  }
+
+  async function handleMergeDown(upperLayerId: string): Promise<boolean> {
+    if (!stage) return false;
+    const sorted = [...canvas.layers].sort((a, b) => b.order - a.order);
+    const index = sorted.findIndex((l) => l.id === upperLayerId);
+    if (index < 0 || index >= sorted.length - 1) return false;
+    const upperMeta = sorted[index];
+    const lowerMeta = sorted[index + 1];
+    if (upperMeta.type !== "raster" || lowerMeta.type !== "raster") return false;
+
+    const kUpper = konvaLayers.get(upperMeta.id);
+    const kLower = konvaLayers.get(lowerMeta.id);
+    if (!kUpper || !kLower) return false;
+
+    const uScaleX = kUpper.scaleX(); const uScaleY = kUpper.scaleY(); const uX = kUpper.x(); const uY = kUpper.y();
+    const lScaleX = kLower.scaleX(); const lScaleY = kLower.scaleY(); const lX = kLower.x(); const lY = kLower.y();
+    kUpper.scaleX(1); kUpper.scaleY(1); kUpper.x(0); kUpper.y(0);
+    kLower.scaleX(1); kLower.scaleY(1); kLower.x(0); kLower.y(0);
+
+    const offscreen = document.createElement("canvas");
+    offscreen.width = canvas.canvasWidth;
+    offscreen.height = canvas.canvasHeight;
+    const ctx = offscreen.getContext("2d")!;
+
+    // 1. Draw lower layer
+    const lowerCanvas = kLower.toCanvas({ pixelRatio: 1, width: canvas.canvasWidth, height: canvas.canvasHeight });
+    ctx.globalAlpha = lowerMeta.opacity;
+    const lowerBlend = (lowerMeta.blendMode && lowerMeta.blendMode !== "normal") ? lowerMeta.blendMode : "source-over";
+    ctx.globalCompositeOperation = lowerBlend as GlobalCompositeOperation;
+    ctx.drawImage(lowerCanvas, 0, 0);
+
+    // 2. Draw upper layer on top
+    const upperCanvas = kUpper.toCanvas({ pixelRatio: 1, width: canvas.canvasWidth, height: canvas.canvasHeight });
+    ctx.globalAlpha = upperMeta.opacity;
+    const upperBlend = (upperMeta.blendMode && upperMeta.blendMode !== "normal") ? upperMeta.blendMode : "source-over";
+    ctx.globalCompositeOperation = upperBlend as GlobalCompositeOperation;
+    ctx.drawImage(upperCanvas, 0, 0);
+
+    kUpper.scaleX(uScaleX); kUpper.scaleY(uScaleY); kUpper.x(uX); kUpper.y(uY);
+    kLower.scaleX(lScaleX); kLower.scaleY(lScaleY); kLower.x(lX); kLower.y(lY);
+
+    const mergedDataUrl = offscreen.toDataURL();
+    try {
+      const img = await loadImageEl(mergedDataUrl);
+      kLower.destroyChildren();
+      const kImg = new Konva.Image({
+        image: img,
+        x: 0,
+        y: 0,
+        width: canvas.canvasWidth,
+        height: canvas.canvasHeight,
+        listening: false,
+      });
+      kLower.add(kImg);
+      kLower.batchDraw();
+      scheduleThumbRefresh(lowerMeta.id);
+
+      canvas.removeLayer(upperMeta.id);
+      canvas.setActiveLayer(lowerMeta.id);
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
+  async function handleFlatten(): Promise<boolean> {
+    if (!stage) return false;
+    const compositeCanvas = getRasterComposite();
+    if (!compositeCanvas) return false;
+
+    const rasterLayers = [...canvas.layers].filter((l) => l.type === "raster").sort((a, b) => a.order - b.order);
+    if (rasterLayers.length <= 1) return false;
+
+    const baseLayer = rasterLayers[0];
+    const kBase = konvaLayers.get(baseLayer.id);
+    if (!kBase) return false;
+
+    const mergedDataUrl = compositeCanvas.toDataURL();
+    try {
+      const img = await loadImageEl(mergedDataUrl);
+      kBase.destroyChildren();
+      const kImg = new Konva.Image({
+        image: img,
+        x: 0,
+        y: 0,
+        width: canvas.canvasWidth,
+        height: canvas.canvasHeight,
+        listening: false,
+      });
+      kBase.add(kImg);
+      kBase.opacity(1);
+      canvas.setLayerOpacity(baseLayer.id, 1);
+      canvas.setLayerBlendMode(baseLayer.id, "normal");
+      canvas.renameLayer(baseLayer.id, locale.t("canvas.layer.background") || "Background");
+      kBase.batchDraw();
+      scheduleThumbRefresh(baseLayer.id);
+
+      for (let i = 1; i < rasterLayers.length; i++) {
+        canvas.removeLayer(rasterLayers[i].id);
+      }
+      canvas.setActiveLayer(baseLayer.id);
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
+  async function handleAcceptStagingToLayer(asNewLayer: boolean): Promise<boolean> {
+    if (!stage || !canvas.currentStagingImage) return false;
+    try {
+      const img = await loadImageEl(canvas.currentStagingImage);
+
+      let targetLayerId = canvas.activeLayerId;
+      if (asNewLayer || !targetLayerId) {
+        targetLayerId = canvas.addLayer("raster");
+        syncKonvaLayers();
+      }
+
+      const kLayer = konvaLayers.get(targetLayerId);
+      if (!kLayer) return false;
+
+      const kImage = new Konva.Image({
+        image: img,
+        x: 0,
+        y: 0,
+        width: canvas.canvasWidth,
+        height: canvas.canvasHeight,
+        listening: false,
+      });
+      kLayer.add(kImage);
+      kLayer.batchDraw();
+      scheduleThumbRefresh(targetLayerId);
+      return true;
+    } catch {
+      return false;
+    }
   }
 
   // Drawing handlers
@@ -1148,8 +1299,14 @@
     }
   }
 
-  // Space bar pan support
+  // Keyboard shortcuts (Space pan, Eyedropper, Layer management, Staging)
   function handleKeyDown(e: KeyboardEvent) {
+    // If typing in an input/textarea, ignore shortcuts
+    const target = e.target as HTMLElement | null;
+    if (target && (target.tagName === "INPUT" || target.tagName === "TEXTAREA" || target.isContentEditable)) {
+      return;
+    }
+
     // Escape cancels an in-progress lasso even if the pointer left the stage.
     if (e.code === "Escape" && isLasso) {
       isLasso = false;
@@ -1159,6 +1316,53 @@
         lassoPreviewLine = null;
         uiLayer?.batchDraw();
       }
+      return;
+    }
+
+    // Staging keyboard shortcuts
+    if (canvas.isStagingActive) {
+      if (e.key === "Enter" && !e.shiftKey && !e.ctrlKey) {
+        e.preventDefault();
+        void canvas.acceptStagingToCurrentLayer();
+        return;
+      }
+      if (e.key === "Enter" && e.shiftKey && !e.ctrlKey) {
+        e.preventDefault();
+        void canvas.acceptStagingToNewLayer();
+        return;
+      }
+      if (e.key === "Escape") {
+        e.preventDefault();
+        canvas.clearStaging();
+        return;
+      }
+      if (e.key === "ArrowLeft") {
+        e.preventDefault();
+        canvas.prevStaging();
+        return;
+      }
+      if (e.key === "ArrowRight") {
+        e.preventDefault();
+        canvas.nextStaging();
+        return;
+      }
+    }
+
+    // Layer management shortcuts (Photoshop standard)
+    const isCtrl = e.ctrlKey || e.metaKey;
+    if (isCtrl && e.key.toLowerCase() === "j") {
+      e.preventDefault();
+      canvas.duplicateActiveLayer();
+      return;
+    }
+    if (isCtrl && !e.shiftKey && e.key.toLowerCase() === "e") {
+      e.preventDefault();
+      void canvas.mergeDownActiveLayer();
+      return;
+    }
+    if (isCtrl && e.shiftKey && e.key.toLowerCase() === "e") {
+      e.preventDefault();
+      void canvas.flattenLayers();
       return;
     }
 
@@ -1324,8 +1528,11 @@
       });
 
       ctx.globalAlpha = layer.opacity;
+      const blend = (layer.blendMode && layer.blendMode !== "normal") ? layer.blendMode : "source-over";
+      ctx.globalCompositeOperation = blend as GlobalCompositeOperation;
       ctx.drawImage(layerCanvas, 0, 0);
       ctx.globalAlpha = 1;
+      ctx.globalCompositeOperation = "source-over";
 
       // Restore transform
       kLayer.scaleX(origScale);

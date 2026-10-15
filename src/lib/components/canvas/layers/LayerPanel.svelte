@@ -28,6 +28,37 @@
 </script>
 
 <div class="space-y-2">
+  <!-- Top Layer Actions Bar -->
+  <div class="flex items-center justify-between pb-1.5 border-b border-neutral-800 text-[11px] text-neutral-400">
+    <span class="font-medium text-neutral-300">{locale.t("canvas.layers")}</span>
+    <div class="flex items-center gap-1">
+      <button
+        onclick={() => canvas.duplicateActiveLayer()}
+        disabled={!canvas.activeLayerId}
+        class="px-1.5 py-0.5 rounded text-[10px] bg-neutral-800/80 hover:bg-neutral-700 disabled:opacity-40 text-neutral-300 hover:text-white transition-colors"
+        title={locale.t("canvas.layer.duplicate")}
+      >
+        Ctrl+J
+      </button>
+      <button
+        onclick={() => void canvas.mergeDownActiveLayer()}
+        disabled={!canvas.activeLayerId || canvas.activeLayer?.type !== 'raster'}
+        class="px-1.5 py-0.5 rounded text-[10px] bg-neutral-800/80 hover:bg-neutral-700 disabled:opacity-40 text-neutral-300 hover:text-white transition-colors"
+        title={locale.t("canvas.layer.merge_down")}
+      >
+        Ctrl+E
+      </button>
+      <button
+        onclick={() => void canvas.flattenLayers()}
+        disabled={rasterLayers.length <= 1}
+        class="px-1.5 py-0.5 rounded text-[10px] bg-neutral-800/80 hover:bg-neutral-700 disabled:opacity-40 text-neutral-300 hover:text-white transition-colors"
+        title={locale.t("canvas.layer.flatten")}
+      >
+        Ctrl+Shift+E
+      </button>
+    </div>
+  </div>
+
   {#each groups as group (group.key)}
     <div>
       <!-- Group header -->

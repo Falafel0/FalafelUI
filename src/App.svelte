@@ -2112,9 +2112,15 @@
     // `created` (the saved filename, metadata) never reaches them. See addImages().
     const newImages = gallery.addImages(created);
     progress.setLastOutputForMode(mode, newImages[0]?.url ?? null);
-    if (mode === "inpainting" && generation.mode === "inpainting" && canvas.isCanvasMode && newImages[0]) {
-      const sourceVersion = canvas.inpaintSourceVersion;
-      void prepareLatestInpaintResult(newImages[0], sourceVersion);
+    if (canvas.isCanvasMode && newImages.length > 0) {
+      canvas.clearStaging();
+      for (const img of newImages) {
+        if (img.url) canvas.stageImage(img.url);
+      }
+      if (mode === "inpainting" && newImages[0]) {
+        const sourceVersion = canvas.inpaintSourceVersion;
+        void prepareLatestInpaintResult(newImages[0], sourceVersion);
+      }
     }
 
     // One size for the batch: every image in a run comes back the same size,

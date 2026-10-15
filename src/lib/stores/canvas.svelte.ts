@@ -162,6 +162,11 @@ class CanvasStore {
 
   // Reference to the Konva stage (set by CanvasStage)
   private _stageRef: any = null;
+  private _stageOps: {
+    mergeDown?: (id: string) => Promise<boolean>;
+    flatten?: () => Promise<boolean>;
+    acceptStagingToLayer?: (asNewLayer: boolean) => Promise<boolean>;
+  } = {};
 
   setStageRef(stage: any) {
     this._stageRef = stage;
@@ -169,6 +174,14 @@ class CanvasStore {
 
   getStageRef(): any {
     return this._stageRef;
+  }
+
+  registerStageOps(ops: {
+    mergeDown?: (id: string) => Promise<boolean>;
+    flatten?: () => Promise<boolean>;
+    acceptStagingToLayer?: (asNewLayer: boolean) => Promise<boolean>;
+  }) {
+    this._stageOps = { ...this._stageOps, ...ops };
   }
 
   // Derived
@@ -870,7 +883,16 @@ class CanvasStore {
     this.layers = this.layers.map((l) => (l.id === id ? { ...l, blendMode } : l));
   }
 
-  mergeDownLayer(id: string) {
+  duplicateActiveLayer(): string | null {
+    if (!this.activeLayerId) return null;
+    return this.duplicateLayer(this.activeLayerId);
+  }
+
+  async mergeDownLayer(id: string) {
+    if (this._stageOps.mergeDown) {
+      const handled = await this._stageOps.mergeDown(id);
+      if (handled) return;
+    }
     const sorted = [...this.layers].sort((a, b) => b.order - a.order);
     const index = sorted.findIndex((l) => l.id === id);
     if (index < 0 || index >= sorted.length - 1) return;
@@ -878,6 +900,38 @@ class CanvasStore {
     const target = sorted[index + 1];
     this.removeLayer(current.id);
     this.setActiveLayer(target.id);
+  }
+
+  async mergeDownActiveLayer() {
+    if (!this.activeLayerId) return;
+    const layer = this.layers.find((l) => l.id === this.activeLayerId);
+    if (!layer || layer.type !== "raster") return;
+    await this.mergeDownLayer(this.activeLayerId);
+  }
+
+  async flattenLayers() {
+    if (this._stageOps.flatten) {
+      await this._stageOps.flatten();
+    }
+  }
+
+  async acceptStagingToCurrentLayer() {
+    if (this.canApplyInpaintResult) {
+      this.applyInpaintResult();
+      this.clearStaging();
+      return;
+    }
+    if (this._stageOps.acceptStagingToLayer) {
+      await this._stageOps.acceptStagingToLayer(false);
+      this.clearStaging();
+    }
+  }
+
+  async acceptStagingToNewLayer() {
+    if (this._stageOps.acceptStagingToLayer) {
+      await this._stageOps.acceptStagingToLayer(true);
+      this.clearStaging();
+    }
   }
 
   /**
@@ -908,7 +962,8 @@ class CanvasStore {
     return !!(
       this.persistedMaskPreviewUrl ||
       this.preparedInpaintPreviewUrl ||
-      (this.activeLayer?.type === "mask" && !!this.layerThumbnails[this.activeLayer.id])
+      (this.activeLayer?.type === "mask" && !!this.layerThumbnails[this.activeLayer.id]) ||
+      this.layers.some((l) => l.type === "mask" && l.visible && !!this.layerThumbnails[l.id])
     );
   }
 
@@ -1119,10 +1174,11 @@ class CanvasStore {
     // Export mask
     hasMask = await this.syncMaskToGeneration(maskCanvas, true);
 
-    // Keep the user-selected mode when using canvas flow for image editing modes.
-    if (generation.mode === "inpainting") {
+    // Resolve mode based on intelligent canvas router (txt2img, img2img, inpaint, outpaint)
+    const unifiedAction = this.currentUnifiedAction;
+    if (unifiedAction === "inpaint" || unifiedAction === "outpaint") {
       generation.mode = "inpainting";
-    } else if (generation.mode === "img2img") {
+    } else if (unifiedAction === "img2img") {
       generation.mode = "img2img";
     } else if (hasRaster && hasMask) {
       generation.mode = "inpainting";
