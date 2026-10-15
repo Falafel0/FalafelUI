@@ -1,5 +1,35 @@
 # Changelog
 
+## What's New in v1.1.0-falafel.0
+
+### Unified Canvas Studio
+- **Unified single canvas**: Merged text-to-image, image-to-image, generative fill (inpaint), generative expand (outpaint), and tile upscale into one unified workspace with automatic canvas-action routing.
+- **Contextual Task Bar (HUD)**: Photoshop-style floating HUD anchored under the bounding box with direct prompt editing, dynamic action badge, live Denoise scrubbable control, quick upscale trigger, and in-place staging carousel.
+- **Professional Layer Engine**: Added CSS blend modes (`Multiply`, `Screen`, `Overlay`, `Darken`, `Lighten`), layer duplication (`Ctrl+J`), merge down (`Ctrl+E`), and layer flattening (`Ctrl+Shift+E`).
+- **Interactive Free Transform (`T`)**: Full-featured transform gizmo powered by `Konva.Transformer` with 8 corner/edge handles, rotation snapping, and contextual commit (`Enter`) / cancel (`Esc`).
+- **Native Layered Project Format (`.falafel`)**: Complete document save and load capabilities preserving all layer metadata, blend modes, opacities, and high-fidelity image data.
+- **Smart Mask Tools**: One-click inpaint mask inversion (`◐`) and mask clearing directly inside the layers stack.
+
+### Pro Master Workstation & Telemetry
+- **Persistent Status Bar**: Fixed workstation footer providing live VRAM consumption telemetry, ComfyUI backend connectivity health, ping, and background task progress.
+- **Scrubbable Inputs**: Blender/Photoshop-style numeric dragging — click and drag horizontally on parameter labels (Steps, CFG, Denoise) with fine-tuning (`Shift`) and accelerated (`Ctrl`) modifiers.
+- **Model Recommendation Badges**: Intelligent suggestions for optimal resolutions and samplers based on active model family architecture (SD1.5, SDXL, Pony, Illustrious, Flux).
+- **CUDA OOM Auto-Recovery**: Contextual notification offering instant one-click recovery (lowering resolution to 832x832 and resetting batch size to 1) when CUDA Out of Memory occurs.
+
+### Studio Ergonomics & Polish
+- **Simple / Pro Mode**: Clean toggle for the generation view, allowing beginners to generate with only 3 key inputs while giving power users full access to advanced sampling and VAE controls.
+- **Hierarchical Settings Reorganization**: Structured 21 flat settings categories into 5 clear sections with intuitive iconography.
+- **Streamlined Bottom Tray**: Grouped 11 tabs into dedicated Asset (LoRA, Models, Characters) and Session (Images, Prompts, Notes) selectors.
+- **Optimistic Gallery Delete with Undo**: Non-blocking image deletion featuring a 5-second undo toast.
+
+### Rock Solid Stability & Reactivity
+- **IPC Leak Elimination**: Guaranteed teardown of all backend event listeners across all modals and accordions upon component unmount.
+- **Svelte 5 Runes Hardening**: Corrected object-updating runes reactivity patterns, reducing compiler warnings to 0 errors.
+- **Disk I/O Debounce**: 300ms debounce protection on settings serialization to prevent disk write storms.
+- **100% Localization Parity**: Closed 829 missing keys in the Russian translation and established strict parity checks across all 12 supported languages.
+
+---
+
 ## What's New in v1.0.0-falafel.1
 
 ### FalafelUI Fork Debut
