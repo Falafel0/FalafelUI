@@ -7,6 +7,9 @@ import {
 } from "../utils/canvasProject.js";
 import { generation } from "./generation.svelte.js";
 import { locale } from "./locale.svelte.js";
+import { getCropRegionV2, expandCropRegion, cropCanvas, type CropRegion } from "../utils/maskCrop.js";
+import { gaussianBlurCanvas } from "../utils/maskBlur.js";
+import { fillMaskedRegion } from "../utils/maskFill.js";
 
 export type ToolType = "brush" | "eraser" | "rectFill" | "lasso" | "eyedropper" | "move" | "view" | "transform";
 
@@ -28,6 +31,7 @@ export interface CanvasLayer {
   opacity: number;
   locked: boolean;
   order: number;
+  denoise?: number;
   blendMode?: CanvasLayerBlendMode;
   x?: number;
   y?: number;
@@ -150,6 +154,44 @@ class CanvasStore {
   // are hidden so the clean result is visible. This flips true once the user starts
   // painting more mask, bringing the mask back so they can see what they're editing.
   maskEditedSinceResult = $state(false);
+
+  // Mask upscale/downscale
+  maskUpscaleFactor = $state(1);
+  _preUpscaleCanvasWidth: number | null = null;
+  _preUpscaleCanvasHeight: number | null = null;
+
+  // Inpainting settings (Forge-style)
+  inpaintFullRes = $state(true);
+  inpaintFullResPadding = $state(32);
+  maskBlur = $state(0);
+  inpaintMaskInvert = $state(false);
+  inpaintingFill = $state(1);
+
+  _maskRestorePending = $state<{
+    maskUrl: string | null;
+    rasterUrl: string | null;
+    scale: number;
+    restoreOriginal: boolean;
+    savedLayers?: Array<{ name: string; type: string; visible: boolean; opacity: number; locked: boolean; denoise: number }>;
+  } | null>(null);
+
+  _pendingPaste = $state<{
+    x: number;
+    y: number;
+    width: number;
+    height: number;
+    originalUrl: string;
+  } | null>(null);
+
+  _preCropGenDims: { width: number; height: number } | null = null;
+
+  get isCanvasUpscaled(): boolean {
+    return this.maskUpscaleFactor > 1;
+  }
+
+  get hasPendingPaste(): boolean {
+    return this._pendingPaste !== null;
+  }
 
   // Staging
   stagingImages = $state<CanvasStagingEntry[]>([]);
@@ -862,6 +904,7 @@ class CanvasStore {
         opacity: 1,
         locked: false,
         order: maxOrder + 1,
+        denoise: type === "mask" ? 0.7 : 1.0,
       },
     ];
     this.activeLayerId = id;
@@ -941,6 +984,10 @@ class CanvasStore {
 
   setLayerOpacity(id: string, opacity: number) {
     this.layers = this.layers.map((l) => (l.id === id ? { ...l, opacity } : l));
+  }
+
+  setLayerDenoise(id: string, denoise: number) {
+    this.layers = this.layers.map((l) => (l.id === id ? { ...l, denoise } : l));
   }
 
   setLayerBlendMode(id: string, blendMode: CanvasLayerBlendMode) {
@@ -1115,6 +1162,68 @@ class CanvasStore {
     this.boundingBox = { x: 0, y: 0, width, height, locked: false };
   }
 
+  saveLayerState(): Array<{ name: string; type: string; visible: boolean; opacity: number; locked: boolean; denoise: number }> {
+    return this.layers.map((l) => ({
+      name: l.name,
+      type: l.type,
+      visible: l.visible,
+      opacity: l.opacity,
+      locked: l.locked,
+      denoise: l.denoise ?? (l.type === "mask" ? 0.7 : 1.0),
+    }));
+  }
+
+  /**
+   * Set mask upscale for high-res inpainting.
+   * Canvas stays at original size — only generation dimensions change.
+   * Image + mask are upscaled transparently before upload to ComfyUI,
+   * and the Rust template downscales the output back via ImageScale.
+   */
+  upscaleMask(targetW: number, targetH: number): void {
+    if (targetW <= 0 || targetH <= 0) return;
+    if (targetW === this.canvasWidth && targetH === this.canvasHeight) return;
+
+    const origW = this.canvasWidth;
+    const origH = this.canvasHeight;
+
+    this._preUpscaleCanvasWidth = origW;
+    this._preUpscaleCanvasHeight = origH;
+
+    const tw = Math.round(targetW);
+    const th = Math.round(targetH);
+
+    generation.width = tw;
+    generation.height = th;
+    generation.postScaleWidth = origW;
+    generation.postScaleHeight = origH;
+    this.maskUpscaleFactor = tw / origW;
+  }
+
+  /**
+   * Clear mask upscale — reset generation dimensions and post-scale params.
+   * Canvas is not resized (it never changed).
+   */
+  resetMaskScale(): void {
+    if (this._preUpscaleCanvasWidth == null || this._preUpscaleCanvasHeight == null) return;
+
+    generation.width = this._preUpscaleCanvasWidth;
+    generation.height = this._preUpscaleCanvasHeight;
+    generation.postScaleWidth = null;
+    generation.postScaleHeight = null;
+    this.maskUpscaleFactor = 1;
+    this._preUpscaleCanvasWidth = null;
+    this._preUpscaleCanvasHeight = null;
+  }
+
+  /** Restore generation dimensions after "Only masked" inpainting completes. */
+  restoreGenerationDims() {
+    if (this._preCropGenDims) {
+      generation.width = this._preCropGenDims.width;
+      generation.height = this._preCropGenDims.height;
+      this._preCropGenDims = null;
+    }
+  }
+
   // Export
   async exportLayerAsImage(layerCanvas: HTMLCanvasElement, filename: string): Promise<{ name: string; subfolder: string; type: string }> {
     const blob = await new Promise<Blob>((resolve) => {
@@ -1148,25 +1257,25 @@ class CanvasStore {
       return false;
     }
 
-    // Convert mask to white-on-black for ComfyUI.
+    // Convert mask to white-on-black grayscale for ComfyUI (preserves soft edges).
+    const exportW = this.maskUpscaleFactor > 1 ? generation.width : maskCanvas.width;
+    const exportH = this.maskUpscaleFactor > 1 ? generation.height : maskCanvas.height;
     const exportCanvas = document.createElement("canvas");
-    exportCanvas.width = maskCanvas.width;
-    exportCanvas.height = maskCanvas.height;
+    exportCanvas.width = exportW;
+    exportCanvas.height = exportH;
     const exportCtx = exportCanvas.getContext("2d")!;
     exportCtx.fillStyle = "black";
-    exportCtx.fillRect(0, 0, exportCanvas.width, exportCanvas.height);
-    exportCtx.drawImage(maskCanvas, 0, 0);
+    exportCtx.fillRect(0, 0, exportW, exportH);
+    exportCtx.drawImage(maskCanvas, 0, 0, exportW, exportH);
 
     const imgData = exportCtx.getImageData(0, 0, exportCanvas.width, exportCanvas.height);
     const pixels = imgData.data;
     for (let i = 0; i < pixels.length; i += 4) {
-      if (pixels[i + 3] > 0 && (pixels[i] > 64 || pixels[i + 1] > 64 || pixels[i + 2] > 64)) {
-        pixels[i] = pixels[i + 1] = pixels[i + 2] = 255;
-        pixels[i + 3] = 255;
-      } else {
-        pixels[i] = pixels[i + 1] = pixels[i + 2] = 0;
-        pixels[i + 3] = 255;
-      }
+      const gray = pixels[i];
+      pixels[i] = gray;
+      pixels[i + 1] = gray;
+      pixels[i + 2] = gray;
+      pixels[i + 3] = 255;
     }
     exportCtx.putImageData(imgData, 0, 0);
 
@@ -1180,6 +1289,89 @@ class CanvasStore {
     return true;
   }
 
+  /** Helper: clone a canvas to a new canvas element. */
+  private async _cloneCanvas(src: HTMLCanvasElement): Promise<HTMLCanvasElement> {
+    const clone = document.createElement("canvas");
+    clone.width = src.width;
+    clone.height = src.height;
+    const ctx = clone.getContext("2d")!;
+    ctx.drawImage(src, 0, 0);
+    return clone;
+  }
+
+  /** Helper: upscale a canvas to generation dimensions. */
+  private _upscaleToGen(src: HTMLCanvasElement): HTMLCanvasElement {
+    const upscaled = document.createElement("canvas");
+    upscaled.width = generation.width;
+    upscaled.height = generation.height;
+    const ctx = upscaled.getContext("2d")!;
+    ctx.drawImage(src, 0, 0, generation.width, generation.height);
+    return upscaled;
+  }
+
+  /**
+   * Convert mask to white-on-black grayscale (Forge-compatible).
+   * Uses alpha channel as grayscale value so blurred soft edges are preserved.
+   */
+  private async _uploadMask(maskCanvas: HTMLCanvasElement, uploadToComfy: boolean): Promise<boolean> {
+    const exportCanvas = document.createElement("canvas");
+    exportCanvas.width = maskCanvas.width;
+    exportCanvas.height = maskCanvas.height;
+    const exportCtx = exportCanvas.getContext("2d")!;
+    exportCtx.fillStyle = "black";
+    exportCtx.fillRect(0, 0, exportCanvas.width, exportCanvas.height);
+    exportCtx.drawImage(maskCanvas, 0, 0);
+
+    const imgData = exportCtx.getImageData(0, 0, exportCanvas.width, exportCanvas.height);
+    const pixels = imgData.data;
+    for (let i = 0; i < pixels.length; i += 4) {
+      const gray = pixels[i];
+      pixels[i] = gray;
+      pixels[i + 1] = gray;
+      pixels[i + 2] = gray;
+      pixels[i + 3] = 255;
+    }
+    exportCtx.putImageData(imgData, 0, 0);
+
+    if (uploadToComfy) {
+      this.persistedMaskPreviewUrl = exportCanvas.toDataURL("image/png");
+      const result = await this.exportLayerAsImage(exportCanvas, "canvas_mask.png");
+      generation.maskImage = result.name;
+    }
+
+    return true;
+  }
+
+  /**
+   * Composite the generation output back into the original full-size canvas.
+   * The output is at crop dimensions (post_scale'd by ImageScale), so we paste
+   * it into the original image at the stored coordinates.
+   */
+  pasteBackOutput(outputBlob: Blob): Promise<string | null> {
+    const pending = this._pendingPaste;
+    if (!pending) return Promise.resolve(null);
+
+    return new Promise((resolve) => {
+      const img = new Image();
+      img.onload = () => {
+        const origImg = new Image();
+        origImg.onload = () => {
+          const canvas = document.createElement("canvas");
+          canvas.width = origImg.width;
+          canvas.height = origImg.height;
+          const ctx = canvas.getContext("2d")!;
+          ctx.drawImage(origImg, 0, 0);
+          ctx.drawImage(img, pending.x, pending.y, pending.width, pending.height);
+          const resultUrl = canvas.toDataURL("image/png");
+          this._pendingPaste = null;
+          resolve(resultUrl);
+        };
+        origImg.src = pending.originalUrl;
+      };
+      img.src = URL.createObjectURL(outputBlob);
+    });
+  }
+
   // Sync canvas to generation store before generating
   async syncToGeneration(
     getRasterComposite: () => HTMLCanvasElement | null,
@@ -1191,52 +1383,156 @@ class CanvasStore {
 
     let hasRaster = false;
     let hasMask = false;
+    let cropRegion: CropRegion | null = null;
 
-    // In inpainting mode, keep the currently selected input image as the baseline.
-    // This makes denoise behave as expected: only the masked area is reworked.
-    if (isInpainting) {
-      if (generation.inputImage) {
-        hasRaster = true;
-      } else if (rasterCanvas) {
-        // Last resort only: if no source image exists, fall back to painted raster.
-        const ctx = rasterCanvas.getContext("2d")!;
-        const data = ctx.getImageData(0, 0, rasterCanvas.width, rasterCanvas.height).data;
-        for (let i = 3; i < data.length; i += 4) {
-          if (data[i] > 0) { hasRaster = true; break; }
-        }
-        if (hasRaster) {
-          const result = await this.exportLayerAsImage(rasterCanvas, "canvas_input.png");
-          generation.inputImage = result.name;
-        }
-      }
-    } else {
-      // Non-inpaint modes use raster if present, otherwise staged image fallback.
-      if (rasterCanvas) {
-        const ctx = rasterCanvas.getContext("2d")!;
-        const data = ctx.getImageData(0, 0, rasterCanvas.width, rasterCanvas.height).data;
-        // Check if any pixel has non-zero alpha
-        for (let i = 3; i < data.length; i += 4) {
-          if (data[i] > 0) { hasRaster = true; break; }
-        }
-        if (hasRaster) {
-          const result = await this.exportLayerAsImage(rasterCanvas, "canvas_input.png");
-          generation.inputImage = result.name;
-        }
-      }
+    // Clear any pending paste-back from previous generation.
+    this._pendingPaste = null;
 
-      if (!hasRaster && this.currentStagingImage) {
-        const response = await fetch(this.currentStagingImage);
-        const blob = await response.blob();
-        const arrayBuffer = await blob.arrayBuffer();
-        const bytes = Array.from(new Uint8Array(arrayBuffer));
-        const result = await uploadImageBytes(bytes, "staged_input.png");
+    // ── "Only masked" crop / upscale pipeline (Forge inpaint_full_res) ──
+    if (isInpainting && this.inpaintFullRes && maskCanvas) {
+      const maskCtx = maskCanvas.getContext("2d")!;
+
+      // 1. Find mask bounding box
+      cropRegion = getCropRegionV2(maskCtx, this.inpaintFullResPadding);
+
+      if (cropRegion && rasterCanvas) {
+        // 2. Expand to match generation aspect ratio
+        cropRegion = expandCropRegion(
+          cropRegion,
+          generation.width,
+          generation.height,
+          rasterCanvas.width,
+          rasterCanvas.height,
+        );
+
+        const cropW = cropRegion.x2 - cropRegion.x1;
+        const cropH = cropRegion.y2 - cropRegion.y1;
+
+        // 3. Prepare mask: blur → crop → upscale → white-on-black
+        let processedMask = maskCanvas;
+        if (this.maskBlur > 0) {
+          processedMask = await this._cloneCanvas(maskCanvas);
+          gaussianBlurCanvas(processedMask, this.maskBlur);
+        }
+        if (this.inpaintMaskInvert) {
+          processedMask = await this._cloneCanvas(processedMask);
+          const ictx = processedMask.getContext("2d")!;
+          const idata = ictx.getImageData(0, 0, processedMask.width, processedMask.height);
+          for (let i = 0; i < idata.data.length; i += 4) {
+            idata.data[i + 3] = 255 - idata.data[i + 3];
+          }
+          ictx.putImageData(idata, 0, 0);
+        }
+
+        let croppedMask = cropCanvas(processedMask, cropRegion);
+        let upscaledMask = this._upscaleToGen(croppedMask);
+
+        // 4. Convert mask to grayscale + upload (preserves blur soft edges).
+        hasMask = await this._uploadMask(upscaledMask, true);
+
+        // 5. Prepare image: crop → upscale → optional fill → upload.
+        let croppedImage = cropCanvas(rasterCanvas, cropRegion);
+        let upscaledImage = this._upscaleToGen(croppedImage);
+
+        if (this.inpaintingFill === 0) {
+          let fillMaskCanvas = upscaledMask;
+          if (this.inpaintMaskInvert) {
+            fillMaskCanvas = await this._cloneCanvas(upscaledMask);
+            const fctx = fillMaskCanvas.getContext("2d")!;
+            const fdata = fctx.getImageData(0, 0, fillMaskCanvas.width, fillMaskCanvas.height);
+            for (let i = 0; i < fdata.data.length; i += 4) {
+              fdata.data[i + 3] = 255 - fdata.data[i + 3];
+            }
+            fctx.putImageData(fdata, 0, 0);
+          }
+          upscaledImage = fillMaskedRegion(upscaledImage, fillMaskCanvas);
+        }
+
+        const result = await this.exportLayerAsImage(upscaledImage, "canvas_input.png");
         generation.inputImage = result.name;
         hasRaster = true;
+
+        // 6. Save original dims, then set post_scale for ImageScale.
+        this._preCropGenDims = { width: generation.width, height: generation.height };
+        generation.postScaleWidth = cropW;
+        generation.postScaleHeight = cropH;
+        generation.width = upscaledImage.width;
+        generation.height = upscaledImage.height;
+
+        // 7. Store paste-back coordinates
+        this._pendingPaste = {
+          x: cropRegion.x1,
+          y: cropRegion.y1,
+          width: cropW,
+          height: cropH,
+          originalUrl: rasterCanvas.toDataURL("image/png"),
+        };
+      } else {
+        cropRegion = null;
       }
     }
 
-    // Export mask
-    hasMask = await this.syncMaskToGeneration(maskCanvas, true);
+    // ── Fallback: whole-image inpainting or non-crop modes ──
+    if (!cropRegion) {
+      const maybeUpscale = (src: HTMLCanvasElement): HTMLCanvasElement => {
+        if (this.maskUpscaleFactor <= 1) return src;
+        const upscaled = document.createElement("canvas");
+        upscaled.width = generation.width;
+        upscaled.height = generation.height;
+        const uctx = upscaled.getContext("2d")!;
+        uctx.drawImage(src, 0, 0, generation.width, generation.height);
+        return upscaled;
+      };
+
+      if (isInpainting) {
+        if (generation.inputImage) {
+          hasRaster = true;
+        } else if (rasterCanvas) {
+          const ctx = rasterCanvas.getContext("2d")!;
+          const data = ctx.getImageData(0, 0, rasterCanvas.width, rasterCanvas.height).data;
+          for (let i = 3; i < data.length; i += 4) {
+            if (data[i] > 0) { hasRaster = true; break; }
+          }
+          if (hasRaster) {
+            const exportSrc = maybeUpscale(rasterCanvas);
+            const result = await this.exportLayerAsImage(exportSrc, "canvas_input.png");
+            generation.inputImage = result.name;
+          }
+        }
+      } else {
+        if (rasterCanvas) {
+          const ctx = rasterCanvas.getContext("2d")!;
+          const data = ctx.getImageData(0, 0, rasterCanvas.width, rasterCanvas.height).data;
+          for (let i = 3; i < data.length; i += 4) {
+            if (data[i] > 0) { hasRaster = true; break; }
+          }
+          if (hasRaster) {
+            const exportSrc = maybeUpscale(rasterCanvas);
+            const result = await this.exportLayerAsImage(exportSrc, "canvas_input.png");
+            generation.inputImage = result.name;
+          }
+        }
+
+        if (!hasRaster && this.currentStagingImage) {
+          const response = await fetch(this.currentStagingImage);
+          const blob = await response.blob();
+          const arrayBuffer = await blob.arrayBuffer();
+          const bytes = Array.from(new Uint8Array(arrayBuffer));
+          const result = await uploadImageBytes(bytes, "staged_input.png");
+          generation.inputImage = result.name;
+          hasRaster = true;
+        }
+      }
+
+      // Export mask (whole-image path)
+      hasMask = await this.syncMaskToGeneration(maskCanvas, true);
+
+      // Sync dimensions from bounding box — but preserve mask-upscale overrides.
+      if (this.maskUpscaleFactor <= 1) {
+        generation.width = this.boundingBox.width;
+        generation.height = this.boundingBox.height;
+      }
+    }
 
     // Resolve mode based on intelligent canvas router (txt2img, img2img, inpaint, outpaint)
     const unifiedAction = this.currentUnifiedAction;
@@ -1252,9 +1548,13 @@ class CanvasStore {
       generation.mode = "txt2img";
     }
 
-    // Sync dimensions from bounding box
-    generation.width = this.boundingBox.width;
-    generation.height = this.boundingBox.height;
+    // Use per-layer denoise from the first visible mask layer
+    if (hasMask) {
+      const firstMask = this.layers.find((l) => l.type === "mask" && l.visible);
+      if (firstMask && firstMask.denoise !== undefined) {
+        generation.denoise = firstMask.denoise;
+      }
+    }
   }
 }
 

@@ -1034,10 +1034,12 @@ fn build_image_stage(params: &GenerationParams, seed: i64) -> WorkflowResult {
     }
 
     // Inject style reference if enabled (IP-Adapter for SD1.5/SDXL, Flux Redux for Flux.1)
-    if params.style_ref_enabled && params.mode != "video" && params.mode != "image_edit" {
-        if style_ref::family_supports_style_ref(&params.model_architecture) {
-            style_ref::inject_style_ref(&mut result, params);
-        }
+    if params.style_ref_enabled
+        && params.mode != "video"
+        && params.mode != "image_edit"
+        && style_ref::family_supports_style_ref(&params.model_architecture)
+    {
+        style_ref::inject_style_ref(&mut result, params);
     }
 
     // Resumed stage extras (sigma tail, painted edit). Last, because they
@@ -1273,6 +1275,33 @@ fn finish_workflow(mut result: WorkflowResult, params: &GenerationParams, seed: 
     // feed into segment detection.
     let final_image = if !params.detail_segments.is_empty() && !intermediate {
         segment_detail::append_segment_chain(&mut result, params, final_image, seed)
+    } else {
+        final_image
+    };
+
+    // Post-generation downscale for mask-upscale -> inpaint -> shrink-back flow.
+    // Must run AFTER upscale/facefix chains so the shrink-back is the final step.
+    let final_image = if params.mode == "inpainting" {
+        if let (Some(pw), Some(ph)) = (params.post_scale_width, params.post_scale_height) {
+            let scale_id = result.next_id.to_string();
+            result.workflow.insert(
+                scale_id.clone(),
+                json!({
+                    "class_type": "ImageScale",
+                    "inputs": {
+                        "image": [final_image.0, final_image.1],
+                        "width": pw,
+                        "height": ph,
+                        "upscale_method": "lanczos",
+                        "crop": "disabled"
+                    }
+                }),
+            );
+            result.next_id += 1;
+            (scale_id, 0u32)
+        } else {
+            final_image
+        }
     } else {
         final_image
     };

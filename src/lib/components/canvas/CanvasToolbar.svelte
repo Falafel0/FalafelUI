@@ -237,6 +237,28 @@
     </button>
   </div>
 
+  {#if generation.mode === "inpainting"}
+    <div class="w-px h-6 bg-neutral-700 mx-2"></div>
+    <div class="flex items-center gap-1">
+      {#if canvas.isCanvasUpscaled}
+        <span class="text-[10px] text-indigo-400 tabular-nums font-semibold">{canvas.maskUpscaleFactor}x</span>
+        <button
+          onclick={() => canvas.resetMaskScale()}
+          class="text-[10px] px-1.5 py-0.5 rounded border border-indigo-600 text-indigo-300 bg-indigo-500/10 hover:bg-indigo-500/20 transition-colors cursor-pointer"
+          title={locale.t('canvas.downscale_mask')}
+        >Reset</button>
+      {:else}
+        {#each [2, 3, 4] as f (f)}
+          <button
+            onclick={() => canvas.upscaleMask(Math.round(canvas.canvasWidth * f), Math.round(canvas.canvasHeight * f))}
+            class="text-[10px] px-1.5 py-0.5 rounded border border-neutral-700 text-neutral-400 hover:border-neutral-500 hover:text-neutral-200 transition-colors cursor-pointer"
+            title={locale.t('canvas.upscale_mask', { factor: String(f) })}
+          >{f}x</button>
+        {/each}
+      {/if}
+    </div>
+  {/if}
+
   <div class="w-px h-6 bg-neutral-700 mx-2"></div>
 
   <!-- Project & Export Actions -->

@@ -1,6 +1,7 @@
 <script lang="ts">
   import { untrack } from "svelte";
   import { generation } from "../../stores/generation.svelte.js";
+  import { canvas } from "../../stores/canvas.svelte.js";
   import { locale } from "../../stores/locale.svelte.js";
   import InfoTip from "../ui/InfoTip.svelte";
   import { MODEL_FAMILY_LABELS, type ModelFamily } from "../../utils/modelFamily.js";
@@ -318,6 +319,37 @@
     }
     return { w: Math.max(3, Math.round(boxPx * ratio)), h: boxPx };
   }
+
+  // ── Mask Resize & Forge Inpaint Controls ───────────────────────────────────
+  const isInpaintMode = $derived(generation.mode === "inpainting" || canvas.isCanvasMode);
+
+  let maskTargetW = $state(1024);
+  let maskTargetH = $state(1024);
+  let maskScaleCustom = $state("2");
+
+  $effect(() => {
+    maskTargetW = canvas.canvasWidth;
+    maskTargetH = canvas.canvasHeight;
+  });
+
+  function applyMaskUpscale(factor: number) {
+    canvas.upscaleMask(Math.round(canvas.canvasWidth * factor), Math.round(canvas.canvasHeight * factor));
+  }
+
+  function applyMaskDownscale() {
+    canvas.resetMaskScale();
+  }
+
+  function applyMaskCustomSize() {
+    if (maskTargetW <= 0 || maskTargetH <= 0) return;
+    if (maskTargetW === canvas.canvasWidth && maskTargetH === canvas.canvasHeight) return;
+
+    if (maskTargetW > canvas.canvasWidth || maskTargetH > canvas.canvasHeight) {
+      canvas.upscaleMask(Math.round(maskTargetW), Math.round(maskTargetH));
+    } else {
+      canvas.resetMaskScale();
+    }
+  }
 </script>
 
 <div class="space-y-3">
@@ -509,4 +541,180 @@
     <span>{locale.t('generation.dimensions.result')}</span>
     <span class="text-neutral-200">{generation.width} &times; {generation.height}</span>
   </div>
+
+  <!-- Mask Resize (whole-picture inpainting only — "Only masked" handles sizing via crop) -->
+  {#if isInpaintMode && !canvas.inpaintFullRes}
+    <div class="pt-2 border-t border-neutral-800">
+      <div class="flex items-center justify-between mb-2">
+        <label class="text-xs text-neutral-400">{locale.t('generation.dimensions.mask_resize')}<InfoTip text={locale.t('generation.dimensions.mask_resize_tip')} /></label>
+        {#if canvas.isCanvasUpscaled}
+          <button
+            onclick={applyMaskDownscale}
+            class="text-[10px] px-2 py-0.5 rounded border border-amber-600 text-amber-300 bg-amber-500/10 hover:bg-amber-500/20 transition-colors"
+          >
+            {locale.t('canvas.downscale_mask')}
+          </button>
+        {/if}
+      </div>
+
+      <!-- Current canvas size -->
+      <p class="text-[10px] text-neutral-500 mb-2">
+        {locale.t('generation.dimensions.mask_current')}: <span class="text-neutral-300">{canvas.canvasWidth} &times; {canvas.canvasHeight}</span>
+        {#if canvas.isCanvasUpscaled}
+          <span class="text-amber-400 ml-1">({canvas.maskUpscaleFactor}x)</span>
+        {/if}
+      </p>
+
+      <!-- Quick scale buttons -->
+      <div class="flex items-center gap-1 mb-2">
+        {#each [2, 3, 4] as factor (factor)}
+          <button
+            onclick={() => applyMaskUpscale(factor)}
+            class="text-xs px-2 py-1 rounded border transition-colors {canvas.maskUpscaleFactor === factor
+              ? 'border-indigo-500 text-indigo-300 bg-indigo-500/10'
+              : 'border-neutral-700 text-neutral-400 hover:border-neutral-500 hover:text-neutral-200'}"
+          >
+            {factor}x
+          </button>
+        {/each}
+        <span class="text-neutral-600 text-xs mx-1">|</span>
+        <button
+          onclick={() => {
+            const f = Number.parseFloat(maskScaleCustom);
+            if (Number.isFinite(f) && f > 0.1) applyMaskUpscale(f);
+          }}
+          class="text-xs px-2 py-1 rounded border border-neutral-700 text-neutral-400 hover:border-neutral-500 hover:text-neutral-200 transition-colors"
+          title={locale.t('generation.dimensions.mask_scale_custom')}
+        >
+          <input
+            type="text"
+            inputmode="decimal"
+            bind:value={maskScaleCustom}
+            class="w-8 bg-transparent text-center text-neutral-200 outline-none text-xs"
+            placeholder="?x"
+          />x
+        </button>
+      </div>
+
+      <!-- Custom size inputs -->
+      <div class="flex items-center gap-1.5">
+        <div class="flex-1">
+          <input
+            type="number"
+            bind:value={maskTargetW}
+            min="64"
+            max="8192"
+            step="8"
+            class="w-full bg-neutral-800 border border-neutral-700 rounded-lg px-2 py-1.5 text-xs text-neutral-100 text-center focus:outline-none focus:border-indigo-500 transition-colors"
+            placeholder="W"
+          />
+        </div>
+        <span class="text-neutral-600 text-xs">&times;</span>
+        <div class="flex-1">
+          <input
+            type="number"
+            bind:value={maskTargetH}
+            min="64"
+            max="8192"
+            step="8"
+            class="w-full bg-neutral-800 border border-neutral-700 rounded-lg px-2 py-1.5 text-xs text-neutral-100 text-center focus:outline-none focus:border-indigo-500 transition-colors"
+            placeholder="H"
+          />
+        </div>
+        <button
+          onclick={applyMaskCustomSize}
+          class="text-xs px-3 py-1.5 rounded bg-indigo-600 text-white hover:bg-indigo-500 transition-colors shrink-0"
+        >
+          {locale.t('generation.dimensions.mask_apply')}
+        </button>
+      </div>
+    </div>
+  {/if}
+
+  <!-- Inpaint Controls (Forge-style, canvas mode only) -->
+  {#if isInpaintMode && canvas.isCanvasMode}
+    <div class="pt-2 border-t border-neutral-800 space-y-2">
+      <label class="text-xs text-neutral-400">{locale.t('generation.inpaint.area')}</label>
+
+      <!-- Inpaint area: Whole picture / Only masked -->
+      <div class="flex gap-1">
+        <button
+          onclick={() => canvas.inpaintFullRes = false}
+          class="flex-1 text-[10px] px-2 py-1 rounded border transition-colors {!canvas.inpaintFullRes
+            ? 'border-indigo-500 text-indigo-300 bg-indigo-500/10'
+            : 'border-neutral-700 text-neutral-400 hover:border-neutral-500 hover:text-neutral-200'}"
+        >{locale.t('generation.inpaint.whole_picture')}</button>
+        <button
+          onclick={() => canvas.inpaintFullRes = true}
+          class="flex-1 text-[10px] px-2 py-1 rounded border transition-colors {canvas.inpaintFullRes
+            ? 'border-indigo-500 text-indigo-300 bg-indigo-500/10'
+            : 'border-neutral-700 text-neutral-400 hover:border-neutral-500 hover:text-neutral-200'}"
+        >{locale.t('generation.inpaint.only_masked')}</button>
+      </div>
+
+      {#if canvas.inpaintFullRes}
+        <!-- Only masked padding -->
+        <div class="flex items-center justify-between gap-2">
+          <span class="text-[10px] text-neutral-500">{locale.t('generation.inpaint.padding')}</span>
+          <input
+            type="range"
+            value={canvas.inpaintFullResPadding}
+            oninput={(e) => canvas.inpaintFullResPadding = parseInt((e.target as HTMLInputElement).value)}
+            min="0"
+            max="256"
+            step="8"
+            class="flex-1 accent-indigo-500 h-1"
+          />
+          <span class="text-[10px] text-neutral-400 w-7 text-right">{canvas.inpaintFullResPadding}</span>
+        </div>
+      {/if}
+
+      <!-- Mask blur -->
+      <div class="flex items-center justify-between gap-2">
+        <span class="text-[10px] text-neutral-500">{locale.t('generation.inpaint.mask_blur')}</span>
+        <input
+          type="range"
+          value={canvas.maskBlur}
+          oninput={(e) => canvas.maskBlur = parseInt((e.target as HTMLInputElement).value)}
+          min="0"
+          max="64"
+          step="4"
+          class="flex-1 accent-indigo-500 h-1"
+        />
+        <span class="text-[10px] text-neutral-400 w-5 text-right">{canvas.maskBlur}</span>
+      </div>
+
+      <!-- Mask mode -->
+      <div class="flex gap-1">
+        <button
+          onclick={() => canvas.inpaintMaskInvert = false}
+          class="flex-1 text-[10px] px-2 py-1 rounded border transition-colors {!canvas.inpaintMaskInvert
+            ? 'border-indigo-500 text-indigo-300 bg-indigo-500/10'
+            : 'border-neutral-700 text-neutral-400 hover:border-neutral-500 hover:text-neutral-200'}"
+        >{locale.t('generation.inpaint.inpaint_masked')}</button>
+        <button
+          onclick={() => canvas.inpaintMaskInvert = true}
+          class="flex-1 text-[10px] px-2 py-1 rounded border transition-colors {canvas.inpaintMaskInvert
+            ? 'border-indigo-500 text-indigo-300 bg-indigo-500/10'
+            : 'border-neutral-700 text-neutral-400 hover:border-neutral-500 hover:text-neutral-200'}"
+        >{locale.t('generation.inpaint.inpaint_not_masked')}</button>
+      </div>
+
+      <!-- Masked content -->
+      <label class="text-[10px] text-neutral-500">{locale.t('generation.inpaint.masked_content')}</label>
+      <div class="flex gap-1 flex-wrap">
+        {#each [
+          { value: 1, key: 'generation.inpaint.fill_original' },
+          { value: 0, key: 'generation.inpaint.fill_fill' },
+        ] as opt (opt.value)}
+          <button
+            onclick={() => canvas.inpaintingFill = opt.value}
+            class="text-[10px] px-2 py-1 rounded border transition-colors {canvas.inpaintingFill === opt.value
+              ? 'border-indigo-500 text-indigo-300 bg-indigo-500/10'
+              : 'border-neutral-700 text-neutral-400 hover:border-neutral-500 hover:text-neutral-200'}"
+          >{locale.t(opt.key)}</button>
+        {/each}
+      </div>
+    </div>
+  {/if}
 </div>

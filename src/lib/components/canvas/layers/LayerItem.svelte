@@ -9,6 +9,7 @@
   let { layer }: Props = $props();
   let isRenaming = $state(false);
   let renameValue = $state("");
+  let showDenoise = $state(false);
 
   function startRename() {
     renameValue = layer.name;
@@ -142,6 +143,19 @@
         {/if}
       </svg>
     </button>
+
+    <!-- Denoise toggle (mask layers only) -->
+    {#if layer.type === "mask"}
+      <button
+        onclick={(e) => { e.stopPropagation(); showDenoise = !showDenoise; }}
+        class="shrink-0 w-5 h-5 flex items-center justify-center rounded hover:bg-neutral-700 {showDenoise ? 'text-indigo-400 bg-neutral-700/50' : 'text-neutral-500'}"
+        title={locale.t('canvas.layer.denoise')}
+      >
+        <svg xmlns="http://www.w3.org/2000/svg" class="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M12 20V10M18 20V4M6 20v-4"/>
+        </svg>
+      </button>
+    {/if}
   </div>
 
   <!-- Opacity & Blend Mode sub-row (active layer only) -->
@@ -175,6 +189,27 @@
         class="flex-1 accent-indigo-500"
       />
       <span class="text-[10px] text-neutral-400 tabular-nums shrink-0 w-8 text-right">{Math.round(layer.opacity * 100)}%</span>
+    </div>
+  {/if}
+
+  <!-- Denoise slider (mask layers only, when expanded) -->
+  {#if layer.type === "mask" && showDenoise}
+    <!-- svelte-ignore a11y_click_events_have_key_events -->
+    <!-- svelte-ignore a11y_no_static_element_interactions -->
+    <div class="flex items-center gap-2 px-2 py-1.5 border-t border-neutral-700/60 bg-neutral-900/40" onclick={(e) => e.stopPropagation()}>
+      <span class="text-[10px] text-neutral-500 shrink-0">{locale.t('canvas.layer.denoise')}</span>
+      <input
+        type="range"
+        value={layer.denoise ?? 0.7}
+        oninput={(e) => {
+          canvas.setLayerDenoise(layer.id, parseFloat((e.target as HTMLInputElement).value));
+        }}
+        min="0"
+        max="1"
+        step="0.01"
+        class="flex-1 accent-indigo-500 h-1"
+      />
+      <span class="text-[10px] text-neutral-400 tabular-nums w-7 text-right">{(layer.denoise ?? 0.7).toFixed(2)}</span>
     </div>
   {/if}
 </div>

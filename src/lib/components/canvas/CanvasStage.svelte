@@ -977,6 +977,7 @@
       locked: l.locked,
       order: l.order,
       blendMode: (l.blendMode as any) || "normal",
+      denoise: (l as any).denoise ?? (l.type === "mask" ? 0.7 : 1.0),
     }));
 
     syncKonvaLayers();
@@ -1023,13 +1024,22 @@
     }
 
     const activeMeta = canvas.layers.find((l) => l.id === targetLayerId);
-    if (!activeMeta || activeMeta.locked) return;
+    if (!activeMeta || activeMeta.locked || !activeMeta.visible) {
+      canvas.setTool(canvas.previousTool ?? "brush");
+      return;
+    }
 
     const kLayer = konvaLayers.get(targetLayerId);
-    if (!kLayer) return;
+    if (!kLayer) {
+      canvas.setTool(canvas.previousTool ?? "brush");
+      return;
+    }
 
     const children = kLayer.getChildren().filter((node) => node !== transformer && node.name() !== "active-transform-group");
-    if (children.length === 0) return;
+    if (children.length === 0) {
+      canvas.setTool(canvas.previousTool ?? "brush");
+      return;
+    }
 
     canvasHistory.snapshot(targetLayerId);
 
@@ -1945,6 +1955,96 @@
     if (tool === "brush" || tool === "eraser") return "cursor-none";
     return "cursor-default";
   }
+
+  // Mask upscale/downscale support
+  export function captureContentForResize(): { maskUrl: string | null; rasterUrl: string | null } {
+    const maskCanvas = getMaskCanvas();
+    const rasterCanvas = getRasterComposite();
+    return {
+      maskUrl: maskCanvas ? maskCanvas.toDataURL("image/png") : null,
+      rasterUrl: rasterCanvas ? rasterCanvas.toDataURL("image/png") : null,
+    };
+  }
+
+  function stampImageOnLayer(kLayer: Konva.Layer, dataUrl: string, targetW: number, targetH: number) {
+    const img = new Image();
+    img.onload = () => {
+      kLayer.destroyChildren();
+      const konvaImg = new Konva.Image({
+        image: img,
+        x: 0,
+        y: 0,
+        width: targetW,
+        height: targetH,
+        listening: false,
+      });
+      kLayer.add(konvaImg);
+      kLayer.batchDraw();
+    };
+    img.src = dataUrl;
+  }
+
+  $effect(() => {
+    const pending = canvas._maskRestorePending;
+    if (!pending) return;
+
+    // Use rAF to guarantee Konva layers are synchronised before stamping.
+    const restore = () => {
+      if (konvaLayers.size === 0) {
+        // Layers not ready yet — retry once on next frame.
+        requestAnimationFrame(restore);
+        return;
+      }
+
+      const sorted = [...canvas.layers].sort((a, b) => a.order - b.order);
+
+      for (const layerMeta of sorted) {
+        const kLayer = konvaLayers.get(layerMeta.id);
+        if (!kLayer) continue;
+
+        if (layerMeta.type === "raster" && pending.rasterUrl) {
+          stampImageOnLayer(kLayer, pending.rasterUrl, canvas.canvasWidth, canvas.canvasHeight);
+        } else if (layerMeta.type === "mask" && pending.maskUrl) {
+          stampImageOnLayer(kLayer, pending.maskUrl, canvas.canvasWidth, canvas.canvasHeight);
+        }
+      }
+
+      // Re-load reference image at the new canvas dimensions
+      if (refLayer && lastRefSource) {
+        updateReferenceImage(lastRefSource);
+      }
+
+      drawCheckerboard();
+      reorderStageLayers();
+
+      // Restore layer properties (denoise, opacity, etc.) from saved state
+      if (pending.savedLayers) {
+        const sortedSavedRaster = pending.savedLayers.filter((l) => l.type === "raster");
+        const sortedSavedMask = pending.savedLayers.filter((l) => l.type === "mask");
+        const currentRaster = sorted.filter((l) => l.type === "raster");
+        const currentMask = sorted.filter((l) => l.type === "mask");
+
+        for (let i = 0; i < currentRaster.length && i < sortedSavedRaster.length; i++) {
+          canvas.setLayerOpacity(currentRaster[i].id, sortedSavedRaster[i].opacity);
+          canvas.setLayerDenoise(currentRaster[i].id, sortedSavedRaster[i].denoise);
+          canvas.renameLayer(currentRaster[i].id, sortedSavedRaster[i].name);
+          if (sortedSavedRaster[i].visible !== currentRaster[i].visible) canvas.toggleLayerVisibility(currentRaster[i].id);
+          if (sortedSavedRaster[i].locked !== currentRaster[i].locked) canvas.toggleLayerLock(currentRaster[i].id);
+        }
+        for (let i = 0; i < currentMask.length && i < sortedSavedMask.length; i++) {
+          canvas.setLayerOpacity(currentMask[i].id, sortedSavedMask[i].opacity);
+          canvas.setLayerDenoise(currentMask[i].id, sortedSavedMask[i].denoise);
+          canvas.renameLayer(currentMask[i].id, sortedSavedMask[i].name);
+          if (sortedSavedMask[i].visible !== currentMask[i].visible) canvas.toggleLayerVisibility(currentMask[i].id);
+          if (sortedSavedMask[i].locked !== currentMask[i].locked) canvas.toggleLayerLock(currentMask[i].id);
+        }
+      }
+
+      canvas._maskRestorePending = null;
+    };
+
+    requestAnimationFrame(restore);
+  });
 </script>
 
 <svelte:window onkeydown={handleKeyDown} onkeyup={handleKeyUp} />

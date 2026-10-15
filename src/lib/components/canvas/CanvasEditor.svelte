@@ -37,7 +37,19 @@
     }
 
     if (canvas.canvasWidth !== width || canvas.canvasHeight !== height) {
+      // Preserve mask, raster, reference image and layer properties when dimensions change.
+      const oldW = canvas.canvasWidth;
+      const captured = stageRef?.captureContentForResize?.() ?? { maskUrl: null, rasterUrl: null };
+      const savedLayers = canvas.saveLayerState();
       canvas.initCanvas(width, height);
+      // Always schedule restore so the reference image is resized too.
+      canvas._maskRestorePending = {
+        maskUrl: captured.maskUrl,
+        rasterUrl: captured.rasterUrl,
+        scale: width / (oldW || width),
+        restoreOriginal: false,
+        savedLayers,
+      };
     }
   });
 

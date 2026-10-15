@@ -43,13 +43,27 @@
   });
 
   const badge = $derived(actionBadges[action] ?? actionBadges.txt2img);
+
+  function handlePromptKeyDown(e: KeyboardEvent) {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      if (!progress.isGenerating) {
+        onGenerate?.();
+      }
+    } else if (e.key === "Escape") {
+      (e.target as HTMLInputElement).blur();
+    }
+  }
 </script>
 
 <div class="absolute inset-x-0 bottom-6 z-30 flex justify-center px-4 pointer-events-none">
-  <!-- svelte-ignore a11y_no_static_element_interactions -->
   <div
     class="pointer-events-auto flex items-center gap-2 p-1.5 rounded-2xl border border-neutral-700/90 bg-neutral-950/90 shadow-2xl backdrop-blur-md max-w-2xl w-full"
+    role="toolbar"
+    aria-label="Canvas contextual actions"
+    tabindex="-1"
     onclick={(e) => e.stopPropagation()}
+    onkeydown={(e) => e.stopPropagation()}
   >
     {#if canvas.activeTool === "transform"}
       <!-- Free Transform HUD -->
@@ -95,6 +109,7 @@
       <input
         type="text"
         bind:value={generation.positivePrompt}
+        onkeydown={handlePromptKeyDown}
         placeholder={action === "inpaint" || action === "outpaint" ? locale.t("canvas.contextual.prompt_inpaint_placeholder") : locale.t("canvas.contextual.prompt_placeholder")}
         class="w-full bg-neutral-900/80 hover:bg-neutral-900 focus:bg-neutral-900 border border-neutral-700/80 focus:border-indigo-500 rounded-xl px-3 py-1.5 text-xs text-neutral-100 placeholder-neutral-500 outline-none transition-colors"
       />

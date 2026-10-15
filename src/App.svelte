@@ -2072,7 +2072,7 @@
     }
   }
 
-  function finalizeOutputImages(
+  async function finalizeOutputImages(
     promptId: string,
     mode: GenerationMode,
     wasUpscaled: boolean,
@@ -2088,6 +2088,19 @@
     generationTimeMs?: number,
   ) {
     if (images.length === 0) return;
+
+    // Paste-back for "Only masked" inpainting: the ComfyUI output is at crop
+    // dimensions (post_scale'd by ImageScale). Composite it back into the
+    // original full-size image at the stored paste coordinates.
+    if (mode === "inpainting" && canvas.hasPendingPaste && images[0]) {
+      const compositedUrl = await canvas.pasteBackOutput(images[0].blob);
+      if (compositedUrl) {
+        const resp = await fetch(compositedUrl);
+        const compositedBlob = await resp.blob();
+        images[0].url = compositedUrl;
+        images[0].blob = compositedBlob;
+      }
+    }
 
     const created: OutputImage[] = images.map((img, i) => {
       const ext =
@@ -3182,7 +3195,20 @@
               clearRegionalChainGallerySuppress(promptId);
               console.log("[regional] Skipping gallery save for chain intermediate:", promptId);
             } else {
-              finalizeOutputImages(promptId, item.mode, item.wasUpscaled, item.params, images, item.durationMs);
+              await finalizeOutputImages(promptId, item.mode, item.wasUpscaled, item.params, images, item.durationMs);
+            }
+
+            // Auto-reset mask upscale after inpainting: the Rust template downscales
+            // the output via ImageScale, and the canvas never changed size. Just clear
+            // generation post_scale params and restore original dimensions.
+            if (item.mode === "inpainting") {
+              if (canvas.isCanvasUpscaled) {
+                canvas.resetMaskScale();
+              }
+              // Restore generation dims overridden by "Only masked" crop flow
+              canvas.restoreGenerationDims();
+              generation.postScaleWidth = null;
+              generation.postScaleHeight = null;
             }
 
             // Track grid batch completion — stitch when all cells are done
@@ -3337,7 +3363,7 @@
                   clearRegionalChainGallerySuppress(p.promptId);
                   console.log("[regional] Skipping gallery save for chain intermediate:", p.promptId);
                 } else {
-                  finalizeOutputImages(p.promptId, item.mode, item.wasUpscaled, item.params, images, item.durationMs);
+                  await finalizeOutputImages(p.promptId, item.mode, item.wasUpscaled, item.params, images, item.durationMs);
                 }
               } else {
                 const failedStyleTransfer = item.params?.style_transfer_enabled;

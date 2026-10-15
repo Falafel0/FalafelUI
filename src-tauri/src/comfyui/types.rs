@@ -543,6 +543,13 @@ pub struct GenerationParams {
     /// whole latent is replaced by the edit.
     #[serde(default)]
     pub resume_edit_mask: Option<String>,
+    /// If set, downscale final output to this width after generation
+    /// (mask-upscale -> inpaint -> shrink-back to original).
+    #[serde(default)]
+    pub post_scale_width: Option<u32>,
+    /// If set, downscale final output to this height after generation.
+    #[serde(default)]
+    pub post_scale_height: Option<u32>,
     /// Filled in by `templates::build_workflow` while assembling one stage of
     /// a paused run. Never sent by the frontend.
     #[serde(skip)]

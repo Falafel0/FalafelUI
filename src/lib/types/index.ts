@@ -544,6 +544,10 @@ export interface GenerationParams {
   resume_edit_image?: string | null;
   /** Mask for `resume_edit_image` (white = take the edit). */
   resume_edit_mask?: string | null;
+  /** Mask-upscale -> inpaint -> shrink-back: target output width after generation. */
+  post_scale_width?: number | null;
+  /** Mask-upscale -> inpaint -> shrink-back: target output height after generation. */
+  post_scale_height?: number | null;
 }
 
 /** One completed stage of a paused txt2img run, as sent back on resume. */

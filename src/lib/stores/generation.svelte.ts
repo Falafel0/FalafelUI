@@ -762,6 +762,8 @@ class GenerationStore {
   seed = $state("-1");
   width = $state(512);
   height = $state(512);
+  postScaleWidth = $state<number | null>(null);
+  postScaleHeight = $state<number | null>(null);
   batchSize = $state(1);
   /**
    * Stop the next txt2img run after this many steps (0 = run to the end).
@@ -4161,6 +4163,8 @@ class GenerationStore {
       seed: seedSource,
       width: this.width,
       height: this.height,
+      post_scale_width: this.postScaleWidth,
+      post_scale_height: this.postScaleHeight,
       batch_size: this.batchSize,
       denoise: this.denoise,
       differential_diffusion: this.differentialDiffusion,
