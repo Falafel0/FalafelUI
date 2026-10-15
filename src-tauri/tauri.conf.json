@@ -1,8 +1,8 @@
 {
   "$schema": "https://raw.githubusercontent.com/nicerlab/files/main/tauri/tauri.conf.json.schema",
-  "productName": "MooshieUI",
+  "productName": "FalafelUI",
   "version": "2.3.22",
-  "identifier": "com.mooshieui.desktop",
+  "identifier": "com.falafelui.desktop",
   "build": {
     "frontendDist": "../dist",
     "devUrl": "http://localhost:1420",
@@ -12,7 +12,7 @@
   "app": {
     "windows": [
       {
-        "title": "MooshieUI",
+        "title": "FalafelUI",
         "width": 1440,
         "height": 900,
         "minWidth": 900,
@@ -45,7 +45,7 @@
     "category": "Graphics and Design",
     "createUpdaterArtifacts": true,
     "shortDescription": "Beginner-friendly AI image generation frontend for ComfyUI",
-    "longDescription": "MooshieUI is a modern desktop frontend that hides ComfyUI's node-graph complexity behind a clean, intuitive interface. Features text-to-image, image-to-image, inpainting, built-in upscaling, and one-click setup."
+    "longDescription": "FalafelUI is a modern desktop frontend that hides ComfyUI's node-graph complexity behind a clean, intuitive interface. Features text-to-image, image-to-image, inpainting, built-in upscaling, and one-click setup."
   },
   "plugins": {
     "updater": {

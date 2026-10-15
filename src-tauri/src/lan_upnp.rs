@@ -190,7 +190,7 @@ mod desktop {
 
     /// Lease in seconds; renewed at half-time.
     const LEASE_SECS: u32 = 3600;
-    const DESCRIPTION: &str = "MooshieUI";
+    const DESCRIPTION: &str = "FalafelUI";
 
     pub(super) async fn run(
         port: u16,

@@ -1791,4 +1791,33 @@ export const refineVideoDraft = (filename: string, steps: number, sigma: number)
   ipcInvoke<{ prompt_id: string }>("refine_video_draft", { filename, steps, sigma });
 /** Regenerate pixel frames [startFrame, endFrame) of a retained draft, keeping its audio. */
 export const retakeVideoDraft = (filename: string, startFrame: number, endFrame: number, steps: number) =>
-  ipcInvoke<{ prompt_id: string }>("retake_video_draft", { filename, startFrame, endFrame, steps });
+  ipcInvoke<{ prompt_id: string }>("refine_video_draft", { filename, startFrame, endFrame, steps });
+
+export interface DetectedExistingInstall {
+  found: boolean;
+  path: string;
+  comfyui_path: string;
+  venv_path: string;
+  has_models: boolean;
+  model_count: number;
+}
+
+export interface ValidatedExistingInstall {
+  valid: boolean;
+  is_mooshie_dir: boolean;
+  comfyui_path: string;
+  venv_path: string;
+  has_models: boolean;
+  model_count: number;
+  message: string;
+}
+
+export const detectExistingMooshieInstall = () =>
+  ipcInvoke<DetectedExistingInstall>("detect_existing_mooshie_install");
+
+export const validateExistingInstall = (path: string) =>
+  ipcInvoke<ValidatedExistingInstall>("validate_existing_install", { path });
+
+export const linkExistingInstall = (path: string) =>
+  ipcInvoke<void>("link_existing_install", { path });
+

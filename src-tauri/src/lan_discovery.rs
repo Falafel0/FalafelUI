@@ -1,17 +1,17 @@
 //! How other devices on the network reach the embedded web server: the PC's
 //! LAN addresses, and (desktop builds) an mDNS name so people can type
-//! `mooshieui.local` instead of an IP.
+//! `falafelui.local` instead of an IP.
 //!
 //! `.local` is the only suffix every OS resolves over multicast DNS with no
-//! router or DNS server setup, so a name like `mooshie.ui` cannot work locally.
+//! router or DNS server setup, so a name like `falafel.ui` cannot work locally.
 //! The IP addresses stay on show for devices whose resolver skips mDNS (some
 //! Android builds and locked-down Windows machines).
 
 use std::net::{IpAddr, Ipv4Addr, UdpSocket};
 use std::sync::Mutex;
 
-/// mDNS host label, advertised as `mooshieui.local`.
-pub const MDNS_HOST_LABEL: &str = "mooshieui";
+/// mDNS host label, advertised as `falafelui.local`.
+pub const MDNS_HOST_LABEL: &str = "falafelui";
 
 /// What the running web server is bound to, recorded by `webserver::start_server`.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -193,7 +193,7 @@ fn advertise(endpoint: ServerEndpoint) {
     };
     let info = match ServiceInfo::new(
         service_type,
-        "MooshieUI",
+        "FalafelUI",
         &host_fqdn,
         addrs.as_slice(),
         endpoint.port,
@@ -327,8 +327,8 @@ mod tests {
             lan: true,
         };
         assert_eq!(
-            url_for("mooshieui.local", &ep),
-            "http://mooshieui.local:3200"
+            url_for("falafelui.local", &ep),
+            "http://falafelui.local:3200"
         );
         let tls = ServerEndpoint { https: true, ..ep };
         assert_eq!(url_for("192.168.1.2", &tls), "https://192.168.1.2:3200");

@@ -7575,10 +7575,10 @@ pub async fn fetch_release_notes(
 ) -> Result<Vec<ReleaseNote>, AppError> {
     let resp = state
         .http_client
-        .get("https://api.github.com/repos/Mooshieblob1/MooshieUI/releases")
+        .get("https://api.github.com/repos/Falafel0/FalafelUI/releases")
         .query(&[("per_page", "20")])
         .header("Accept", "application/vnd.github+json")
-        .header("User-Agent", "MooshieUI")
+        .header("User-Agent", "FalafelUI")
         .send()
         .await?;
 

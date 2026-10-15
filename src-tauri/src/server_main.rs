@@ -15,7 +15,7 @@ use comfyui_desktop_lib::{temp_images, webserver};
 async fn main() {
     comfyui_desktop_lib::log_buffer::init();
 
-    log::info!("MooshieUI Server starting...");
+    log::info!("FalafelUI Server starting...");
 
     let config = load_persisted_config();
     let port = config.ui_server_port;
@@ -197,7 +197,7 @@ async fn main() {
     }
 
     server_handle.abort();
-    log::info!("MooshieUI Server stopped.");
+    log::info!("FalafelUI Server stopped.");
 }
 
 /// Resolve on Ctrl-C, or on SIGTERM where it exists. Docker and Kubernetes

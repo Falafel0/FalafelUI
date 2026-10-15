@@ -40,7 +40,7 @@ pub struct FirewallStatus {
 
 /// Display name of the allow rule this module manages.
 #[cfg_attr(not(any(windows, test)), allow(dead_code))]
-const RULE_NAME: &str = "MooshieUI LAN access";
+const RULE_NAME: &str = "FalafelUI LAN access";
 
 /// `ERROR_CANCELLED`: the launcher's exit code when the UAC prompt is declined.
 #[cfg_attr(not(any(windows, test)), allow(dead_code))]
@@ -216,7 +216,7 @@ fn allow_script(exe: &std::path::Path) -> String {
          try {{\n\
          {rules} | Where-Object {{ $_.Action -eq 'Block' -and ([int]$_.Profile -eq 0 -or ([int]$_.Profile -band 3)) }} | Remove-NetFirewallRule -ErrorAction SilentlyContinue\n\
          Get-NetFirewallRule -DisplayName '{name}' -ErrorAction SilentlyContinue | Remove-NetFirewallRule\n\
-         New-NetFirewallRule -DisplayName '{name}' -Description 'Lets devices on your home network open MooshieUI in LAN mode.' \
+         New-NetFirewallRule -DisplayName '{name}' -Description 'Lets devices on your home network open FalafelUI in LAN mode.' \
          -Direction Inbound -Action Allow -Program '{exe}' -Profile Private,Domain | Out-Null\n\
          exit 0\n\
          }} catch {{ exit 1 }}\n",

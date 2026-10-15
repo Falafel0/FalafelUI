@@ -2069,6 +2069,302 @@ pub struct DetectedModelDir {
     pub has_vae: bool,
 }
 
+#[derive(Clone, serde::Serialize)]
+pub struct DetectedExistingInstall {
+    pub found: bool,
+    pub path: String,
+    pub comfyui_path: String,
+    pub venv_path: String,
+    pub has_models: bool,
+    pub model_count: usize,
+}
+
+#[derive(Clone, serde::Serialize)]
+pub struct ValidatedExistingInstall {
+    pub valid: bool,
+    pub is_mooshie_dir: bool,
+    pub comfyui_path: String,
+    pub venv_path: String,
+    pub has_models: bool,
+    pub model_count: usize,
+    pub message: String,
+}
+
+/// Detect an existing MooshieUI installation in standard app data locations.
+#[tauri::command]
+pub async fn detect_existing_mooshie_install() -> Result<DetectedExistingInstall, AppError> {
+    let data_dir = match dirs::data_dir() {
+        Some(d) => d,
+        None => {
+            return Ok(DetectedExistingInstall {
+                found: false,
+                path: String::new(),
+                comfyui_path: String::new(),
+                venv_path: String::new(),
+                has_models: false,
+                model_count: 0,
+            })
+        }
+    };
+
+    let candidates = [
+        data_dir.join(config::MOOSHIE_APP_IDENTIFIER),
+        data_dir.join(config::OLD_APP_IDENTIFIER),
+    ];
+
+    for candidate in candidates {
+        if candidate.exists() {
+            // Check if it's redirected via data_dir.txt
+            let actual_dir =
+                if let Ok(ptr) = std::fs::read_to_string(candidate.join("data_dir.txt")) {
+                    let trimmed = ptr.trim();
+                    if !trimmed.is_empty() && Path::new(trimmed).exists() {
+                        PathBuf::from(trimmed)
+                    } else {
+                        candidate.clone()
+                    }
+                } else {
+                    candidate.clone()
+                };
+
+            let comfyui = actual_dir.join("comfyui");
+            let venv = actual_dir.join("venv");
+
+            if comfyui.join("main.py").exists() && venv.exists() {
+                let mut model_count = 0;
+                let ckpt_dir = comfyui.join("models").join("checkpoints");
+                if let Ok(entries) = std::fs::read_dir(ckpt_dir) {
+                    for entry in entries.flatten() {
+                        let p = entry.path();
+                        if let Some(ext) = p.extension() {
+                            if ext == "safetensors" || ext == "ckpt" || ext == "pt" {
+                                model_count += 1;
+                            }
+                        }
+                    }
+                }
+
+                return Ok(DetectedExistingInstall {
+                    found: true,
+                    path: actual_dir.to_string_lossy().to_string(),
+                    comfyui_path: comfyui.to_string_lossy().to_string(),
+                    venv_path: venv.to_string_lossy().to_string(),
+                    has_models: model_count > 0,
+                    model_count,
+                });
+            }
+        }
+    }
+
+    Ok(DetectedExistingInstall {
+        found: false,
+        path: String::new(),
+        comfyui_path: String::new(),
+        venv_path: String::new(),
+        has_models: false,
+        model_count: 0,
+    })
+}
+
+/// Validate any user-selected folder as a MooshieUI or ComfyUI installation.
+#[tauri::command]
+pub async fn validate_existing_install(path: String) -> Result<ValidatedExistingInstall, AppError> {
+    let trimmed = path.trim();
+    if trimmed.is_empty() {
+        return Ok(ValidatedExistingInstall {
+            valid: false,
+            is_mooshie_dir: false,
+            comfyui_path: String::new(),
+            venv_path: String::new(),
+            has_models: false,
+            model_count: 0,
+            message: "Path cannot be empty".to_string(),
+        });
+    }
+
+    let p = PathBuf::from(trimmed);
+    if !p.exists() || !p.is_dir() {
+        return Ok(ValidatedExistingInstall {
+            valid: false,
+            is_mooshie_dir: false,
+            comfyui_path: String::new(),
+            venv_path: String::new(),
+            has_models: false,
+            model_count: 0,
+            message: "Selected directory does not exist".to_string(),
+        });
+    }
+
+    // Case 1: Mooshie / Falafel data directory (contains comfyui/main.py and venv)
+    if p.join("comfyui").join("main.py").exists() {
+        let comfyui = p.join("comfyui");
+        let venv = p.join("venv");
+        let mut model_count = 0;
+        let ckpt_dir = comfyui.join("models").join("checkpoints");
+        if let Ok(entries) = std::fs::read_dir(ckpt_dir) {
+            for entry in entries.flatten() {
+                let ep = entry.path();
+                if let Some(ext) = ep.extension() {
+                    if ext == "safetensors" || ext == "ckpt" || ext == "pt" {
+                        model_count += 1;
+                    }
+                }
+            }
+        }
+
+        return Ok(ValidatedExistingInstall {
+            valid: true,
+            is_mooshie_dir: true,
+            comfyui_path: comfyui.to_string_lossy().to_string(),
+            venv_path: venv.to_string_lossy().to_string(),
+            has_models: model_count > 0,
+            model_count,
+            message: format!("Valid Mooshie installation ({} checkpoints)", model_count),
+        });
+    }
+
+    // Case 2: Direct ComfyUI folder (contains main.py)
+    if p.join("main.py").exists() {
+        let comfyui = p.clone();
+        let venv = if p.join("venv").exists() {
+            p.join("venv")
+        } else if let Some(parent) = p.parent() {
+            if parent.join("venv").exists() {
+                parent.join("venv")
+            } else if parent.join("python_embeded").exists() {
+                parent.join("python_embeded")
+            } else {
+                p.join("venv")
+            }
+        } else {
+            p.join("venv")
+        };
+
+        let mut model_count = 0;
+        let ckpt_dir = comfyui.join("models").join("checkpoints");
+        if let Ok(entries) = std::fs::read_dir(ckpt_dir) {
+            for entry in entries.flatten() {
+                let ep = entry.path();
+                if let Some(ext) = ep.extension() {
+                    if ext == "safetensors" || ext == "ckpt" || ext == "pt" {
+                        model_count += 1;
+                    }
+                }
+            }
+        }
+
+        return Ok(ValidatedExistingInstall {
+            valid: true,
+            is_mooshie_dir: false,
+            comfyui_path: comfyui.to_string_lossy().to_string(),
+            venv_path: venv.to_string_lossy().to_string(),
+            has_models: model_count > 0,
+            model_count,
+            message: format!("ComfyUI folder recognized ({} checkpoints)", model_count),
+        });
+    }
+
+    // Case 3: ComfyUI portable root (contains ComfyUI/main.py)
+    if p.join("ComfyUI").join("main.py").exists() {
+        let comfyui = p.join("ComfyUI");
+        let venv = if p.join("python_embeded").exists() {
+            p.join("python_embeded")
+        } else {
+            p.join("venv")
+        };
+
+        let mut model_count = 0;
+        let ckpt_dir = comfyui.join("models").join("checkpoints");
+        if let Ok(entries) = std::fs::read_dir(ckpt_dir) {
+            for entry in entries.flatten() {
+                let ep = entry.path();
+                if let Some(ext) = ep.extension() {
+                    if ext == "safetensors" || ext == "ckpt" || ext == "pt" {
+                        model_count += 1;
+                    }
+                }
+            }
+        }
+
+        return Ok(ValidatedExistingInstall {
+            valid: true,
+            is_mooshie_dir: false,
+            comfyui_path: comfyui.to_string_lossy().to_string(),
+            venv_path: venv.to_string_lossy().to_string(),
+            has_models: model_count > 0,
+            model_count,
+            message: format!("ComfyUI Portable recognized ({} checkpoints)", model_count),
+        });
+    }
+
+    Ok(ValidatedExistingInstall {
+        valid: false,
+        is_mooshie_dir: false,
+        comfyui_path: String::new(),
+        venv_path: String::new(),
+        has_models: false,
+        model_count: 0,
+        message: "Could not find ComfyUI (main.py) or Python venv in this folder".to_string(),
+    })
+}
+
+/// Link FalafelUI to an existing MooshieUI or ComfyUI installation without re-downloading.
+#[tauri::command]
+pub async fn link_existing_install(
+    app: AppHandle,
+    state: tauri::State<'_, Arc<AppState>>,
+    path: String,
+) -> Result<(), AppError> {
+    let _setup = SETUP_LOCK
+        .try_lock()
+        .map_err(|_| "A ComfyUI setup or update is already running")?;
+
+    let validation = validate_existing_install(path.clone()).await?;
+    if !validation.valid {
+        return Err(AppError::Other(validation.message));
+    }
+
+    // Stop any running process
+    crate::comfyui::process::stop_comfyui_process(&state)
+        .await
+        .ok();
+
+    emit(&app, "config", "Linking existing installation...", 40);
+
+    let trimmed = path.trim();
+    if validation.is_mooshie_dir {
+        // Point data_dir.txt to this existing Mooshie directory
+        config::save_custom_data_dir(trimmed)?;
+        let base = PathBuf::from(trimmed);
+        let _ = std::fs::write(base.join(".setup_complete"), "1");
+
+        // Update config in that folder to ensure setup_complete is true
+        let mut cfg = config::load_persisted_config();
+        cfg.comfyui_path = validation.comfyui_path.clone();
+        cfg.venv_path = validation.venv_path.clone();
+        cfg.setup_complete = true;
+        let _ = config::save_config(&cfg);
+    } else {
+        // Standalone ComfyUI folder
+        let base = data_dir(&app)?;
+        let _ = std::fs::create_dir_all(&base);
+        let _ = std::fs::write(base.join(".setup_complete"), "1");
+
+        let mut cfg = config::load_persisted_config();
+        cfg.comfyui_path = validation.comfyui_path.clone();
+        cfg.venv_path = validation.venv_path.clone();
+        cfg.setup_complete = true;
+        let _ = config::save_config(&cfg);
+    }
+
+    // Deploy required custom nodes into the ComfyUI directory
+    emit(&app, "nodes", "Updating custom nodes...", 80);
+    crate::comfyui::nodes::ensure_mooshie_nodes(&validation.comfyui_path)?;
+
+    emit(&app, "done", "Setup completed!", 100);
+    Ok(())
+}
+
 /// Public alias so webserver.rs can call this without the `desktop` feature gate.
 pub fn scan_model_directories_pub() -> Vec<DetectedModelDir> {
     scan_model_directories()

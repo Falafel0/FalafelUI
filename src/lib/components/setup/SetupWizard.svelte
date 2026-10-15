@@ -3,7 +3,16 @@
   import { onMount } from "svelte";
   import logo from "../../assets/logo.png";
   import { locale, LOCALE_OPTIONS } from "../../stores/locale.svelte.js";
-  import { checkAttentionBackend, uploadImageBytes, type BackendSupport } from "../../utils/api.js";
+  import {
+    checkAttentionBackend,
+    uploadImageBytes,
+    detectExistingMooshieInstall,
+    validateExistingInstall,
+    linkExistingInstall,
+    type BackendSupport,
+    type DetectedExistingInstall,
+    type ValidatedExistingInstall,
+  } from "../../utils/api.js";
 
   let {
     onSetupComplete,
@@ -50,6 +59,14 @@
   let customInstallPath = $state("");
   let useCustomPath = $state(false);
   let installPath = $derived(useCustomPath && customInstallPath.trim() ? customInstallPath.trim() : "");
+
+  // Existing Mooshie / ComfyUI installation detection & custom linking
+  let detectedExisting = $state<DetectedExistingInstall | null>(null);
+  let showExistingPicker = $state(false);
+  let customExistingPath = $state("");
+  let validatingExisting = $state(false);
+  let existingValidation = $state<ValidatedExistingInstall | null>(null);
+  let linkingExisting = $state(false);
 
   // Detected model directories from other AI tools
   interface DetectedModelDir {
@@ -208,6 +225,17 @@
         scanningModels = false;
       });
 
+    // Detect existing MooshieUI / ComfyUI installation
+    detectExistingMooshieInstall()
+      .then((res) => {
+        if (res.found) {
+          detectedExisting = res;
+        }
+      })
+      .catch((e) => {
+        console.warn("Failed to check for existing MooshieUI installation:", e);
+      });
+
     phase = "ready";
 
     // Listen for progress events
@@ -292,6 +320,73 @@
     if (selected && typeof selected === "string") {
       customInstallPath = selected;
       useCustomPath = true;
+    }
+  }
+
+  async function browseExistingPath() {
+    if (!isTauri) return;
+    const { open } = await import("@tauri-apps/plugin-dialog");
+    const selected = await open({
+      directory: true,
+      multiple: false,
+      title: locale.t("setup.existing.custom_title"),
+    });
+    if (selected && typeof selected === "string") {
+      customExistingPath = selected;
+      await checkExistingPath(selected);
+    }
+  }
+
+  let validationTimeout: any = null;
+  function onExistingPathInput() {
+    clearTimeout(validationTimeout);
+    validationTimeout = setTimeout(() => {
+      if (customExistingPath.trim()) {
+        checkExistingPath(customExistingPath.trim());
+      } else {
+        existingValidation = null;
+      }
+    }, 400);
+  }
+
+  async function checkExistingPath(path: string) {
+    validatingExisting = true;
+    try {
+      existingValidation = await validateExistingInstall(path);
+    } catch (e: any) {
+      existingValidation = {
+        valid: false,
+        is_mooshie_dir: false,
+        comfyui_path: "",
+        venv_path: "",
+        has_models: false,
+        model_count: 0,
+        message: e?.message || String(e),
+      };
+    } finally {
+      validatingExisting = false;
+    }
+  }
+
+  async function linkExisting(path: string) {
+    if (isBrowserMode || linkingExisting) return;
+    linkingExisting = true;
+    phase = "installing";
+    progressPercent = 10;
+    progressMessage = locale.t("setup.existing.linking");
+    logLines = [];
+    completedSteps = new Set();
+    currentStep = "config";
+
+    try {
+      await linkExistingInstall(path);
+      completedSteps = new Set([...completedSteps, "nodes", "config"]);
+      phase = "choose-mode";
+    } catch (e: any) {
+      phase = "error";
+      errorMessage = typeof e === "string" ? e : e?.message || locale.t("app.status.unknown_error");
+    } finally {
+      linkingExisting = false;
     }
   }
 
@@ -545,6 +640,101 @@
             </button>
           </div>
         {:else}
+        <!-- Existing Installation Option (MooshieUI / ComfyUI) -->
+        {#if detectedExisting?.found}
+          <div class="mb-6 rounded-xl border border-purple-500/40 bg-purple-950/20 p-4 space-y-3">
+            <div class="flex items-start gap-3">
+              <div class="w-8 h-8 rounded-lg bg-purple-600/30 border border-purple-500/50 flex items-center justify-center text-purple-300 text-lg shrink-0">
+                ✨
+              </div>
+              <div class="flex-1 min-w-0">
+                <h3 class="text-sm font-semibold text-purple-200">{locale.t("setup.existing.found_title")}</h3>
+                <p class="text-xs text-neutral-300 mt-0.5 break-all font-mono">{detectedExisting.path}</p>
+                <p class="text-[11px] text-purple-300/80 mt-1">
+                  {locale.t("setup.existing.found_desc", { count: detectedExisting.model_count })}
+                </p>
+              </div>
+            </div>
+            <button
+              type="button"
+              onclick={() => detectedExisting?.path && linkExisting(detectedExisting.path)}
+              disabled={linkingExisting}
+              class="w-full py-2.5 px-4 rounded-lg bg-purple-600 hover:bg-purple-500 text-white font-semibold text-xs transition-colors cursor-pointer shadow flex items-center justify-center gap-2"
+            >
+              {#if linkingExisting}
+                <div class="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                <span>{locale.t("setup.existing.linking")}</span>
+              {:else}
+                <span>{locale.t("setup.existing.use_detected_button")}</span>
+              {/if}
+            </button>
+          </div>
+        {/if}
+
+        <div class="mb-6 rounded-lg border border-neutral-800 bg-neutral-950/50 p-3 space-y-2">
+          <div class="flex items-center justify-between gap-2">
+            <div class="min-w-0">
+              <p class="text-xs text-neutral-300 font-medium">{locale.t("setup.existing.custom_title")}</p>
+              <p class="text-[10px] text-neutral-500 truncate">{locale.t("setup.existing.custom_desc")}</p>
+            </div>
+            <button
+              type="button"
+              class="shrink-0 text-[10px] px-2 py-1 rounded border transition-colors cursor-pointer {showExistingPicker
+                ? 'border-purple-500/50 text-purple-300 bg-purple-600/10'
+                : 'border-neutral-700 text-neutral-400 hover:text-neutral-200 hover:border-neutral-600'}"
+              onclick={() => showExistingPicker = !showExistingPicker}
+            >
+              {showExistingPicker ? locale.t("common.cancel") : locale.t("setup.existing.choose_button")}
+            </button>
+          </div>
+
+          {#if showExistingPicker}
+            <div class="pt-2 space-y-2">
+              <div class="flex gap-1.5">
+                <input
+                  type="text"
+                  bind:value={customExistingPath}
+                  oninput={onExistingPathInput}
+                  class="flex-1 bg-neutral-800 border border-neutral-700 rounded-lg px-3 py-2 text-xs text-neutral-100 placeholder-neutral-500 focus:outline-none focus:border-purple-500"
+                  placeholder={locale.t("setup.existing.path_placeholder")}
+                />
+                <button
+                  type="button"
+                  onclick={browseExistingPath}
+                  class="px-3 py-2 rounded-lg border border-neutral-700 text-neutral-300 hover:border-purple-500 hover:text-purple-300 transition-colors text-xs cursor-pointer"
+                >
+                  {locale.t("setup.browse")}
+                </button>
+              </div>
+
+              {#if validatingExisting}
+                <p class="text-[11px] text-neutral-400 flex items-center gap-1.5">
+                  <span class="w-3 h-3 border border-purple-400 border-t-transparent rounded-full animate-spin"></span>
+                  {locale.t("common.loading")}
+                </p>
+              {:else if existingValidation}
+                {#if existingValidation.valid}
+                  <div class="rounded-lg bg-green-950/30 border border-green-700/50 p-2.5 space-y-2">
+                    <p class="text-xs text-green-300 font-medium flex items-center gap-1.5">
+                      <span>✓</span> {existingValidation.message}
+                    </p>
+                    <button
+                      type="button"
+                      onclick={() => linkExisting(customExistingPath)}
+                      disabled={linkingExisting}
+                      class="w-full py-2 rounded-lg bg-green-600 hover:bg-green-500 text-white font-semibold text-xs transition-colors cursor-pointer"
+                    >
+                      {locale.t("setup.existing.apply_button")}
+                    </button>
+                  </div>
+                {:else}
+                  <p class="text-xs text-red-400">{existingValidation.message}</p>
+                {/if}
+              {/if}
+            </div>
+          {/if}
+        </div>
+
         <!-- GPU Selection -->
         <div class="mb-6">
             <p class="text-xs text-neutral-400 mb-2">{locale.t('setup.gpu_section')}</p>

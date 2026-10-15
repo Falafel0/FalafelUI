@@ -168,27 +168,27 @@ function escapeHtml(text: string): string {
     .replace(/"/g, "&quot;");
 }
 
-/** Color config per tag type — gold/yellow matching --accent (#ffcc00) */
+/** Color config per tag type — violet/purple matching --accent (#a855f7) */
 const TAG_COLORS: Record<string, { bg: string; border: string; glow: string }> = {
   from: {
-    bg: "rgba(255, 204, 0, 0.10)",
-    border: "rgba(255, 204, 0, 0.40)",
-    glow: "0 0 10px rgba(255, 204, 0, 0.30), 0 0 4px rgba(255, 204, 0, 0.15)",
+    bg: "rgba(168, 85, 247, 0.12)",
+    border: "rgba(168, 85, 247, 0.45)",
+    glow: "0 0 10px rgba(168, 85, 247, 0.35), 0 0 4px rgba(168, 85, 247, 0.20)",
   },
   to: {
-    bg: "rgba(255, 204, 0, 0.10)",
-    border: "rgba(255, 204, 0, 0.40)",
-    glow: "0 0 10px rgba(255, 204, 0, 0.30), 0 0 4px rgba(255, 204, 0, 0.15)",
+    bg: "rgba(168, 85, 247, 0.12)",
+    border: "rgba(168, 85, 247, 0.45)",
+    glow: "0 0 10px rgba(168, 85, 247, 0.35), 0 0 4px rgba(168, 85, 247, 0.20)",
   },
   range: {
-    bg: "rgba(255, 204, 0, 0.10)",
-    border: "rgba(255, 204, 0, 0.40)",
-    glow: "0 0 10px rgba(255, 204, 0, 0.30), 0 0 4px rgba(255, 204, 0, 0.15)",
+    bg: "rgba(168, 85, 247, 0.12)",
+    border: "rgba(168, 85, 247, 0.45)",
+    glow: "0 0 10px rgba(168, 85, 247, 0.35), 0 0 4px rgba(168, 85, 247, 0.20)",
   },
   fromto: {
-    bg: "rgba(255, 204, 0, 0.10)",
-    border: "rgba(255, 204, 0, 0.40)",
-    glow: "0 0 10px rgba(255, 204, 0, 0.30), 0 0 4px rgba(255, 204, 0, 0.15)",
+    bg: "rgba(168, 85, 247, 0.12)",
+    border: "rgba(168, 85, 247, 0.45)",
+    glow: "0 0 10px rgba(168, 85, 247, 0.35), 0 0 4px rgba(168, 85, 247, 0.20)",
   },
 };
 

@@ -1,14 +1,22 @@
-<svg width="512" height="512" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="MooshieUI">
-  
-  <rect x="3" y="3" width="94" height="94" rx="27" fill="#181612"></rect>
-  <rect x="3.75" y="3.75" width="92.5" height="92.5" rx="26.25" fill="none" stroke="#ffcc00" stroke-opacity="0.22" stroke-width="1.5"></rect>
-  
-  <g stroke="#ffcc00" fill="#ffcc00">
-    <path d="M29 71 L29 29 L50 56 L71 29 L71 71" stroke-width="10" stroke-linecap="round" stroke-linejoin="round" fill="none"></path>
-    <circle cx="29" cy="29" r="7.5"></circle>
-    <circle cx="71" cy="29" r="7.5"></circle>
-    <circle cx="50" cy="56" r="7.5"></circle>
-    <circle cx="29" cy="71" r="7.5"></circle>
-    <circle cx="71" cy="71" r="7.5"></circle>
+<svg width="512" height="512" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="FalafelUI">
+  <defs>
+    <linearGradient id="falafel-grad" x1="20" y1="20" x2="80" y2="80" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#c084fc"/>
+      <stop offset="100%" stop-color="#9333ea"/>
+    </linearGradient>
+    <linearGradient id="falafel-glow" x1="0" y1="0" x2="100" y2="100" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#a855f7" stop-opacity="0.35"/>
+      <stop offset="100%" stop-color="#6b21a8" stop-opacity="0.15"/>
+    </linearGradient>
+  </defs>
+  <rect x="3" y="3" width="94" height="94" rx="27" fill="#130f1e"></rect>
+  <rect x="3.75" y="3.75" width="92.5" height="92.5" rx="26.25" fill="none" stroke="url(#falafel-glow)" stroke-width="1.5"></rect>
+  <g stroke="url(#falafel-grad)" fill="url(#falafel-grad)">
+    <path d="M30 74 L30 26 L72 26 M30 50 L64 50" stroke-width="10" stroke-linecap="round" stroke-linejoin="round" fill="none"></path>
+    <circle cx="30" cy="26" r="7.5"></circle>
+    <circle cx="72" cy="26" r="7.5"></circle>
+    <circle cx="30" cy="50" r="7.5"></circle>
+    <circle cx="64" cy="50" r="7.5"></circle>
+    <circle cx="30" cy="74" r="7.5"></circle>
   </g>
 </svg>

@@ -760,7 +760,7 @@ export interface ThemeTone {
 export interface ThemeProfile {
   id: string;
   name: string;
-  palette: "mooshie" | "nord" | "solarized" | "gruvbox" | "catppuccin" | "custom";
+  palette: "falafel" | "mooshie" | "nord" | "solarized" | "gruvbox" | "catppuccin" | "custom";
   dark: ThemeTone;
   light: ThemeTone;
   background_image: string | null;

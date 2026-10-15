@@ -1680,7 +1680,7 @@ async fn check_update_handler(
         .app
         .http_client
         .get(url)
-        .header("User-Agent", format!("MooshieUI/{}", current))
+        .header("User-Agent", format!("FalafelUI/{}", current))
         .header("Accept", "application/vnd.github+json")
         .send()
         .await;
@@ -5497,10 +5497,10 @@ async fn dispatch_command(
         "fetch_release_notes" => {
             let resp = state
                 .http_client
-                .get("https://api.github.com/repos/Mooshieblob1/MooshieUI/releases")
+                .get("https://api.github.com/repos/Falafel0/FalafelUI/releases")
                 .query(&[("per_page", "20")])
                 .header("Accept", "application/vnd.github+json")
-                .header("User-Agent", "MooshieUI-Desktop")
+                .header("User-Agent", "FalafelUI-Desktop")
                 .send()
                 .await
                 .map_err(|e| e.to_string())?;

@@ -49,9 +49,9 @@ pub struct ThemeTone {
 impl Default for ThemeTone {
     fn default() -> Self {
         Self {
-            main: "#ffcc00".to_string(),
+            main: "#a855f7".to_string(),
             sub: "#404040".to_string(),
-            trim: "#ffd54d".to_string(),
+            trim: "#c084fc".to_string(),
             background: "#0a0a0a".to_string(),
             text: "#f5f5f5".to_string(),
         }
@@ -534,8 +534,9 @@ pub fn linked_gallery_folders() -> Vec<String> {
         .unwrap_or_default()
 }
 
-const APP_IDENTIFIER: &str = "com.mooshieui.desktop";
-const OLD_APP_IDENTIFIER: &str = "com.comfyui.desktop";
+pub const APP_IDENTIFIER: &str = "com.falafelui.desktop";
+pub const MOOSHIE_APP_IDENTIFIER: &str = "com.mooshieui.desktop";
+pub const OLD_APP_IDENTIFIER: &str = "com.comfyui.desktop";
 
 /// The platform-default app data directory (always the same location).
 /// Used to store the bootstrap pointer file that redirects to the real data dir.
@@ -610,39 +611,39 @@ pub fn app_data_dir() -> Option<PathBuf> {
     platform_default_data_dir()
 }
 
-/// Migrate data from the old `com.comfyui.desktop` directory to the new one.
+/// Migrate data from the old `com.mooshieui.desktop` or `com.comfyui.desktop` directory.
 /// Copies config.json if the new directory doesn't have one yet.
 fn migrate_from_old_data_dir() {
     let data_dir = match dirs::data_dir() {
         Some(d) => d,
         None => return,
     };
-    let old_dir = data_dir.join(OLD_APP_IDENTIFIER);
     let new_dir = data_dir.join(APP_IDENTIFIER);
-
-    // Only migrate if old dir exists and new config doesn't
-    if !old_dir.exists() {
-        return;
-    }
     let new_config = new_dir.join("config.json");
     if new_config.exists() {
         return;
     }
 
-    let old_config = old_dir.join("config.json");
-    if old_config.exists() {
-        if let Err(e) = std::fs::create_dir_all(&new_dir) {
-            eprintln!("Migration: failed to create new data dir: {}", e);
-            return;
-        }
-        if let Err(e) = std::fs::copy(&old_config, &new_config) {
-            eprintln!("Migration: failed to copy config.json: {}", e);
-        } else {
-            println!(
-                "Migrated config from {} to {}",
-                old_dir.display(),
-                new_dir.display()
-            );
+    for old_id in [MOOSHIE_APP_IDENTIFIER, OLD_APP_IDENTIFIER] {
+        let old_dir = data_dir.join(old_id);
+        if old_dir.exists() {
+            let old_config = old_dir.join("config.json");
+            if old_config.exists() {
+                if let Err(e) = std::fs::create_dir_all(&new_dir) {
+                    eprintln!("Migration: failed to create new data dir: {}", e);
+                    return;
+                }
+                if let Err(e) = std::fs::copy(&old_config, &new_config) {
+                    eprintln!("Migration: failed to copy config.json: {}", e);
+                } else {
+                    println!(
+                        "Migrated config from {} to {}",
+                        old_dir.display(),
+                        new_dir.display()
+                    );
+                }
+                return;
+            }
         }
     }
 }

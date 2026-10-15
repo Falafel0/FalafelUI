@@ -1,5 +1,5 @@
 export type ThemeMode = "dark" | "light";
-export type ThemePalette = "mooshie" | "nord" | "solarized" | "gruvbox" | "catppuccin";
+export type ThemePalette = "falafel" | "mooshie" | "nord" | "solarized" | "gruvbox" | "catppuccin";
 
 export interface ThemeTone {
   main: string;
@@ -37,7 +37,7 @@ export const THEME_TONE_FIELDS: Array<{ key: keyof ThemeTone; labelKey: string }
 ];
 
 export const THEME_PALETTES: Array<{ value: ThemePalette; label: string }> = [
-  { value: "mooshie", label: "Mooshie" },
+  { value: "falafel", label: "Falafel (Violet & Purple)" },
   { value: "nord", label: "Nord" },
   { value: "solarized", label: "Solarized" },
   { value: "gruvbox", label: "Gruvbox" },
@@ -49,23 +49,24 @@ export function normalizeThemeMode(value: string | null | undefined): ThemeMode 
 }
 
 export function normalizeThemePalette(value: string | null | undefined): ThemePalette {
+  if (value === "falafel" || value === "mooshie") return "falafel";
   return THEME_PALETTES.some((palette) => palette.value === value)
     ? (value as ThemePalette)
-    : "mooshie";
+    : "falafel";
 }
 
 export const DEFAULT_THEME_TONE_DARK: ThemeTone = {
-  main: "#ffcc00",
+  main: "#a855f7",
   sub: "#404040",
-  trim: "#ffd54d",
+  trim: "#c084fc",
   background: "#0a0a0a",
   text: "#f5f5f5",
 };
 
 export const DEFAULT_THEME_TONE_LIGHT: ThemeTone = {
-  main: "#ffcc00",
+  main: "#9333ea",
   sub: "#404040",
-  trim: "#ffd54d",
+  trim: "#a855f7",
   background: "#f5f5f5",
   text: "#111111",
 };

@@ -2468,7 +2468,7 @@
 
       if (includeBranding && logoImg) {
         ctx.font = wmFont;
-        const textW = ctx.measureText("MooshieUI").width;
+        const textW = ctx.measureText("FalafelUI").width;
         const pillW = wmSize + 6 + textW + wmPad * 2;
         const pillH = wmSize + wmPad;
         const gridBottom = rows * (labelH + cellH) + (rows - 1) * gap;
@@ -2488,7 +2488,7 @@
         ctx.fillStyle = "rgba(255, 255, 255, 0.85)";
         ctx.textAlign = "left";
         ctx.textBaseline = "middle";
-        ctx.fillText("MooshieUI", lx + wmSize + 6, pillY + pillH / 2);
+        ctx.fillText("FalafelUI", lx + wmSize + 6, pillY + pillH / 2);
       }
 
       const gridBlob = await new Promise<Blob>((resolve, reject) => {
