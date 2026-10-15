@@ -37,7 +37,7 @@ git fetch --prune origin
 git branch -vv
 git branch -r
 gh pr list --state open --base main --json number,title,headRefName,updatedAt,isDraft
-gh api repos/Mooshieblob1/MooshieUI/branches?per_page=100 --jq '.[].name'
+gh api repos/Falafel0/FalafelUI/branches?per_page=100 --jq '.[].name'
 ```
 
 **Release / stale branch handling**
@@ -67,8 +67,8 @@ gh pr list --state open --base main --json number,title,headRefName
 
 # Per PR (replace N):
 gh pr view N --json reviews,comments,state,mergedAt
-gh api repos/Mooshieblob1/MooshieUI/pulls/N/comments
-gh api repos/Mooshieblob1/MooshieUI/pulls/N/reviews
+gh api repos/Falafel0/FalafelUI/pulls/N/comments
+gh api repos/Falafel0/FalafelUI/pulls/N/reviews
 ```
 
 Also check **recently merged** PRs since the last `v*` tag (bots sometimes comment late or on squash-merge commits):
@@ -160,8 +160,8 @@ Wait ~60s after CI green. Re-fetch **all** bot threads on the release PR:
 
 ```powershell
 gh pr view <PR_NUMBER> --json reviews,comments,state
-gh api repos/Mooshieblob1/MooshieUI/pulls/<PR_NUMBER>/comments
-gh api repos/Mooshieblob1/MooshieUI/pulls/<PR_NUMBER>/reviews
+gh api repos/Falafel0/FalafelUI/pulls/<PR_NUMBER>/comments
+gh api repos/Falafel0/FalafelUI/pulls/<PR_NUMBER>/reviews
 ```
 
 Repeat classification (Fix / Skip / Defer). Present a summary table: bot, file, verdict, one-line rationale.
@@ -192,7 +192,7 @@ On the merged release PR, fetch comments again in case bots reviewed the squash 
 
 ```powershell
 gh pr view <PR_NUMBER> --json comments,reviews,mergedAt
-gh api repos/Mooshieblob1/MooshieUI/pulls/<PR_NUMBER>/comments
+gh api repos/Falafel0/FalafelUI/pulls/<PR_NUMBER>/comments
 ```
 
 - **Fix** on `main`: commit directly on `main` only if policy allows; otherwise open a tiny follow-up PR. For release workflow, prefer a fast follow-up commit on `main` before tagging when the fix is trivial and release-blocking.
@@ -215,7 +215,7 @@ git -c core.hooksPath=/dev/null push origin vX.Y.Z
 gh run list --workflow=release.yml --limit 3
 ```
 
-Tell user: https://github.com/Mooshieblob1/MooshieUI/actions
+Tell user: https://github.com/Falafel0/FalafelUI/actions
 
 ### 14. Fallback
 
@@ -236,13 +236,13 @@ Confirm no duplicate `release/v*` branches remain for this version. Prune stale 
 
 ### 16. Wiki pass [user-facing changes only]
 
-The wiki is a **separate git repo** (`https://github.com/Mooshieblob1/MooshieUI.wiki.git`, default branch `master`, pages are top-level `*.md`, nav is `_Sidebar.md`). It documents user-facing behavior only — skip this step if the release is purely internal (CI, refactors, deps) with no new/changed/removed user-facing feature or setting.
+The wiki is a **separate git repo** (`https://github.com/Falafel0/FalafelUI.wiki.git`, default branch `master`, pages are top-level `*.md`, nav is `_Sidebar.md`). It documents user-facing behavior only — skip this step if the release is purely internal (CI, refactors, deps) with no new/changed/removed user-facing feature or setting.
 
 For every user-facing item in this release's `## What's New in vX.Y.Z` block:
 
 1. Clone the wiki **outside** the main repo (a temp/scratch dir), never nest it inside the working tree:
    ```powershell
-   git clone https://github.com/Mooshieblob1/MooshieUI.wiki.git <scratch>/MooshieUI.wiki
+   git clone https://github.com/Falafel0/FalafelUI.wiki.git <scratch>/MooshieUI.wiki
    ```
 2. Find the page(s) the feature belongs on (`Upscaling-and-Face-Fix`, `Models-and-the-Model-Hub`, `Prompt-Assistant`, `Settings-and-Accessibility`, `Prompting-Guide`, `Generation-Basics`, `FAQ`, ...). A brand-new area may need a new page plus a `_Sidebar.md` entry.
 3. **Verify exact UI labels against current code before writing** — features get renamed between changelog and ship. Grep `src/lib/locales/en.ts` for the label string and confirm the component. Do not copy changelog prose verbatim; match the wiki's concise, present-tense voice.

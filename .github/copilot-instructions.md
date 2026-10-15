@@ -3,6 +3,9 @@
 ## Non-Negotiable Behavioral Rules
 
 - **No co-authoring**: Never add `Co-Authored-By` trailers to any commit, PR body, issue comment, or PR review comment. Do not attribute AI assistance anywhere in git or GitHub output.
+- **Commit as the owner**: Author and commit as `FSDelta <F95594731@gmail.com>`.
+- **Repository**: `Falafel0/FalafelUI` (independent fork), upstream: `Mooshieblob1/MooshieUI`.
+- **Solo workflow**: Direct push to `main` is standard for solo development. Keep fork-specific settings intact when syncing upstream.
 
 ## Project Overview
 

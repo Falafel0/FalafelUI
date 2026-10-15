@@ -113,10 +113,10 @@ Prune any stale local branches.
 
 ### 9. Wiki pass [user-facing changes only]
 
-Quick releases are usually trivial fixes that need no docs — skip this step then. But if this release adds, renames, or removes a user-facing feature or setting, sync the wiki (a **separate repo**: `https://github.com/Mooshieblob1/MooshieUI.wiki.git`, branch `master`, top-level `*.md`, nav `_Sidebar.md`).
+Quick releases are usually trivial fixes that need no docs — skip this step then. But if this release adds, renames, or removes a user-facing feature or setting, sync the wiki (a **separate repo**: `https://github.com/Falafel0/FalafelUI.wiki.git`, branch `master`, top-level `*.md`, nav `_Sidebar.md`).
 
 ```powershell
-git clone https://github.com/Mooshieblob1/MooshieUI.wiki.git <scratch>/MooshieUI.wiki   # outside the main repo
+git clone https://github.com/Falafel0/FalafelUI.wiki.git <scratch>/MooshieUI.wiki   # outside the main repo
 ```
 
 Edit the page(s) for each user-facing item in this release's `## What's New in vX.Y.Z` block, **verifying exact UI labels against current code** (`src/lib/locales/en.ts` + the component) — labels get renamed before ship. Match the wiki's concise, present-tense voice. Then:

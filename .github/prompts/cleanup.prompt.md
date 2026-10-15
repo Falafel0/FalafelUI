@@ -31,7 +31,7 @@ git fetch --prune origin
 git branch -vv
 git branch -r
 gh pr list --state open --base main --json number,title,headRefName,updatedAt,isDraft
-gh api repos/Mooshieblob1/MooshieUI/branches?per_page=100 --jq '.[].name'
+gh api repos/Falafel0/FalafelUI/branches?per_page=100 --jq '.[].name'
 ```
 
 Identify:
@@ -51,11 +51,12 @@ gh pr list --state open --base main --json number,title,headRefName
 gh pr list --state merged --base main --limit 20 --json number,title,mergedAt
 # Per PR N:
 gh pr view N --json reviews,comments,state,mergedAt
-gh api repos/Mooshieblob1/MooshieUI/pulls/N/comments
-gh api repos/Mooshieblob1/MooshieUI/pulls/N/reviews
+gh api repos/Falafel0/FalafelUI/pulls/N/comments
+gh api repos/Falafel0/FalafelUI/pulls/N/reviews
 ```
 
 Primary bots: `gemini-code-assist[bot]`, `copilot-pull-request-reviewer[bot]`, and actionable `github-actions[bot]` comments.
+*(Note: In a standalone fork without external review bots, this step is skipped if there are no open PRs or bot comments.)*
 
 Classify with `docs/BOT_REVIEW_TRIAGE.md`:
 - **Fix**: correctness/safety/consistency

@@ -48,6 +48,8 @@ Thumbs.db
 
 # Tauri
 src-tauri/gen/
+*.key
+*.key.pub
 
 # Model files (downloaded at runtime)
 *.safetensors

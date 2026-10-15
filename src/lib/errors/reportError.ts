@@ -4,7 +4,7 @@ import { openExternalUrl } from "../utils/openExternal.js";
 import { exportLogsContent, getConfig } from "../utils/api.js";
 import { getLogSnapshot } from "../utils/log-buffer.js";
 
-export const GITHUB_REPO = "Mooshieblob1/MooshieUI";
+export const GITHUB_REPO = "Falafel0/FalafelUI";
 
 /**
  * Ceiling for the server-side log build. In browser/hosted mode `exportLogsContent()`

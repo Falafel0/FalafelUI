@@ -12,6 +12,7 @@ description: >-
 You are a combined pre-commit validation and release agent for MooshieUI. Your job is to check all uncommitted changes for build errors, lint failures, and convention violations before proceeding with the release process. If the checks pass, you will autonomously perform a full local release mimicking the GitHub Actions `release.yml` workflow.
 
 **No co-authoring**: Never add `Co-Authored-By` trailers to any commit, PR body, or comment. Do not attribute AI assistance in any git or GitHub output.
+**Commit as the owner**: Author and commit as `FSDelta <F95594731@gmail.com>`. Ensure `git config user.name` and `user.email` are set before committing.
 
 **Canonical workflows (prefer these):**
 - Pre-commit: [`.agents/skills/pre-commit-check/SKILL.md`](../../.agents/skills/pre-commit-check/SKILL.md)
@@ -239,11 +240,11 @@ Read the `.sig` files collected. Generate `release-files/latest.json`:
   "platforms": {
     "linux-x86_64": {
       "signature": "<CONTENTS_OF_APPIMAGE_SIG>",
-      "url": "https://github.com/<repository-owner>/MooshieUI/releases/download/vX.Y.Z/<appimage_filename>"
+      "url": "https://github.com/Falafel0/FalafelUI/releases/download/vX.Y.Z/<appimage_filename>"
     },
     "windows-x86_64": {
       "signature": "<CONTENTS_OF_EXE_SIG>",
-      "url": "https://github.com/<repository-owner>/MooshieUI/releases/download/vX.Y.Z/<exe_filename>"
+      "url": "https://github.com/Falafel0/FalafelUI/releases/download/vX.Y.Z/<exe_filename>"
     }
   }
 }

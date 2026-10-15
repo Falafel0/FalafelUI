@@ -7,7 +7,7 @@ MooshieUI is a beginner-friendly interface for image, video and music generation
 
 Built with **Svelte 5** + **Rust**, it hides ComfyUI's node-graph complexity behind a clean, guided workflow so you can generate without hand-editing graphs.
 
-![License](https://img.shields.io/github/license/Mooshieblob1/MooshieUI?v=2)
+![License](https://img.shields.io/github/license/Falafel0/FalafelUI?v=2)
 [![Sponsor](https://img.shields.io/badge/Sponsor-%E2%9D%A4-ea4aaa?logo=githubsponsors&logoColor=white)](https://github.com/sponsors/Mooshieblob1)
 [![Ko-fi](https://img.shields.io/badge/Ko--fi-Support-ff5e5b?logo=kofi&logoColor=white)](https://ko-fi.com/mooshieui)
 
@@ -89,7 +89,7 @@ Controls depend on the selected backend and model. NovelAI offers the three stan
 
 ### Desktop (Windows/Linux)
 
-1. Download a release from [Releases](https://github.com/Mooshieblob1/MooshieUI/releases).
+1. Download a release from [Releases](https://github.com/Falafel0/FalafelUI/releases).
 2. Run the app. The setup wizard downloads uv, Python, ComfyUI, and PyTorch (NVIDIA, AMD, or Intel Arc GPU auto-detected) and installs MooshieUI's custom nodes - no Python or pip setup required. On Windows, it also installs an app-local copy of Git when a working Git installation cannot be found.
 3. Start generating; ComfyUI launches automatically.
 
@@ -118,8 +118,8 @@ Open `http://localhost:3200` (or the host port set by `MOOSHIEUI_PORT`) and sign
 Use Node.js 22.12+ or 24+, stable Rust, and the platform's Tauri v2 build prerequisites. See [CONTRIBUTING.md](.github/CONTRIBUTING.md) for validation and both Rust build targets.
 
 ```bash
-git clone https://github.com/Mooshieblob1/MooshieUI.git
-cd MooshieUI
+git clone https://github.com/Falafel0/FalafelUI.git
+cd FalafelUI
 npm install
 npm run tauri dev      # hot-reload dev
 npm run tauri build    # production build
@@ -269,4 +269,4 @@ Auto-installed into ComfyUI alongside MooshieUI's own nodes:
 - **Frontend**: [Konva](https://konvajs.org/) + [svelte-konva](https://github.com/konvajs/svelte-konva) (canvas editor), [marked](https://github.com/markedjs/marked) (markdown), [DOMPurify](https://github.com/cure53/DOMPurify) (sanitization), [SortableJS](https://github.com/SortableJS/Sortable) (drag & drop), and [ntc-ts](https://github.com/Danetag/ntc-ts) (a TypeScript port of [Chirag Mehta's "Name that Color"](https://chir.ag/projects/ntc/)).
 - **Rust**: [Tokio](https://tokio.rs/), [axum](https://github.com/tokio-rs/axum), [reqwest](https://github.com/seanmonstar/reqwest), [tokio-tungstenite](https://github.com/snapview/tokio-tungstenite), [rusqlite](https://github.com/rusqlite/rusqlite) + [SQLite](https://sqlite.org/), [jxl-oxide](https://github.com/tirr-c/jxl-oxide) and jxl-encoder ([JPEG XL](https://github.com/libjxl/libjxl) gallery storage), and [RustCrypto's Argon2](https://github.com/RustCrypto/password-hashes) (password hashing).
 
-If your work is used in MooshieUI and you feel it isn't credited properly here, please [open an issue](https://github.com/Mooshieblob1/MooshieUI/issues), it will be fixed promptly.
+If your work is used in MooshieUI and you feel it isn't credited properly here, please [open an issue](https://github.com/Falafel0/FalafelUI/issues), it will be fixed promptly.

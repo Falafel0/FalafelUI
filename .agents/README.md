@@ -8,7 +8,8 @@ Invoke by name or slash-style request (`/push`, `/release`, etc.):
 
 | Skill | Purpose |
 |-------|---------|
-| [push](skills/push/SKILL.md) | PR to main, no release |
+| [push](skills/push/SKILL.md) | Commit & push to main (direct or PR), no release |
+| [sync-upstream](skills/sync-upstream/SKILL.md) | Fetch & merge updates from upstream MooshieUI |
 | [release](skills/release/SKILL.md) | Version bump, tag, CI release |
 | [quickrelease](skills/quickrelease/SKILL.md) | Quick release: version bump, tag, CI release (no local compile/lint checks) |
 | [cleanup](skills/cleanup/SKILL.md) | Branch hygiene + bot PR triage |

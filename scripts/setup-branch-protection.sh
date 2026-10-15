@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Configures branch protection on Mooshieblob1/MooshieUI:main via the GitHub API.
+# Configures branch protection on Falafel0/FalafelUI:main via the GitHub API.
 #
 # Prerequisites:
 #   - gh CLI installed and authenticated: gh auth login
@@ -14,7 +14,7 @@
 
 set -euo pipefail
 
-REPO="Mooshieblob1/MooshieUI"
+REPO="Falafel0/FalafelUI"
 BRANCH="main"
 
 # Verify gh is available and authenticated

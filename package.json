@@ -12,7 +12,8 @@
     "check:i18n": "node scripts/check-i18n-parity.mjs",
     "check:portals": "node scripts/check-portals.mjs",
     "check:types": "svelte-check",
-    "check": "npm run build && npm run check:i18n && npm run check:portals && npm run check:types"
+    "check": "npm run build && npm run check:i18n && npm run check:portals && npm run check:types",
+    "signer:generate": "node scripts/tauri-wrapper.mjs signer generate -w src-tauri/falafel.key && node scripts/apply-updater-pubkey.mjs"
   },
   "dependencies": {
     "@jsquash/avif": "^2.1.1",

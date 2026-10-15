@@ -2,11 +2,22 @@
 
 This file provides guidance to agents when working with code in this repository.
 
+## Repository & Fork Context
+
+- **Active repository**: `Falafel0/FalafelUI` (`origin`)
+- **Upstream source**: `Mooshieblob1/MooshieUI` (`upstream`)
+- **Author & committer**: `FSDelta <F95594731@gmail.com>`
+- **Workflow model**: Standalone / independent development.
+  - **Direct push to `main`**: Default fast path for solo development (`/push`). Pass pre-commit checks and push directly to `origin main`.
+  - **PR path**: Use `chore/<slug>` or `feat/<slug>` branches with PRs when explicitly requested or for isolated multi-step features.
+  - **No external bot blocking**: Upstream bot triage sweeps (gemini/copilot review bots) are optional/conditional; do not block commits or releases waiting for non-existent bots in this fork.
+  - **Upstream sync**: Use `/sync-upstream` to pull and merge updates from `upstream/main` while preserving fork-specific endpoints, updater keys, and configs.
+
 ## Non-Negotiable Behavioral Rules
 
 - **No co-authoring**: Never add `Co-Authored-By` trailers to any commit, PR body, issue comment, or PR review comment. Do not attribute AI assistance anywhere in git or GitHub output.
-- **No `claude/` branches**: Never create or push a branch named `claude/...` (or after any AI tool), even when the session assigns one. Use `chore/<slug>` (the push skill's convention) or another descriptive prefix.
-- **Commit as the owner**: Author and commit as `Mooshieblob <blob@mooshieblob.com>`. Set the repo-local `git config user.name` and `user.email` before the first commit; an AI author on a branch commit becomes a `Co-authored-by` line when GitHub squash-merges the PR.
+- **No `claude/` branches**: Never create or push a branch named `claude/...` (or after any AI tool), even when the session assigns one. Use `chore/<slug>`, `feat/<slug>`, or another descriptive prefix.
+- **Commit as the owner**: Author and commit as `FSDelta <F95594731@gmail.com>`. Ensure `git config user.name` and `user.email` are set before committing.
 
 ## Error Logs
 
@@ -49,7 +60,7 @@ cargo clippy                 # Rust lint (run in src-tauri/)
 - **keep_alive config**: When true, ComfyUI process survives app close. App kills ComfyUI on exit otherwise.
 - **Store files use `.svelte.ts` extension** — required for Svelte 5 rune compilation.
 - **Agent config (canonical):** [`.agents/README.md`](.agents/README.md)
-  - **Skills:** `push`, `release`, `cleanup`, `pre-commit-check`, `add-tauri-command`, `add-generation-param`, `add-comfyui-node`, `workflow-template-builder` — [`.agents/skills/`](.agents/skills/)
+  - **Skills:** `push`, `release`, `quickrelease`, `sync-upstream`, `cleanup`, `pre-commit-check`, `add-tauri-command`, `add-generation-param`, `add-comfyui-node`, `workflow-template-builder` — [`.agents/skills/`](.agents/skills/)
   - **Rules:** always-on + file-scoped — [`.agents/rules/`](.agents/rules/)
   - **Claude Code mirror:** [`.claude/skills/`](.claude/skills/), [`.claude/commands/`](.claude/commands/) (synced from `.agents/`)
 - **Existing AI rules**: [`GEMINI.md`](GEMINI.md), [`.github/copilot-instructions.md`](.github/copilot-instructions.md), [`.github/instructions/`](.github/instructions/) (including [`mooshieui.instructions.md`](.github/instructions/mooshieui.instructions.md)), [`.github/agents/`](.github/agents/)

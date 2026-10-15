@@ -1674,7 +1674,7 @@ async fn check_update_handler(
     }
 
     let current = env!("CARGO_PKG_VERSION");
-    let url = "https://api.github.com/repos/Mooshieblob1/MooshieUI/releases/latest";
+    let url = "https://api.github.com/repos/Falafel0/FalafelUI/releases/latest";
 
     let resp = state
         .app
