@@ -4593,5 +4593,13 @@ const pt: Record<string, string> = {
   "generation.sampler.steps_short": "passos",
   "generation.oom_reduce_resolution": "Reduzir Resolução",
   "generation.oom_recovery_applied": "Resolução reduzida para 832x832 e tamanho do lote definido como 1",
+  "canvas.transform": "Transformação livre",
+  "canvas.transform_active_tip": "Arraste os cantos para redimensionar ou girar. Enter para aplicar, Esc para cancelar.",
+  "canvas.commit": "Aplicar",
+  "canvas.cancel": "Cancelar",
+  "canvas.invert_mask": "Inverter máscara",
+  "canvas.project_save": "Salvar projeto",
+  "canvas.project_open": "Abrir projeto",
+  "canvas.export_png": "Exportar imagem (PNG)",
 };
 export default pt;

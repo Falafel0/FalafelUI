@@ -4546,5 +4546,13 @@ const en: Record<string, string> = {
   "generation.sampler.steps_short": "steps",
   "generation.oom_reduce_resolution": "Lower Resolution",
   "generation.oom_recovery_applied": "Resolution reduced to 832x832 and batch size set to 1 to recover from Out of Memory",
+  "canvas.transform": "Free Transform",
+  "canvas.transform_active_tip": "Drag corners to scale or rotate. Enter to commit, Esc to cancel.",
+  "canvas.commit": "Commit",
+  "canvas.cancel": "Cancel",
+  "canvas.invert_mask": "Invert Mask",
+  "canvas.project_save": "Save Project",
+  "canvas.project_open": "Open Project",
+  "canvas.export_png": "Export Image (PNG)",
 };
 export default en;

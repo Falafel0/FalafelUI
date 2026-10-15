@@ -86,6 +86,22 @@
             {group.layers.length}
           </span>
         </button>
+        {#if group.key === "mask" && group.layers.length > 0}
+          <button
+            onclick={() => canvas.invertMask()}
+            class="w-5 h-5 flex items-center justify-center rounded text-neutral-400 hover:text-white hover:bg-neutral-800 transition-colors cursor-pointer text-xs"
+            title={locale.t("canvas.invert_mask")}
+          >
+            ◐
+          </button>
+          <button
+            onclick={() => canvas.clearMask()}
+            class="w-5 h-5 flex items-center justify-center rounded text-neutral-400 hover:text-red-400 hover:bg-neutral-800 transition-colors cursor-pointer text-xs"
+            title={locale.t("canvas.clear")}
+          >
+            ✕
+          </button>
+        {/if}
         <button
           onclick={() => addToGroup(group.key)}
           class="w-5 h-5 flex items-center justify-center rounded text-neutral-500 hover:text-neutral-200 hover:bg-neutral-800"

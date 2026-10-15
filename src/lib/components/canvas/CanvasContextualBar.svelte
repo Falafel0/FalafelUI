@@ -51,14 +51,44 @@
     class="pointer-events-auto flex items-center gap-2 p-1.5 rounded-2xl border border-neutral-700/90 bg-neutral-950/90 shadow-2xl backdrop-blur-md max-w-2xl w-full"
     onclick={(e) => e.stopPropagation()}
   >
-    <!-- Dynamic Mode Indicator Badge -->
-    <div
-      class="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl border text-[11px] font-medium shrink-0 {badge.color}"
-      title={locale.t("canvas.contextual.auto_badge_title")}
-    >
-      <span>{badge.icon}</span>
-      <span class="hidden sm:inline">{badge.label}</span>
-    </div>
+    {#if canvas.activeTool === "transform"}
+      <!-- Free Transform HUD -->
+      <div class="flex items-center justify-between gap-3 w-full px-2 py-0.5">
+        <div class="flex items-center gap-2 text-xs text-indigo-300 font-medium">
+          <span class="text-sm">🔄</span>
+          <span>{locale.t("canvas.transform_active_tip")}</span>
+        </div>
+        <div class="flex items-center gap-2 shrink-0">
+          <button
+            onclick={() => {
+              canvas.commitTransform();
+              canvas.setTool(canvas.previousTool ?? "brush");
+            }}
+            class="flex items-center gap-1.5 px-3 py-1 rounded-xl border border-emerald-500 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold cursor-pointer shadow-md shadow-emerald-900/30 transition-all"
+            title="Enter"
+          >
+            <span>✓</span>
+            <span>{locale.t("canvas.commit")}</span>
+          </button>
+          <button
+            onclick={() => canvas.cancelTransform()}
+            class="flex items-center gap-1.5 px-3 py-1 rounded-xl border border-neutral-700 bg-neutral-900 hover:bg-neutral-800 text-neutral-300 hover:text-white text-xs cursor-pointer transition-all"
+            title="Esc"
+          >
+            <span>✕</span>
+            <span>{locale.t("canvas.cancel")}</span>
+          </button>
+        </div>
+      </div>
+    {:else}
+      <!-- Dynamic Mode Indicator Badge -->
+      <div
+        class="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl border text-[11px] font-medium shrink-0 {badge.color}"
+        title={locale.t("canvas.contextual.auto_badge_title")}
+      >
+        <span>{badge.icon}</span>
+        <span class="hidden sm:inline">{badge.label}</span>
+      </div>
 
     <!-- Quick Prompt Input -->
     <div class="flex-1 min-w-0 relative">
@@ -177,6 +207,7 @@
           <span>{locale.t("canvas.contextual.generate")}</span>
         {/if}
       </button>
+    {/if}
     {/if}
   </div>
 </div>

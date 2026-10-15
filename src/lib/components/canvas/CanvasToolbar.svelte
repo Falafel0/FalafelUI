@@ -44,12 +44,29 @@
       icon: `<polyline points="5 9 2 12 5 15"/><polyline points="9 5 12 2 15 5"/><polyline points="15 19 12 22 9 19"/><polyline points="19 9 22 12 19 15"/><line x1="2" y1="12" x2="22" y2="12"/><line x1="12" y1="2" x2="12" y2="22"/>`,
     },
     {
+      id: "transform",
+      labelKey: "canvas.transform",
+      hotkey: "T",
+      icon: `<path d="M3 7V3h4"/><path d="M17 3h4v4"/><path d="M21 17v4h-4"/><path d="M7 21H3v-4"/><rect x="7" y="7" width="10" height="10" stroke-dasharray="2 2"/>`,
+    },
+    {
       id: "view",
       labelKey: "canvas.pan",
       hotkey: "H",
       icon: `<path d="M18 11V6a2 2 0 0 0-2-2 2 2 0 0 0-2 2"/><path d="M14 10V4a2 2 0 0 0-2-2 2 2 0 0 0-2 2v2"/><path d="M10 10.5V6a2 2 0 0 0-2-2 2 2 0 0 0-2 2v8"/><path d="M18 8a2 2 0 1 1 4 0v6a8 8 0 0 1-8 8h-2c-2.8 0-4.5-.9-5.7-2.4L3.4 16a2 2 0 0 1 3.2-2.4L8 15"/>`,
     },
   ];
+
+  let fileInputEl: HTMLInputElement | undefined = $state();
+
+  function handleFileSelected(e: Event) {
+    const input = e.target as HTMLInputElement;
+    const file = input.files?.[0];
+    if (file) {
+      void canvas.importProject(file);
+      input.value = "";
+    }
+  }
 
   function handleToolClick(id: ToolType) {
     canvas.setTool(id);
@@ -94,6 +111,7 @@
       case "q": canvas.setTool("lasso"); break;
       case "i": canvas.setTool("eyedropper"); break;
       case "v": canvas.setTool("move"); break;
+      case "t": canvas.setTool("transform"); break;
       case "h": canvas.setTool("view"); break;
       case "x": canvas.swapColors(); break;
       case "d": canvas.resetColors(); break;
@@ -206,6 +224,43 @@
       title={locale.t('canvas.reset_zoom')}
     >
       1:1
+    </button>
+  </div>
+
+  <div class="w-px h-6 bg-neutral-700 mx-2"></div>
+
+  <!-- Project & Export Actions -->
+  <input
+    bind:this={fileInputEl}
+    type="file"
+    accept=".falafel,.json"
+    class="hidden"
+    onchange={handleFileSelected}
+  />
+  <div class="flex items-center gap-1">
+    <button
+      onclick={() => void canvas.exportProject()}
+      class="px-2 py-1 text-[10px] rounded border border-neutral-700 hover:border-indigo-500 text-neutral-300 hover:text-white transition-colors flex items-center gap-1 cursor-pointer"
+      title={locale.t("canvas.project_save")}
+    >
+      <svg xmlns="http://www.w3.org/2000/svg" class="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
+      <span>{locale.t("canvas.project_save")}</span>
+    </button>
+    <button
+      onclick={() => fileInputEl?.click()}
+      class="px-2 py-1 text-[10px] rounded border border-neutral-700 hover:border-indigo-500 text-neutral-300 hover:text-white transition-colors flex items-center gap-1 cursor-pointer"
+      title={locale.t("canvas.project_open")}
+    >
+      <svg xmlns="http://www.w3.org/2000/svg" class="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
+      <span>{locale.t("canvas.project_open")}</span>
+    </button>
+    <button
+      onclick={() => canvas.exportCompositePng()}
+      class="px-2 py-1 text-[10px] rounded border border-neutral-700 hover:border-indigo-500 text-neutral-300 hover:text-white transition-colors flex items-center gap-1 cursor-pointer"
+      title={locale.t("canvas.export_png")}
+    >
+      <svg xmlns="http://www.w3.org/2000/svg" class="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+      <span>PNG</span>
     </button>
   </div>
 </div>

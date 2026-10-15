@@ -4594,5 +4594,13 @@ const de: Record<string, string> = {
   "generation.sampler.steps_short": "Schritte",
   "generation.oom_reduce_resolution": "Auflösung verringern",
   "generation.oom_recovery_applied": "Auflösung auf 832x832 reduziert und Batch-Größe auf 1 gesetzt",
+  "canvas.transform": "Frei transformieren",
+  "canvas.transform_active_tip": "Ecken ziehen zum Skalieren oder Drehen. Enter zum Bestätigen, Esc zum Abbrechen.",
+  "canvas.commit": "Bestätigen",
+  "canvas.cancel": "Abbrechen",
+  "canvas.invert_mask": "Maske invertieren",
+  "canvas.project_save": "Projekt speichern",
+  "canvas.project_open": "Projekt öffnen",
+  "canvas.export_png": "Bild exportieren (PNG)",
 };
 export default de;

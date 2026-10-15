@@ -4617,5 +4617,13 @@ const ja: Record<string, string> = {
   "generation.sampler.steps_short": "ステップ",
   "generation.oom_reduce_resolution": "解像度を下げる",
   "generation.oom_recovery_applied": "メモリ不足解消のため、解像度を832x832に縮小しバッチサイズを1に設定しました",
+  "canvas.transform": "自由変形",
+  "canvas.transform_active_tip": "角をドラッグして拡大縮小または回転。Enterで確定、Escでキャンセル。",
+  "canvas.commit": "確定",
+  "canvas.cancel": "キャンセル",
+  "canvas.invert_mask": "マスク反転",
+  "canvas.project_save": "プロジェクトを保存",
+  "canvas.project_open": "プロジェクトを開く",
+  "canvas.export_png": "画像をエクスポート (PNG)",
 };
 export default ja;

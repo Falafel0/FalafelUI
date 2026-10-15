@@ -4593,5 +4593,13 @@ const zh: Record<string, string> = {
   "generation.sampler.steps_short": "步",
   "generation.oom_reduce_resolution": "降低分辨率",
   "generation.oom_recovery_applied": "已将分辨率降至 832x832 并将批次大小设为 1 以解决显存不足",
+  "canvas.transform": "自由变换",
+  "canvas.transform_active_tip": "拖动四角进行缩放或旋转。按回车确认，Esc取消。",
+  "canvas.commit": "确认",
+  "canvas.cancel": "取消",
+  "canvas.invert_mask": "反转遮罩",
+  "canvas.project_save": "保存项目",
+  "canvas.project_open": "打开项目",
+  "canvas.export_png": "导出图像 (PNG)",
 };
 export default zh;

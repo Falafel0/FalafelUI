@@ -6,6 +6,7 @@
   import { canvasHistory } from "../../stores/canvasHistory.svelte.js";
   import { progress } from "../../stores/progress.svelte.js";
   import { locale } from "../../stores/locale.svelte.js";
+  import type { FalafelProjectDocument } from "../../utils/canvasProject.js";
   import ColorTooltip from "../ui/ColorTooltip.svelte";
 
   // Hide the editable inpaint mask while a finished result is being previewed, so
@@ -58,6 +59,11 @@
   let moveNodeStarts: Array<{ node: Konva.Node; x: number; y: number }> = [];
   let viewportRaf: number | null = null;
 
+  // Free Transform state
+  let transformer: Konva.Transformer | null = null;
+  let transformTargetGroup: Konva.Group | null = null;
+  let transformActiveLayerId: string | null = null;
+
   // Lasso tool state (points kept in canvas space; preview drawn on the UI layer in screen space)
   let isLasso = false;
   let lassoPoints: number[] = [];
@@ -97,6 +103,26 @@
     thumbRafs.clear();
     // Drop the restore callback so a stale closure can't fire after unmount.
     canvasHistory.setOnRestored(null);
+    if (transformer) {
+      transformer.destroy();
+      transformer = null;
+    }
+    if (transformTargetGroup) {
+      transformTargetGroup.destroy();
+      transformTargetGroup = null;
+    }
+    canvas.registerStageOps({
+      mergeDown: undefined,
+      flatten: undefined,
+      acceptStagingToLayer: undefined,
+      getLayerDataUrls: undefined,
+      loadLayersFromProject: undefined,
+      invertMask: undefined,
+      commitTransform: undefined,
+      cancelTransform: undefined,
+      getRasterComposite: undefined,
+      getMaskCanvas: undefined,
+    });
     if (stage) {
       stage.destroy();
       stage = null;
@@ -213,6 +239,13 @@
       mergeDown: handleMergeDown,
       flatten: handleFlatten,
       acceptStagingToLayer: handleAcceptStagingToLayer,
+      getLayerDataUrls,
+      loadLayersFromProject,
+      invertMask: handleInvertMask,
+      commitTransform,
+      cancelTransform,
+      getRasterComposite,
+      getMaskCanvas,
     });
 
     reorderStageLayers();
@@ -823,6 +856,288 @@
     }
   }
 
+  function handleInvertMask(): boolean {
+    const maskMeta = canvas.layers.find((l) => l.type === "mask");
+    if (!maskMeta) return false;
+    const kLayer = konvaLayers.get(maskMeta.id);
+    if (!kLayer) return false;
+
+    canvasHistory.snapshot(maskMeta.id);
+
+    const origScale = kLayer.scaleX();
+    const origX = kLayer.x();
+    const origY = kLayer.y();
+    kLayer.scaleX(1);
+    kLayer.scaleY(1);
+    kLayer.x(0);
+    kLayer.y(0);
+
+    const currentMaskCanvas = kLayer.toCanvas({
+      pixelRatio: 1,
+      width: canvas.canvasWidth,
+      height: canvas.canvasHeight,
+    });
+
+    kLayer.scaleX(origScale);
+    kLayer.scaleY(origScale);
+    kLayer.x(origX);
+    kLayer.y(origY);
+
+    const ctx = currentMaskCanvas.getContext("2d");
+    if (!ctx) return false;
+
+    const imgData = ctx.getImageData(0, 0, canvas.canvasWidth, canvas.canvasHeight);
+    const data = imgData.data;
+
+    for (let i = 0; i < data.length; i += 4) {
+      if (data[i + 3] > 20) {
+        data[i + 3] = 0;
+      } else {
+        data[i] = 255;
+        data[i + 1] = 51;
+        data[i + 2] = 51;
+        data[i + 3] = 115;
+      }
+    }
+    ctx.putImageData(imgData, 0, 0);
+
+    kLayer.destroyChildren();
+    const invImg = new Image();
+    invImg.onload = () => {
+      const kImage = new Konva.Image({
+        image: invImg,
+        x: 0,
+        y: 0,
+        width: canvas.canvasWidth,
+        height: canvas.canvasHeight,
+        listening: false,
+      });
+      kLayer.add(kImage);
+      kLayer.batchDraw();
+      scheduleThumbRefresh(maskMeta.id);
+    };
+    invImg.src = currentMaskCanvas.toDataURL();
+    return true;
+  }
+
+  async function getLayerDataUrls(): Promise<Record<string, string>> {
+    const result: Record<string, string> = {};
+    for (const layer of canvas.layers) {
+      const kLayer = konvaLayers.get(layer.id);
+      if (!kLayer) continue;
+
+      const origScale = kLayer.scaleX();
+      const origX = kLayer.x();
+      const origY = kLayer.y();
+      kLayer.scaleX(1);
+      kLayer.scaleY(1);
+      kLayer.x(0);
+      kLayer.y(0);
+
+      const dataUrl = kLayer.toDataURL({
+        pixelRatio: 1,
+        width: canvas.canvasWidth,
+        height: canvas.canvasHeight,
+      });
+
+      kLayer.scaleX(origScale);
+      kLayer.scaleY(origScale);
+      kLayer.x(origX);
+      kLayer.y(origY);
+
+      result[layer.id] = dataUrl;
+    }
+    return result;
+  }
+
+  async function loadLayersFromProject(project: FalafelProjectDocument): Promise<void> {
+    if (!stage) return;
+    if (transformTargetGroup) {
+      commitTransform();
+    }
+
+    for (const [id, kLayer] of konvaLayers) {
+      kLayer.destroy();
+    }
+    konvaLayers.clear();
+
+    canvas.canvasWidth = project.canvas.width;
+    canvas.canvasHeight = project.canvas.height;
+    generation.width = project.canvas.width;
+    generation.height = project.canvas.height;
+    if (project.canvas.positivePrompt) generation.positivePrompt = project.canvas.positivePrompt;
+    if (project.canvas.negativePrompt) generation.negativePrompt = project.canvas.negativePrompt;
+
+    canvas.layers = project.layers.map((l) => ({
+      id: l.id,
+      name: l.name,
+      type: l.type,
+      visible: l.visible,
+      opacity: l.opacity,
+      locked: l.locked,
+      order: l.order,
+      blendMode: (l.blendMode as any) || "normal",
+    }));
+
+    syncKonvaLayers();
+
+    for (const l of project.layers) {
+      if (!l.dataUrl) continue;
+      const kLayer = konvaLayers.get(l.id);
+      if (!kLayer) continue;
+
+      try {
+        const img = await new Promise<HTMLImageElement>((resolve, reject) => {
+          const image = new Image();
+          image.onload = () => resolve(image);
+          image.onerror = reject;
+          image.src = l.dataUrl;
+        });
+
+        const kImage = new Konva.Image({
+          image: img,
+          x: 0,
+          y: 0,
+          width: project.canvas.width,
+          height: project.canvas.height,
+          listening: false,
+        });
+        kLayer.add(kImage);
+        kLayer.batchDraw();
+        scheduleThumbRefresh(l.id);
+      } catch (err) {
+        console.error("Failed to load project layer image:", l.id, err);
+      }
+    }
+
+    const topRaster = [...canvas.layers].filter((l) => l.type === "raster").sort((a, b) => b.order - a.order)[0];
+    canvas.activeLayerId = topRaster ? topRaster.id : canvas.layers[0]?.id ?? null;
+    applyViewport();
+  }
+
+  function activateTransform(targetLayerId: string | null) {
+    if (!stage || !targetLayerId) return;
+    if (transformTargetGroup && transformActiveLayerId === targetLayerId) return;
+    if (transformTargetGroup) {
+      commitTransform();
+    }
+
+    const activeMeta = canvas.layers.find((l) => l.id === targetLayerId);
+    if (!activeMeta || activeMeta.locked) return;
+
+    const kLayer = konvaLayers.get(targetLayerId);
+    if (!kLayer) return;
+
+    const children = kLayer.getChildren().filter((node) => node !== transformer && node.name() !== "active-transform-group");
+    if (children.length === 0) return;
+
+    canvasHistory.snapshot(targetLayerId);
+
+    transformTargetGroup = new Konva.Group({
+      draggable: true,
+      name: "active-transform-group",
+    });
+
+    for (const child of children) {
+      child.moveTo(transformTargetGroup);
+    }
+    kLayer.add(transformTargetGroup);
+
+    transformer = new Konva.Transformer({
+      nodes: [transformTargetGroup],
+      rotateEnabled: true,
+      rotationSnaps: [0, 45, 90, 135, 180, 225, 270, 315],
+      borderStroke: "#6366f1",
+      borderStrokeWidth: 1.5,
+      borderDash: [4, 4],
+      anchorStroke: "#4f46e5",
+      anchorFill: "#ffffff",
+      anchorSize: 10,
+      anchorCornerRadius: 2,
+      keepRatio: false,
+    });
+    kLayer.add(transformer);
+    transformActiveLayerId = targetLayerId;
+    kLayer.batchDraw();
+  }
+
+  function commitTransform() {
+    if (!transformTargetGroup || !transformActiveLayerId) return;
+
+    const kLayer = konvaLayers.get(transformActiveLayerId);
+    if (transformer) {
+      transformer.destroy();
+      transformer = null;
+    }
+
+    if (!kLayer) {
+      transformTargetGroup.destroy();
+      transformTargetGroup = null;
+      transformActiveLayerId = null;
+      return;
+    }
+
+    const origScale = kLayer.scaleX();
+    const origX = kLayer.x();
+    const origY = kLayer.y();
+    kLayer.scaleX(1);
+    kLayer.scaleY(1);
+    kLayer.x(0);
+    kLayer.y(0);
+
+    const bakedCanvas = kLayer.toCanvas({
+      pixelRatio: 1,
+      width: canvas.canvasWidth,
+      height: canvas.canvasHeight,
+    });
+
+    kLayer.scaleX(origScale);
+    kLayer.scaleY(origScale);
+    kLayer.x(origX);
+    kLayer.y(origY);
+
+    const layerId = transformActiveLayerId;
+    transformTargetGroup.destroy();
+    transformTargetGroup = null;
+    transformActiveLayerId = null;
+
+    kLayer.destroyChildren();
+
+    const img = new Image();
+    img.onload = () => {
+      const kImage = new Konva.Image({
+        image: img,
+        x: 0,
+        y: 0,
+        width: canvas.canvasWidth,
+        height: canvas.canvasHeight,
+        listening: false,
+      });
+      kLayer.add(kImage);
+      kLayer.batchDraw();
+      scheduleThumbRefresh(layerId);
+    };
+    img.src = bakedCanvas.toDataURL();
+  }
+
+  function cancelTransform() {
+    if (!transformTargetGroup || !transformActiveLayerId) return;
+
+    if (transformer) {
+      transformer.destroy();
+      transformer = null;
+    }
+    transformTargetGroup.destroy();
+    transformTargetGroup = null;
+
+    const layerId = transformActiveLayerId;
+    transformActiveLayerId = null;
+
+    void canvasHistory.undo();
+    scheduleThumbRefresh(layerId);
+    canvas.setTool(canvas.previousTool ?? "brush");
+  }
+
   // Drawing handlers
   function handlePointerDown(e: Konva.KonvaEventObject<MouseEvent | TouchEvent>) {
     const evt = e.evt as MouseEvent;
@@ -847,6 +1162,10 @@
     if (tool === "view") {
       isPanning = true;
       lastPointerPos = stage!.getPointerPosition();
+      return;
+    }
+
+    if (tool === "transform") {
       return;
     }
 
@@ -1366,6 +1685,20 @@
       return;
     }
 
+    if (canvas.activeTool === "transform") {
+      if (e.key === "Enter") {
+        e.preventDefault();
+        commitTransform();
+        canvas.setTool(canvas.previousTool ?? "brush");
+        return;
+      }
+      if (e.key === "Escape") {
+        e.preventDefault();
+        cancelTransform();
+        return;
+      }
+    }
+
     if (!canvas.isPointerOverStage) return;
 
     if (e.code === "Space" && !isSpacePanning && !e.repeat) {
@@ -1495,6 +1828,18 @@
     updatePersistedMaskOverlay(canvas.persistedMaskPreviewUrl);
   });
 
+  $effect(() => {
+    const tool = canvas.activeTool;
+    const activeId = canvas.activeLayerId;
+    if (tool === "transform") {
+      activateTransform(activeId);
+    } else {
+      if (transformTargetGroup) {
+        commitTransform();
+      }
+    }
+  });
+
   // Public API for export
   export function getRasterComposite(): HTMLCanvasElement | null {
     if (!stage) return null;
@@ -1595,6 +1940,7 @@
     const tool = canvas.activeTool;
     if (isPanning || tool === "view") return "cursor-grab";
     if (tool === "move") return "cursor-move";
+    if (tool === "transform") return "cursor-default";
     if (tool === "eyedropper" || tool === "lasso") return "cursor-crosshair";
     if (tool === "brush" || tool === "eraser") return "cursor-none";
     return "cursor-default";

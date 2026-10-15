@@ -4631,5 +4631,13 @@ const pl: Record<string, string> = {
   "generation.sampler.steps_short": "kroków",
   "generation.oom_reduce_resolution": "Zmniejsz rozdzielczość",
   "generation.oom_recovery_applied": "Rozdzielczość zmniejszona do 832x832, wielkość partii ustawiona na 1",
+  "canvas.transform": "Swobodna transformacja",
+  "canvas.transform_active_tip": "Przeciągnij rogi, aby skalować lub obracać. Enter zatwierdza, Esc anuluje.",
+  "canvas.commit": "Zatwierdź",
+  "canvas.cancel": "Anuluj",
+  "canvas.invert_mask": "Odwróć maskę",
+  "canvas.project_save": "Zapisz projekt",
+  "canvas.project_open": "Otwórz projekt",
+  "canvas.export_png": "Eksportuj obraz (PNG)",
 };
 export default pl;

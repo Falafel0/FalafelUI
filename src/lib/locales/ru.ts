@@ -4592,5 +4592,13 @@ const ru: Record<string, string> = {
   "generation.sampler.steps_short": "шагов",
   "generation.oom_reduce_resolution": "Снизить разрешение",
   "generation.oom_recovery_applied": "Разрешение снижено до 832x832, batch size установлен в 1 для устранения нехватки памяти",
+  "canvas.transform": "Свободная трансформация",
+  "canvas.transform_active_tip": "Тяните за углы для масштабирования или вращения. Enter — применить, Esc — отмена.",
+  "canvas.commit": "Применить",
+  "canvas.cancel": "Отмена",
+  "canvas.invert_mask": "Инвертировать маску",
+  "canvas.project_save": "Сохранить проект",
+  "canvas.project_open": "Открыть проект",
+  "canvas.export_png": "Экспорт изображения (PNG)",
 };
 export default ru;

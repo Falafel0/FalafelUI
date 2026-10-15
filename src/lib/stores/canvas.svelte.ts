@@ -1,4 +1,10 @@
 import { uploadImageBytes } from "../utils/api.js";
+import {
+  saveFalafelProject,
+  loadFalafelProjectFile,
+  downloadCanvasImage,
+  type FalafelProjectDocument,
+} from "../utils/canvasProject.js";
 import { generation } from "./generation.svelte.js";
 import { locale } from "./locale.svelte.js";
 
@@ -166,6 +172,13 @@ class CanvasStore {
     mergeDown?: (id: string) => Promise<boolean>;
     flatten?: () => Promise<boolean>;
     acceptStagingToLayer?: (asNewLayer: boolean) => Promise<boolean>;
+    getLayerDataUrls?: () => Promise<Record<string, string>>;
+    loadLayersFromProject?: (project: FalafelProjectDocument) => Promise<void>;
+    invertMask?: () => boolean;
+    commitTransform?: () => void;
+    cancelTransform?: () => void;
+    getRasterComposite?: () => HTMLCanvasElement | null;
+    getMaskCanvas?: () => HTMLCanvasElement | null;
   } = {};
 
   setStageRef(stage: any) {
@@ -180,8 +193,59 @@ class CanvasStore {
     mergeDown?: (id: string) => Promise<boolean>;
     flatten?: () => Promise<boolean>;
     acceptStagingToLayer?: (asNewLayer: boolean) => Promise<boolean>;
+    getLayerDataUrls?: () => Promise<Record<string, string>>;
+    loadLayersFromProject?: (project: FalafelProjectDocument) => Promise<void>;
+    invertMask?: () => boolean;
+    commitTransform?: () => void;
+    cancelTransform?: () => void;
+    getRasterComposite?: () => HTMLCanvasElement | null;
+    getMaskCanvas?: () => HTMLCanvasElement | null;
   }) {
     this._stageOps = { ...this._stageOps, ...ops };
+  }
+
+  async exportProject(filename?: string): Promise<void> {
+    if (!this._stageOps.getLayerDataUrls) return;
+    const urls = await this._stageOps.getLayerDataUrls();
+    await saveFalafelProject(
+      this.layers,
+      urls,
+      this.canvasWidth,
+      this.canvasHeight,
+      generation.positivePrompt,
+      generation.negativePrompt,
+      filename
+    );
+  }
+
+  async importProject(file: File): Promise<void> {
+    if (!this._stageOps.loadLayersFromProject) return;
+    const doc = await loadFalafelProjectFile(file);
+    await this._stageOps.loadLayersFromProject(doc);
+  }
+
+  exportCompositePng(filename?: string): void {
+    const composite = this._stageOps.getRasterComposite?.();
+    if (!composite) return;
+    downloadCanvasImage(composite, filename || `canvas_composite_${Date.now()}.png`);
+  }
+
+  exportMaskPng(filename?: string): void {
+    const mask = this._stageOps.getMaskCanvas?.();
+    if (!mask) return;
+    downloadCanvasImage(mask, filename || `canvas_mask_${Date.now()}.png`);
+  }
+
+  invertMask(): boolean {
+    return this._stageOps.invertMask?.() ?? false;
+  }
+
+  commitTransform(): void {
+    this._stageOps.commitTransform?.();
+  }
+
+  cancelTransform(): void {
+    this._stageOps.cancelTransform?.();
   }
 
   // Derived

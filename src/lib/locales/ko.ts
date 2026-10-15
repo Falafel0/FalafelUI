@@ -4592,5 +4592,13 @@ const ko: Record<string, string> = {
   "generation.sampler.steps_short": "단계",
   "generation.oom_reduce_resolution": "해상도 낮추기",
   "generation.oom_recovery_applied": "메모리 부족 복구를 위해 해상도를 832x832로 줄이고 배치 크기를 1로 설정했습니다",
+  "canvas.transform": "자유 변형",
+  "canvas.transform_active_tip": "모서리를 드래그하여 크기 조절 또는 회전합니다. Enter로 적용, Esc로 취소.",
+  "canvas.commit": "적용",
+  "canvas.cancel": "취소",
+  "canvas.invert_mask": "마스크 반전",
+  "canvas.project_save": "프로젝트 저장",
+  "canvas.project_open": "프로젝트 열기",
+  "canvas.export_png": "이미지 내보내기 (PNG)",
 };
 export default ko;

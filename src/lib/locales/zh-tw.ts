@@ -4592,5 +4592,13 @@ const zhTw: Record<string, string> = {
   "generation.sampler.steps_short": "步",
   "generation.oom_reduce_resolution": "降低解析度",
   "generation.oom_recovery_applied": "已將解析度降至 832x832 並將批次大小設為 1 以解決顯示記憶體不足",
+  "canvas.transform": "自由變形",
+  "canvas.transform_active_tip": "拖曳角落以縮放或旋轉。Enter確認，Esc取消。",
+  "canvas.commit": "確認",
+  "canvas.cancel": "取消",
+  "canvas.invert_mask": "反轉遮罩",
+  "canvas.project_save": "儲存專案",
+  "canvas.project_open": "開啟專案",
+  "canvas.export_png": "匯出影像 (PNG)",
 };
 export default zhTw;
