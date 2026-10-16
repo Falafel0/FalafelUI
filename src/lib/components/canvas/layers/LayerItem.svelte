@@ -92,7 +92,7 @@
         <img src={thumb} alt="" class="absolute inset-0 w-full h-full object-contain" />
       {:else}
         {#if layer.type === "raster"}
-          <span class="text-xs opacity-50">🖼️</span>
+          <span class="text-xs opacity-50">🖼</span>
         {:else if layer.type === "mask"}
           <span class="text-xs opacity-50">🎭</span>
         {:else if layer.type === "controlnet"}

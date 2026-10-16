@@ -26,7 +26,7 @@
 - **Photoshop Toolbar**: 10-tool creative set (Move, Transform, Brush, Eraser, Lasso, Marquee, Eyedropper, Hand, Zoom, Quick Mask) with industry-standard hotkeys (`V`, `T`, `B`, `E`, `L`, `M`, `I`, `H`, `Z`, `Q`) and layer shortcuts (`Ctrl+J`, `Ctrl+E`, `Ctrl+Shift+E`).
 - **Contextual Tool Options Bar**: Horizontal top bar displaying active tool properties (brush hardness 0–100%, diameter, opacity, color preview, transform coordinates).
 - **Floating Contextual Task Bar**: Dynamic bottom-center bar with multi-candidate staging carousel, single-click "Accept & Inpaint Immediately" hero action (`Alt+Enter`), "Accept as New Layer", "Apply to Base", "Use as Mask", "Discard", and "Reroll".
-- **Non-Destructive Result Staging**: Generated candidates preview directly on the canvas with before/after comparison (`👁️`) and 64-step undo/redo history with Copy-on-Write structural sharing.
+- **Non-Destructive Result Staging**: Generated candidates preview directly on the canvas with before/after comparison (`👁`) and 64-step undo/redo history with Copy-on-Write structural sharing.
 
 ### Domain Separation & Architecture Unification
 - **Clean Generation Sidebar**: Dimension controls stripped of residual inpaint settings, strictly focused on resolution, aspect ratio presets, side length, orientation swapping, and model family badges. Prompt inputs support advanced Prompt Scheduling (`[from:to:step]`) and Alternations (`[alt1|alt2]`).

@@ -152,7 +152,7 @@ export interface CanvasLayer {
 По аналогии с Contextual Task Bar в современном Photoshop, под рамкой генерации отображается плавающая компактная панель:
 
 ```
-[ 🪄 1girl, cyberpunk city, neon... ] [ ✨ Generate ] [ Denoise: 0.75 ] [ 🔍 2x Upscale ] [ ⚙️ ]
+[ 🪄 1girl, cyberpunk city, neon... ] [ ✨ Generate ] [ Denoise: 0.75 ] [ 🔍 2x Upscale ] [ ⚙ ]
 ```
 
 - **Если рамка пуста**: Показывает `✨ Generate` (txt2img).
