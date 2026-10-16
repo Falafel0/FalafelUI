@@ -170,17 +170,19 @@ export async function runMaskInpaintChain(
 
     // Prompt composition: per-layer prompt override or augmentation
     let promptForStep = baseParams.positive_prompt;
-    if (layer.prompt && layer.prompt.trim()) {
-      promptForStep = `${promptForStep}, ${layer.prompt.trim()}`;
+    const layerPrompt = "prompt" in layer ? (layer as any).prompt : undefined;
+    if (layerPrompt && layerPrompt.trim()) {
+      promptForStep = `${promptForStep}, ${layerPrompt.trim()}`;
     }
 
+    const layerDenoise = "denoise" in layer ? (layer as any).denoise : undefined;
     const stepParams: GenerationParams = {
       ...baseParams,
       mode: "inpainting",
       input_image: currentInputImage,
       mask_image: maskUpload.name,
       positive_prompt: promptForStep,
-      denoise: layer.denoise ?? baseParams.denoise,
+      denoise: layerDenoise ?? baseParams.denoise,
       differential_diffusion: generation.isAnima || generation.differentialDiffusion,
       facefix_enabled: isFinalOutput && facefixOnFinal,
     };

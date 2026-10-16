@@ -1,7 +1,7 @@
 <script lang="ts">
   import { generation } from "../../stores/generation.svelte.js";
   import { progress } from "../../stores/progress.svelte.js";
-  import { canvas } from "../../stores/canvas.svelte.js";
+  import { canvas, type MaskCanvasLayer } from "../../stores/canvas.svelte.js";
   import { compare } from "../../stores/compare.svelte.js";
   import {
     generate,
@@ -254,7 +254,6 @@
         // Back to the text-to-image view; the paused run stays until discarded.
         generation.pausedEditArmed = false;
         generation.mode = "txt2img";
-        canvas.isCanvasMode = false;
         return;
       }
 
@@ -427,10 +426,10 @@
       } else if (
         canvas.isCanvasMode &&
         generation.mode === "inpainting" &&
-        canvas.layers.filter((l) => l.type === "mask" && l.visible).length > 1 &&
-        canvas.layers.filter((l) => l.type === "mask" && l.visible).some((l) => (l.prompt && l.prompt.trim()) || l.denoise !== undefined)
+        canvas.layers.filter((l): l is MaskCanvasLayer => l.type === "mask" && l.visible).length > 1 &&
+        canvas.layers.filter((l): l is MaskCanvasLayer => l.type === "mask" && l.visible).some((l) => Boolean((l.prompt && l.prompt.trim()) || l.denoise !== undefined))
       ) {
-        const visibleMasks = canvas.layers.filter((l) => l.type === "mask" && l.visible);
+        const visibleMasks = canvas.layers.filter((l): l is MaskCanvasLayer => l.type === "mask" && l.visible);
         try {
           const chainResult = await runMaskInpaintChain(visibleMasks, {
             submit: async (chainParams, ctx) => {

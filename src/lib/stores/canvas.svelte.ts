@@ -10,42 +10,65 @@ import { locale } from "./locale.svelte.js";
 import { getCropRegionV2, expandCropRegion, cropCanvas, type CropRegion } from "../utils/maskCrop.js";
 import { gaussianBlurCanvas } from "../utils/maskBlur.js";
 import { fillMaskedRegion } from "../utils/maskFill.js";
+import { canvasHistory } from "./canvasHistory.svelte.js";
+import type { GenerationMode } from "../types/index.js";
 
-export type ToolType = "brush" | "eraser" | "rectFill" | "lasso" | "eyedropper" | "move" | "view" | "transform";
+import type {
+  CanvasBlendMode,
+  CanvasLayerBlendMode,
+  CanvasLayerType,
+  CanvasLayerBase,
+  RasterCanvasLayer,
+  MaskCanvasLayer,
+  RegionalCanvasLayer,
+  ControlNetCanvasLayer,
+  CanvasLayer,
+  SampledColorInfo,
+  ActiveTransformBounds,
+  ZoomToolMode,
+} from "../types/canvas.js";
 
-export type CanvasLayerBlendMode =
-  | "normal"
-  | "multiply"
-  | "screen"
-  | "overlay"
-  | "darken"
-  | "lighten";
+export type {
+  CanvasBlendMode,
+  CanvasLayerBlendMode,
+  CanvasLayerType,
+  CanvasLayerBase,
+  RasterCanvasLayer,
+  MaskCanvasLayer,
+  RegionalCanvasLayer,
+  ControlNetCanvasLayer,
+  CanvasLayer,
+  SampledColorInfo,
+  ActiveTransformBounds,
+  ZoomToolMode,
+};
+export {
+  CANVAS_BLEND_MODES,
+  BLEND_MODE_COMPOSITE_MAP,
+  BLEND_MODE_CSS_MAP,
+  isRasterLayer,
+  isMaskLayer,
+  isRegionalLayer,
+  isControlNetLayer,
+} from "../types/canvas.js";
+
+export type ToolType =
+  | "brush"
+  | "eraser"
+  | "rectFill"
+  | "lasso"
+  | "eyedropper"
+  | "move"
+  | "view"
+  | "transform"
+  | "zoom";
 
 export type UnifiedCanvasAction = "txt2img" | "img2img" | "inpaint" | "outpaint" | "upscale";
-
-export interface CanvasLayer {
-  id: string;
-  name: string;
-  type: "raster" | "mask";
-  visible: boolean;
-  opacity: number;
-  locked: boolean;
-  order: number;
-  denoise?: number;
-  prompt?: string;
-  blendMode?: CanvasLayerBlendMode;
-  x?: number;
-  y?: number;
-  width?: number;
-  height?: number;
-  rotation?: number;
-  scaleX?: number;
-  scaleY?: number;
-}
 
 export interface BrushSettings {
   size: number;
   opacity: number;
+  hardness: number;
 }
 
 export interface BoundingBox {
@@ -54,6 +77,16 @@ export interface BoundingBox {
   width: number;
   height: number;
   locked: boolean;
+}
+
+export type StagingCompareMode = "overlay" | "split" | "original";
+
+export interface CanvasStagedCandidate {
+  url: string;
+  owned: boolean;
+  width: number;
+  height: number;
+  bounds?: { x: number; y: number; width: number; height: number };
 }
 
 export interface CanvasStagingEntry {
@@ -94,9 +127,21 @@ class CanvasStore {
   // Tool state
   activeTool = $state<ToolType>("brush");
   previousTool = $state<ToolType | null>(null);
-  brushSettings = $state<BrushSettings>({ size: 20, opacity: 1 });
+  brushSettings = $state<BrushSettings>({ size: 20, opacity: 1, hardness: 0.8 });
   foregroundColor = $state("#ffffff");
   backgroundColor = $state("#000000");
+
+  // Eyedropper sampled color info
+  sampledColor = $state<SampledColorInfo | null>(null);
+
+  // Active transform bounds
+  activeTransformBounds = $state<ActiveTransformBounds | null>(null);
+
+  // Quick mask mode
+  quickMaskMode = $state(false);
+
+  // Zoom tool sub-mode
+  zoomToolMode = $state<ZoomToolMode>("in");
 
   // Layers
   layers = $state<CanvasLayer[]>([]);
@@ -121,7 +166,7 @@ class CanvasStore {
   maskOverlayVisible = $state(true);
 
   // UI state
-  isCanvasMode = $state(false);
+  isCanvasMode = $state(true);
   isPointerOverStage = $state(false);
   inpaintDrawMode = $state<"mask" | "regular">("regular");
   showGrid = $state(false);
@@ -196,9 +241,20 @@ class CanvasStore {
   }
 
   // Staging
+  stagedCandidate = $state<CanvasStagedCandidate | null>(null);
   stagingImages = $state<CanvasStagingEntry[]>([]);
   stagingIndex = $state(0);
   isStagingActive = $state(false);
+
+  // Staging comparison & inspection controls
+  stagingOpacity = $state(1.0);
+  stagingCompareMode = $state<StagingCompareMode>("overlay");
+  stagingSplitRatio = $state(0.5);
+  stagingShowOriginal = $state(false);
+
+  constructor() {
+    canvasHistory.connectCanvasStore(this);
+  }
 
   // Move/transform
   transform = $state<TransformState>({
@@ -218,6 +274,9 @@ class CanvasStore {
     duplicateLayer?: (sourceId: string, newId: string) => Promise<boolean>;
     applyInpaintAsLayer?: () => Promise<boolean>;
     acceptStagingToLayer?: (asNewLayer: boolean) => Promise<boolean>;
+    acceptCandidateAsMask?: (url: string) => Promise<boolean>;
+    reorderStageLayers?: () => void;
+    syncKonvaLayers?: () => void;
     getLayerDataUrls?: () => Promise<Record<string, string>>;
     loadLayersFromProject?: (project: FalafelProjectDocument) => Promise<void>;
     invertMask?: () => boolean;
@@ -226,6 +285,7 @@ class CanvasStore {
     getRasterComposite?: () => HTMLCanvasElement | null;
     getMaskCanvas?: () => HTMLCanvasElement | null;
     getLayerCanvas?: (layerId: string) => HTMLCanvasElement | null;
+    setTransformBounds?: (bounds: ActiveTransformBounds) => void;
   } = {};
 
   setStageRef(stage: any) {
@@ -242,6 +302,9 @@ class CanvasStore {
     duplicateLayer?: (sourceId: string, newId: string) => Promise<boolean>;
     applyInpaintAsLayer?: () => Promise<boolean>;
     acceptStagingToLayer?: (asNewLayer: boolean) => Promise<boolean>;
+    acceptCandidateAsMask?: (url: string) => Promise<boolean>;
+    reorderStageLayers?: () => void;
+    syncKonvaLayers?: () => void;
     getLayerDataUrls?: () => Promise<Record<string, string>>;
     loadLayersFromProject?: (project: FalafelProjectDocument) => Promise<void>;
     invertMask?: () => boolean;
@@ -250,6 +313,7 @@ class CanvasStore {
     getRasterComposite?: () => HTMLCanvasElement | null;
     getMaskCanvas?: () => HTMLCanvasElement | null;
     getLayerCanvas?: (layerId: string) => HTMLCanvasElement | null;
+    setTransformBounds?: (bounds: ActiveTransformBounds) => void;
   }) {
     this._stageOps = { ...this._stageOps, ...ops };
   }
@@ -301,6 +365,25 @@ class CanvasStore {
   // Derived
   get activeLayer(): CanvasLayer | null {
     return this.layers.find((l) => l.id === this.activeLayerId) ?? null;
+  }
+
+  getActiveLayer(): CanvasLayer | null {
+    return this.activeLayer;
+  }
+
+  get candidate(): CanvasStagedCandidate | null {
+    if (this.stagedCandidate) return this.stagedCandidate;
+    const current = this.stagingImages[this.stagingIndex];
+    if (current) {
+      return {
+        url: current.url,
+        owned: current.owned,
+        width: this.canvasWidth,
+        height: this.canvasHeight,
+        bounds: this.boundingBox ? { ...this.boundingBox } : undefined,
+      };
+    }
+    return null;
   }
 
   get visibleLayers(): CanvasLayer[] {
@@ -709,18 +792,49 @@ class CanvasStore {
     this.dismissCurrentStaging();
   }
 
-  stageImage(url: string, options?: { owned?: boolean }) {
-    if (!url) return;
-    if (this.stagingImages.some((e) => e.url === url)) return;
-    this.stagingImages = [
-      ...this.stagingImages,
-      {
-        url,
-        owned: options?.owned ?? false,
-      },
-    ];
-    this.stagingIndex = this.stagingImages.length - 1;
-    this.isStagingActive = this.stagingImages.length > 0;
+  stageResult(
+    url: string,
+    width?: number,
+    height?: number,
+    bounds?: { x: number; y: number; width: number; height: number },
+    options?: { owned?: boolean }
+  ) {
+    if (url === undefined || url === null) return;
+    const candidate: CanvasStagedCandidate = {
+      url,
+      owned: options?.owned ?? true,
+      width: width ?? this.canvasWidth,
+      height: height ?? this.canvasHeight,
+      bounds: bounds ?? (this.boundingBox ? { ...this.boundingBox } : undefined),
+    };
+
+    this.stagedCandidate = candidate;
+    if (url !== "") {
+      if (!this.stagingImages.some((e) => e.url === url)) {
+        this.stagingImages = [
+          ...this.stagingImages,
+          {
+            url,
+            owned: candidate.owned,
+          },
+        ];
+      }
+      this.stagingIndex = this.stagingImages.length - 1;
+    }
+    this.isStagingActive = true;
+    this.stagingOpacity = 1.0;
+    this.stagingShowOriginal = false;
+    this.stagingCompareMode = "overlay";
+  }
+
+  stageImage(url: string, options?: { owned?: boolean; width?: number; height?: number; bounds?: any }) {
+    if (!url) {
+      if (url === "") {
+        this.stagedCandidate = { url: "", owned: false, width: this.canvasWidth, height: this.canvasHeight };
+      }
+      return;
+    }
+    this.stageResult(url, options?.width, options?.height, options?.bounds, options);
   }
 
   stageBlob(blob: Blob) {
@@ -729,37 +843,84 @@ class CanvasStore {
 
   clearStaging() {
     for (const entry of this.stagingImages) {
-      if (entry.owned) URL.revokeObjectURL(entry.url);
+      if (entry.owned && entry.url.startsWith("blob:")) URL.revokeObjectURL(entry.url);
     }
+    if (this.stagedCandidate?.owned && this.stagedCandidate.url.startsWith("blob:")) {
+      URL.revokeObjectURL(this.stagedCandidate.url);
+    }
+    this.stagedCandidate = null;
     this.stagingImages = [];
     this.stagingIndex = 0;
     this.isStagingActive = false;
+    this.stagingOpacity = 1.0;
+    this.stagingShowOriginal = false;
+    this.stagingCompareMode = "overlay";
+  }
+
+  discard() {
+    this.clearStaging();
+  }
+
+  discardStaging() {
+    this.discard();
   }
 
   nextStaging() {
     if (!this.stagingImages.length) return;
     this.stagingIndex = (this.stagingIndex + 1) % this.stagingImages.length;
+    const current = this.stagingImages[this.stagingIndex];
+    if (current) {
+      this.stagedCandidate = {
+        url: current.url,
+        owned: current.owned,
+        width: this.canvasWidth,
+        height: this.canvasHeight,
+        bounds: this.boundingBox ? { ...this.boundingBox } : undefined,
+      };
+    }
   }
 
   prevStaging() {
     if (!this.stagingImages.length) return;
     this.stagingIndex = (this.stagingIndex - 1 + this.stagingImages.length) % this.stagingImages.length;
+    const current = this.stagingImages[this.stagingIndex];
+    if (current) {
+      this.stagedCandidate = {
+        url: current.url,
+        owned: current.owned,
+        width: this.canvasWidth,
+        height: this.canvasHeight,
+        bounds: this.boundingBox ? { ...this.boundingBox } : undefined,
+      };
+    }
   }
 
   dismissCurrentStaging() {
-    if (!this.stagingImages.length) return;
+    if (!this.stagingImages.length) {
+      this.clearStaging();
+      return;
+    }
     const current = this.stagingImages[this.stagingIndex];
-    if (current?.owned) URL.revokeObjectURL(current.url);
+    if (current?.owned && current.url.startsWith("blob:")) URL.revokeObjectURL(current.url);
     this.stagingImages = this.stagingImages.filter((_, index) => index !== this.stagingIndex);
 
     if (!this.stagingImages.length) {
-      this.stagingIndex = 0;
-      this.isStagingActive = false;
+      this.clearStaging();
       return;
     }
 
     if (this.stagingIndex >= this.stagingImages.length) {
       this.stagingIndex = this.stagingImages.length - 1;
+    }
+    const nextEntry = this.stagingImages[this.stagingIndex];
+    if (nextEntry) {
+      this.stagedCandidate = {
+        url: nextEntry.url,
+        owned: nextEntry.owned,
+        width: this.canvasWidth,
+        height: this.canvasHeight,
+        bounds: this.boundingBox ? { ...this.boundingBox } : undefined,
+      };
     }
     this.isStagingActive = true;
   }
@@ -793,6 +954,11 @@ class CanvasStore {
   clearMask() {
     generation.maskImage = null;
     this.persistedMaskPreviewUrl = null;
+
+    for (const layerMeta of this.layers.filter((l) => l.type === "mask")) {
+      this.clearLayerThumbnail(layerMeta.id);
+      delete this.layerThumbnails[layerMeta.id];
+    }
 
     if (!this._stageRef) return;
     const stageLayers = this._stageRef.getLayers?.() ?? [];
@@ -898,10 +1064,10 @@ class CanvasStore {
     const sourceLayerMeta = this.layers.find((l) => l.id === this.activeLayerId);
     if (!sourceLayerMeta) return false;
 
-    let maskLayerMeta = this.layers.find((l) => l.type === "mask");
+    let maskLayerMeta = this.layers.find((l): l is MaskCanvasLayer => l.type === "mask");
     if (!maskLayerMeta) {
       const newId = this.addLayer("mask", locale.t("canvas.layer.inpaint_mask"));
-      maskLayerMeta = this.layers.find((l) => l.id === newId) ?? undefined;
+      maskLayerMeta = this.layers.find((l): l is MaskCanvasLayer => l.id === newId) ?? undefined;
     }
     if (!maskLayerMeta) return false;
 
@@ -960,48 +1126,173 @@ class CanvasStore {
     };
   }
 
+  setBrushHardness(hardness: number) {
+    const clamped = Math.max(0.0, Math.min(1.0, Number.isFinite(hardness) ? hardness : 0.8));
+    this.brushSettings = {
+      ...this.brushSettings,
+      hardness: clamped,
+    };
+  }
+
+  adjustBrushHardness(delta: number) {
+    this.setBrushHardness(this.brushSettings.hardness + delta);
+  }
+
   // Layers
-  addLayer(type: "raster" | "mask" = "raster", name?: string): string {
+  addLayer(
+    type: CanvasLayerType = "raster",
+    name?: string,
+    extraProps: Partial<CanvasLayer> = {}
+  ): string {
     const id = genLayerId();
     const maxOrder = this.layers.reduce((max, l) => Math.max(max, l.order), -1);
-    const layerName = name ?? (type === "mask"
-      ? locale.t("canvas.layer.inpaint_mask")
-      : locale.t("canvas.layer.raster", { n: String(this.layers.filter((l) => l.type === "raster").length + 1) }));
+    const nextOrder = maxOrder + 1;
 
-    this.layers = [
-      ...this.layers,
-      {
-        id,
-        name: layerName,
-        type,
-        visible: true,
-        opacity: 1,
-        locked: false,
-        order: maxOrder + 1,
-        denoise: type === "mask" ? 0.7 : 1.0,
-      },
-    ];
+    let layerName = name;
+    if (!layerName) {
+      switch (type) {
+        case "mask":
+          layerName = locale.t("canvas.layer.inpaint_mask") || "Inpaint Mask";
+          break;
+        case "regional":
+          layerName =
+            locale.t("canvas.layer.type_regional", {
+              n: String(this.layers.filter((l) => l.type === "regional").length + 1),
+            }) || `Region ${this.layers.filter((l) => l.type === "regional").length + 1}`;
+          break;
+        case "controlnet":
+          layerName =
+            locale.t("canvas.layer.type_controlnet", {
+              n: String(this.layers.filter((l) => l.type === "controlnet").length + 1),
+            }) || `ControlNet ${this.layers.filter((l) => l.type === "controlnet").length + 1}`;
+          break;
+        case "raster":
+        default:
+          layerName =
+            locale.t("canvas.layer.raster", {
+              n: String(this.layers.filter((l) => l.type === "raster").length + 1),
+            }) || `Layer ${this.layers.filter((l) => l.type === "raster").length + 1}`;
+          break;
+      }
+    }
+
+    const base: CanvasLayerBase = {
+      id,
+      name: layerName,
+      type,
+      visible: true,
+      locked: false,
+      opacity: 1.0,
+      order: nextOrder,
+      zIndex: nextOrder,
+      blendMode: "normal",
+    };
+
+    let newLayer: CanvasLayer;
+    switch (type) {
+      case "mask":
+        newLayer = {
+          ...base,
+          type: "mask",
+          denoise: 0.7,
+          inverted: false,
+          maskBlur: 0,
+          color: this.maskOverlayColor,
+          ...(extraProps as Partial<MaskCanvasLayer>),
+        };
+        break;
+      case "regional":
+        newLayer = {
+          ...base,
+          type: "regional",
+          x: 0.0,
+          y: 0.0,
+          width: 0.5,
+          height: 0.5,
+          prompt: "",
+          negativePrompt: "",
+          weight: 1.0,
+          ...(extraProps as Partial<RegionalCanvasLayer>),
+        };
+        break;
+      case "controlnet":
+        newLayer = {
+          ...base,
+          type: "controlnet",
+          model: "",
+          preprocessor: "none",
+          strength: 1.0,
+          startPercent: 0.0,
+          endPercent: 1.0,
+          ...(extraProps as Partial<ControlNetCanvasLayer>),
+        };
+        break;
+      case "raster":
+      default:
+        newLayer = {
+          ...base,
+          type: "raster",
+          denoise: 1.0,
+          ...(extraProps as Partial<RasterCanvasLayer>),
+        };
+        break;
+    }
+
+    this.layers = [...this.layers, newLayer];
     this.activeLayerId = id;
     return id;
   }
 
-  removeLayer(id: string) {
-    const removed = this.layers.find((l) => l.id === id);
-    this.layers = this.layers.filter((l) => l.id !== id);
+  addRasterLayer(name?: string, extraProps?: Partial<RasterCanvasLayer>): string {
+    return this.addLayer("raster", name, extraProps);
+  }
+
+  addMaskLayer(name?: string, linkedLayerId?: string, extraProps?: Partial<MaskCanvasLayer>): string {
+    return this.addLayer("mask", name, { linkedLayerId, ...extraProps });
+  }
+
+  addRegionalLayer(name?: string, extraProps?: Partial<RegionalCanvasLayer>): string {
+    return this.addLayer("regional", name, extraProps);
+  }
+
+  addControlNetLayer(name?: string, extraProps?: Partial<ControlNetCanvasLayer>): string {
+    return this.addLayer("controlnet", name, extraProps);
+  }
+
+  removeLayer(id: string): boolean {
+    const layer = this.layers.find((l) => l.id === id);
+    if (!layer) return false;
+
+    const rasterCount = this.layers.filter((l) => l.type === "raster").length;
+    if (layer.type === "raster" && rasterCount <= 1) {
+      // Invariant: Cannot delete the last remaining raster layer
+      return false;
+    }
+
+    const removedIndex = this.layers.findIndex((l) => l.id === id);
+    const nextLayers = this.layers.filter((l) => l.id !== id);
+    nextLayers.forEach((l, idx) => {
+      l.order = idx;
+      l.zIndex = idx;
+    });
+
+    this.layers = nextLayers;
     this.clearLayerThumbnail(id);
+
     if (this.activeLayerId === id) {
-      if (this.layers.length === 0) {
+      if (nextLayers.length === 0) {
         this.activeLayerId = null;
-      } else if (removed) {
-        // Select the surviving layer whose order is nearest to the removed one.
-        const nearest = this.layers.reduce((best, l) =>
-          Math.abs(l.order - removed.order) < Math.abs(best.order - removed.order) ? l : best
-        );
-        this.activeLayerId = nearest.id;
       } else {
-        this.activeLayerId = this.layers[this.layers.length - 1].id;
+        const nextActive = nextLayers[Math.max(0, removedIndex - 1)];
+        this.activeLayerId = nextActive ? nextActive.id : nextLayers[0].id;
       }
     }
+
+    return true;
+  }
+
+  deleteLayer(id: string): boolean {
+    return this.removeLayer(id);
   }
 
   setLayerThumbnail(id: string, dataUrl: string) {
@@ -1016,43 +1307,65 @@ class CanvasStore {
   }
 
   async duplicateLayer(id: string): Promise<string | null> {
-    const layer = this.layers.find((l) => l.id === id);
-    if (!layer) return null;
+    const source = this.layers.find((l) => l.id === id);
+    if (!source) return null;
     const newId = genLayerId();
-    const maxOrder = this.layers.reduce((max, l) => Math.max(max, l.order), -1);
-    this.layers = [
-      ...this.layers,
-      {
-        ...layer,
-        id: newId,
-        name: `${layer.name} copy`,
-        order: maxOrder + 1,
-      },
-    ];
+    const sourceIndex = this.layers.findIndex((l) => l.id === id);
+    const targetIndex = sourceIndex + 1;
+
+    const copy: CanvasLayer = {
+      ...JSON.parse(JSON.stringify(source)),
+      id: newId,
+      name: `${source.name} copy`,
+    };
+
+    const nextLayers = [...this.layers];
+    nextLayers.splice(targetIndex, 0, copy);
+    nextLayers.forEach((l, idx) => {
+      l.order = idx;
+      l.zIndex = idx;
+    });
+
+    this.layers = nextLayers;
     this.activeLayerId = newId;
-    if (this._stageOps.duplicateLayer) {
+
+    if (this._stageOps.duplicateLayer && (source.type === "raster" || source.type === "mask")) {
       await this._stageOps.duplicateLayer(id, newId);
     }
     return newId;
   }
 
-  reorderLayer(id: string, direction: "up" | "down") {
-    const sorted = [...this.layers].sort((a, b) => a.order - b.order);
-    const idx = sorted.findIndex((l) => l.id === id);
-    if (idx < 0) return;
+  reorderLayer(id: string, targetOrDirection: number | "up" | "down") {
+    const currentIndex = this.layers.findIndex((l) => l.id === id);
+    if (currentIndex === -1) return;
 
-    const swapIdx = direction === "up" ? idx + 1 : idx - 1;
-    if (swapIdx < 0 || swapIdx >= sorted.length) return;
+    let targetIndex: number;
+    if (typeof targetOrDirection === "number") {
+      targetIndex = Math.max(0, Math.min(this.layers.length - 1, targetOrDirection));
+    } else if (targetOrDirection === "up") {
+      targetIndex = Math.min(this.layers.length - 1, currentIndex + 1);
+    } else {
+      targetIndex = Math.max(0, currentIndex - 1);
+    }
 
-    const tmpOrder = sorted[idx].order;
-    sorted[idx].order = sorted[swapIdx].order;
-    sorted[swapIdx].order = tmpOrder;
+    if (currentIndex === targetIndex) return;
 
-    this.layers = [...sorted];
+    const nextLayers = [...this.layers];
+    const [removed] = nextLayers.splice(currentIndex, 1);
+    nextLayers.splice(targetIndex, 0, removed);
+
+    nextLayers.forEach((layer, idx) => {
+      layer.order = idx;
+      layer.zIndex = idx;
+    });
+
+    this.layers = nextLayers;
   }
 
   renameLayer(id: string, name: string) {
-    this.layers = this.layers.map((l) => (l.id === id ? { ...l, name } : l));
+    if (typeof name !== "string") return;
+    const trimmed = name.trim();
+    this.layers = this.layers.map((l) => (l.id === id ? { ...l, name: trimmed } : l));
   }
 
   toggleLayerVisibility(id: string) {
@@ -1060,7 +1373,8 @@ class CanvasStore {
   }
 
   setLayerOpacity(id: string, opacity: number) {
-    this.layers = this.layers.map((l) => (l.id === id ? { ...l, opacity } : l));
+    const clamped = Math.max(0.0, Math.min(1.0, Number.isFinite(opacity) ? opacity : 1.0));
+    this.layers = this.layers.map((l) => (l.id === id ? { ...l, opacity: clamped } : l));
   }
 
   setLayerDenoise(id: string, denoise: number) {
@@ -1071,8 +1385,81 @@ class CanvasStore {
     this.layers = this.layers.map((l) => (l.id === id ? { ...l, prompt } : l));
   }
 
-  setLayerBlendMode(id: string, blendMode: CanvasLayerBlendMode) {
+  setLayerBlendMode(id: string, blendMode: CanvasBlendMode) {
     this.layers = this.layers.map((l) => (l.id === id ? { ...l, blendMode } : l));
+  }
+
+  setSampledColor(info: SampledColorInfo | null) {
+    this.sampledColor = info;
+  }
+
+  setActiveTransformBounds(bounds: ActiveTransformBounds | null) {
+    this.activeTransformBounds = bounds;
+  }
+
+  toggleQuickMask(): boolean {
+    this.quickMaskMode = !this.quickMaskMode;
+    return this.quickMaskMode;
+  }
+
+  setZoomToolMode(mode: ZoomToolMode) {
+    this.zoomToolMode = mode;
+  }
+
+  setRegionalProps(id: string, props: Partial<RegionalCanvasLayer>) {
+    this.layers = this.layers.map((l) => {
+      if (l.id !== id || l.type !== "regional") return l;
+      return { ...l, ...props };
+    });
+  }
+
+  setControlNetProps(id: string, props: Partial<ControlNetCanvasLayer>) {
+    this.layers = this.layers.map((l) => {
+      if (l.id !== id || l.type !== "controlnet") return l;
+      return { ...l, ...props };
+    });
+  }
+
+  setMaskProps(id: string, props: Partial<MaskCanvasLayer>) {
+    this.layers = this.layers.map((l) => {
+      if (l.id !== id || l.type !== "mask") return l;
+      return { ...l, ...props };
+    });
+  }
+
+  snapBoundingBoxToLayer(layerId?: string) {
+    const targetId = layerId ?? this.activeLayerId;
+    if (!targetId) return;
+    const layer = this.layers.find((l) => l.id === targetId);
+    if (!layer) return;
+
+    if (layer.type === "regional") {
+      this.boundingBox = {
+        x: Math.round(layer.x * this.canvasWidth),
+        y: Math.round(layer.y * this.canvasHeight),
+        width: Math.max(64, Math.round(layer.width * this.canvasWidth)),
+        height: Math.max(64, Math.round(layer.height * this.canvasHeight)),
+        locked: this.boundingBox.locked,
+      };
+    } else {
+      this.boundingBox = {
+        x: 0,
+        y: 0,
+        width: this.canvasWidth,
+        height: this.canvasHeight,
+        locked: this.boundingBox.locked,
+      };
+    }
+  }
+
+  resetBoundingBoxToCanvas() {
+    this.boundingBox = {
+      x: 0,
+      y: 0,
+      width: this.canvasWidth,
+      height: this.canvasHeight,
+      locked: false,
+    };
   }
 
   getLayerCanvas(layerId: string): HTMLCanvasElement | null {
@@ -1111,30 +1498,154 @@ class CanvasStore {
     }
   }
 
-  async acceptStagingToCurrentLayer() {
-    if (this.canApplyInpaintResult) {
-      this.applyInpaintResult();
-      this.clearStaging();
-      return;
+  async acceptAsNewLayer(): Promise<CanvasLayer | null> {
+    const cand = this.candidate;
+    if (!cand || !cand.url) return null;
+
+    canvasHistory.snapshot("Accept Generation as New Layer");
+
+    const active = this.getActiveLayer();
+    const newLayerId = this.addLayer("raster", "Generated Layer");
+    const newLayer = this.layers.find((l) => l.id === newLayerId);
+    if (!newLayer) return null;
+
+    if (newLayer.type === "raster") {
+      newLayer.thumbnail = cand.url;
+      newLayer.width = cand.width;
+      newLayer.height = cand.height;
     }
+
+    if (active) {
+      const activeIdx = this.layers.findIndex((l) => l.id === active.id);
+      this.reorderLayer(newLayer.id, activeIdx + 1);
+    }
+
     if (this._stageOps.acceptStagingToLayer) {
       await this._stageOps.acceptStagingToLayer(false);
-      this.clearStaging();
     }
+
+    this.clearStaging();
+    return newLayer;
   }
 
-  async acceptStagingToNewLayer() {
+  async acceptStagingToNewLayer(): Promise<CanvasLayer | null> {
     if (this.canApplyInpaintResult) {
       const ok = await this.applyInpaintAsLayer();
       if (ok) {
         this.clearStaging();
       }
-      return;
+      return this.getActiveLayer();
     }
+    return await this.acceptAsNewLayer();
+  }
+
+  async applyToBase(): Promise<boolean> {
+    const cand = this.candidate;
+    if (!cand || !cand.url) return false;
+
+    const active = this.getActiveLayer();
+    if (!active || active.locked || active.type !== "raster") {
+      return false;
+    }
+
+    canvasHistory.snapshot("Apply Generation to Base");
+
     if (this._stageOps.acceptStagingToLayer) {
-      await this._stageOps.acceptStagingToLayer(true);
-      this.clearStaging();
+      const success = await this._stageOps.acceptStagingToLayer(false);
+      if (!success) return false;
     }
+
+    active.thumbnail = cand.url;
+    this.clearStaging();
+    return true;
+  }
+
+  async acceptStagingToCurrentLayer(): Promise<boolean> {
+    if (this.canApplyInpaintResult) {
+      this.applyInpaintResult();
+      this.clearStaging();
+      return true;
+    }
+    return await this.applyToBase();
+  }
+
+  async acceptAndInpaintImmediately(): Promise<boolean> {
+    const cand = this.candidate;
+    const candUrl = cand?.url ?? this.pendingResultPreviewUrl ?? this.currentStagingImage;
+    if (!candUrl) return false;
+
+    canvasHistory.snapshot("Accept & Inpaint Immediately");
+
+    let targetRaster = this.layers.find(
+      (l): l is RasterCanvasLayer => l.id === this.activeLayerId && l.type === "raster" && !l.locked
+    );
+
+    if (!targetRaster) {
+      targetRaster = this.layers.find((l): l is RasterCanvasLayer => l.type === "raster" && !l.locked);
+      if (!targetRaster) {
+        const newId = this.addLayer("raster", "Base Layer");
+        targetRaster = this.layers.find((l): l is RasterCanvasLayer => l.id === newId);
+      }
+    }
+
+    if (!targetRaster) return false;
+
+    if (this.canApplyInpaintResult) {
+      this.applyInpaintResult();
+    } else if (this._stageOps.acceptStagingToLayer) {
+      this.activeLayerId = targetRaster.id;
+      await this._stageOps.acceptStagingToLayer(false);
+    } else {
+      targetRaster.thumbnail = candUrl;
+    }
+
+    let linkedMask = this.layers.find(
+      (l): l is MaskCanvasLayer => l.type === "mask" && (l.linkedLayerId === targetRaster!.id || !l.linkedLayerId)
+    );
+
+    if (!linkedMask) {
+      const maskId = this.addLayer("mask", "Inpaint Mask", { linkedLayerId: targetRaster.id });
+      linkedMask = this.layers.find((l): l is MaskCanvasLayer => l.id === maskId);
+    }
+
+    if (linkedMask) {
+      this.clearLayer(linkedMask.id);
+      this.setActiveLayer(linkedMask.id);
+    }
+
+    this.inpaintDrawMode = "mask";
+    this.setTool("brush");
+
+    this.clearStaging();
+    this.clearPendingInpaintResult();
+    return true;
+  }
+
+  async useAsMask(): Promise<CanvasLayer | null> {
+    const cand = this.candidate;
+    if (!cand || !cand.url) return null;
+
+    canvasHistory.snapshot("Use Staged as Mask");
+
+    const maskLayerId = this.addLayer("mask", "Generated Mask");
+    const maskLayer = this.layers.find((l) => l.id === maskLayerId);
+    if (!maskLayer) return null;
+
+    if (maskLayer.type === "mask") {
+      maskLayer.thumbnail = cand.url;
+      maskLayer.inverted = false;
+    }
+
+    if (this._stageOps.acceptCandidateAsMask) {
+      await this._stageOps.acceptCandidateAsMask(cand.url);
+    }
+
+    this.clearStaging();
+    return maskLayer;
+  }
+
+  async useStagingAsMask(): Promise<CanvasLayer | null> {
+    return await this.useAsMask();
   }
 
   /**
@@ -1161,17 +1672,31 @@ class CanvasStore {
     return "txt2img";
   }
 
+  resolveUnifiedGenerationMode(): GenerationMode {
+    if (generation.mode === "video") return "video";
+    if (generation.editReferenceImages && generation.editReferenceImages.length > 0) {
+      return "image_edit";
+    }
+    if (this.hasActiveMask) {
+      return "inpainting";
+    }
+    if (this.referenceImageUrl || this.currentPreparedInputImage || this.hasRasterContent) {
+      return "img2img";
+    }
+    return "txt2img";
+  }
+
   get hasActiveMask(): boolean {
     return !!(
       this.persistedMaskPreviewUrl ||
       this.preparedInpaintPreviewUrl ||
-      (this.activeLayer?.type === "mask" && !!this.layerThumbnails[this.activeLayer.id]) ||
+      (this.activeLayer?.type === "mask" && this.activeLayer.visible && !!this.layerThumbnails[this.activeLayer.id]) ||
       this.layers.some((l) => l.type === "mask" && l.visible && !!this.layerThumbnails[l.id])
     );
   }
 
   get hasRasterContent(): boolean {
-    return this.layers.some((l) => l.type === "raster" && !!this.layerThumbnails[l.id]);
+    return this.layers.some((l) => l.type === "raster" && l.visible && !!this.layerThumbnails[l.id]);
   }
 
   toggleLayerLock(id: string) {
@@ -1192,6 +1717,12 @@ class CanvasStore {
 
   // Clear all content from a layer (via Konva stage ref)
   clearLayer(id: string) {
+    this.clearLayerThumbnail(id);
+    delete this.layerThumbnails[id];
+    const layer = this.layers.find((l) => l.id === id);
+    if (layer && (layer as any).thumbnail) {
+      (layer as any).thumbnail = undefined;
+    }
     if (!this._stageRef) return;
     const layers = this._stageRef.getLayers();
     for (const kLayer of layers) {
@@ -1274,7 +1805,7 @@ class CanvasStore {
       visible: l.visible,
       opacity: l.opacity,
       locked: l.locked,
-      denoise: l.denoise ?? (l.type === "mask" ? 0.7 : 1.0),
+      denoise: ("denoise" in l ? (l as any).denoise : undefined) ?? (l.type === "mask" ? 0.7 : 1.0),
     }));
   }
 
@@ -1494,6 +2025,11 @@ class CanvasStore {
     getRasterComposite: () => HTMLCanvasElement | null,
     getMaskCanvas: () => HTMLCanvasElement | null
   ) {
+    // Modeless Smart Dispatch: dynamically infer pipeline from canvas state
+    if (generation.mode !== "video") {
+      generation.mode = this.resolveUnifiedGenerationMode();
+    }
+
     const rasterCanvas = getRasterComposite();
     const maskCanvas = getMaskCanvas();
     const isInpainting = generation.mode === "inpainting";
@@ -1669,32 +2205,9 @@ class CanvasStore {
       }
     }
 
-    // Keep the user-selected mode when using canvas flow for image editing modes.
-    // Only auto-detect mode when the current mode is txt2img (the default).
-    if (generation.mode !== "txt2img" && generation.mode !== "inpainting" && generation.mode !== "img2img") {
-      // video, image_edit, or any future mode — don't override
-    } else if (generation.mode === "inpainting") {
-      generation.mode = "inpainting";
-    } else if (generation.mode === "img2img") {
-      generation.mode = "img2img";
-    } else {
-      const unifiedAction = this.currentUnifiedAction;
-      if (unifiedAction === "inpaint" || unifiedAction === "outpaint") {
-        generation.mode = "inpainting";
-      } else if (unifiedAction === "img2img") {
-        generation.mode = "img2img";
-      } else if (hasRaster && hasMask) {
-        generation.mode = "inpainting";
-      } else if (hasRaster) {
-        generation.mode = "img2img";
-      } else {
-        generation.mode = "txt2img";
-      }
-    }
-
     // Use per-layer denoise from the first visible mask layer
     if (hasMask) {
-      const firstMask = this.layers.find((l) => l.type === "mask" && l.visible);
+      const firstMask = this.layers.find((l): l is MaskCanvasLayer => l.type === "mask" && l.visible);
       if (firstMask && firstMask.denoise !== undefined) {
         generation.denoise = firstMask.denoise;
       }
@@ -1703,3 +2216,7 @@ class CanvasStore {
 }
 
 export const canvas = new CanvasStore();
+
+export function resolveUnifiedGenerationMode(): GenerationMode {
+  return canvas.resolveUnifiedGenerationMode();
+}

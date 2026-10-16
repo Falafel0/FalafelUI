@@ -5,6 +5,7 @@ pub mod image_edit;
 pub mod img2img;
 pub mod inpainting;
 pub mod music;
+pub mod regional;
 pub mod rife;
 pub mod segment_detail;
 pub mod style_ref;
@@ -212,7 +213,7 @@ pub fn validate_generation_params(params: &GenerationParams) -> Result<(), Strin
         ));
     }
 
-    if let Some(cn) = params.controlnet.as_ref() {
+    let validate_cn = |cn: &crate::comfyui::types::ControlNetParam| -> Result<(), String> {
         if cn.enabled && cn.image.as_deref().map(str::trim).unwrap_or("").is_empty() {
             return Err(
                 "ControlNet is enabled but no reference image was provided — please upload one or disable ControlNet.".into(),
@@ -243,6 +244,14 @@ pub fn validate_generation_params(params: &GenerationParams) -> Result<(), Strin
                 "The Anima inpainting ControlNet preset requires a mask — please paint a mask before generating.".into(),
             );
         }
+        Ok(())
+    };
+
+    if let Some(cn) = params.controlnet.as_ref() {
+        validate_cn(cn)?;
+    }
+    for cn in &params.controlnets {
+        validate_cn(cn)?;
     }
 
     if params.style_transfer_enabled {
@@ -267,7 +276,7 @@ pub fn validate_generation_params(params: &GenerationParams) -> Result<(), Strin
                 "Style transfer is enabled but no style reference image was provided — please upload one.".into(),
             );
         }
-        if params.controlnet.as_ref().is_some_and(|cn| cn.enabled) {
+        if params.has_enabled_controlnet() {
             return Err(
                 "Style transfer cannot be used with ControlNet enabled — disable one of them."
                     .into(),
@@ -1018,22 +1027,21 @@ fn build_image_stage(params: &GenerationParams, seed: i64) -> WorkflowResult {
     inject_sdxl_guidance_extras(&mut result, params);
 
     // Inject ControlNet if enabled
-    if let Some(ref cn) = params.controlnet {
-        if cn.enabled && cn.controlnet_model.is_some() && cn.image.is_some() {
-            if params.model_architecture == "anima" {
-                let mask = params.mask_image.as_deref();
-                controlnet::inject_anima_lllite(&mut result, cn, mask);
-            } else {
-                controlnet::inject_controlnet(&mut result, cn);
+    let active_cns = params.active_controlnets();
+    if !active_cns.is_empty() {
+        if params.model_architecture == "anima" {
+            let mask = params.mask_image.as_deref();
+            controlnet::inject_anima_lllites(&mut result, active_cns, mask);
+        } else {
+            controlnet::inject_controlnets(&mut result, active_cns);
 
-                // Rewire the primary KSampler to use ControlNet-conditioned positive/negative
-                if let Some(sampler_node) = result.workflow.get_mut(&result.sampler_id) {
-                    if let Some(inputs) = sampler_node.get_mut("inputs") {
-                        inputs["positive"] =
-                            json!([result.positive_source.0, result.positive_source.1]);
-                        inputs["negative"] =
-                            json!([result.negative_source.0, result.negative_source.1]);
-                    }
+            // Rewire the primary KSampler to use ControlNet-conditioned positive/negative
+            if let Some(sampler_node) = result.workflow.get_mut(&result.sampler_id) {
+                if let Some(inputs) = sampler_node.get_mut("inputs") {
+                    inputs["positive"] =
+                        json!([result.positive_source.0, result.positive_source.1]);
+                    inputs["negative"] =
+                        json!([result.negative_source.0, result.negative_source.1]);
                 }
             }
         }
@@ -1581,13 +1589,14 @@ pub(crate) mod graph_test_util {
 
 #[cfg(test)]
 mod regional_prompt_tests {
-    use super::graph_test_util::{build, nodes, params};
+    use super::graph_test_util::{build, linked, nodes, params};
     use super::*;
     use crate::comfyui::types::{PositiveRegion, PromptSegment};
 
     fn region(text: &str) -> PositiveRegion {
         PositiveRegion {
             text: text.to_string(),
+            negative_text: None,
             x: 0.0,
             y: 0.0,
             width: 0.5,
@@ -1684,6 +1693,182 @@ mod regional_prompt_tests {
         let encode = &workflow[detailer["inputs"]["positive"][0].as_str().unwrap()];
         assert_eq!(encode["inputs"]["text"], "1girl, smiling, blue eyes");
     }
+
+    #[test]
+    fn regional_conditioning_in_img2img_and_inpainting_with_negative() {
+        for mode in ["img2img", "inpainting"] {
+            let mut p = params(mode, "sdxl");
+            p.positive_regions = vec![PositiveRegion {
+                text: "a red hat".to_string(),
+                negative_text: Some("blue hat".to_string()),
+                x: 0.1,
+                y: 0.1,
+                width: 0.4,
+                height: 0.4,
+                strength: 1.0,
+            }];
+            let workflow = build(&p);
+
+            // Verify area nodes: 1 for positive, 1 for negative = 2
+            let area_nodes = nodes(&workflow, "ConditioningSetAreaPercentage");
+            assert_eq!(
+                area_nodes.len(),
+                2,
+                "{mode}: expected 2 area nodes (pos + neg)"
+            );
+
+            // Verify combine nodes: 1 for positive, 1 for negative = 2
+            let combine_nodes = nodes(&workflow, "ConditioningCombine");
+            assert_eq!(
+                combine_nodes.len(),
+                2,
+                "{mode}: expected 2 combine nodes (pos + neg)"
+            );
+
+            // Verify texts were encoded
+            let texts = encoded_texts(&workflow);
+            assert!(
+                texts.contains(&"a red hat".to_string()),
+                "{mode}: missing positive region text"
+            );
+            assert!(
+                texts.contains(&"blue hat".to_string()),
+                "{mode}: missing negative region text"
+            );
+
+            // Verify KSampler inputs wire to ConditioningCombine
+            let samplers = nodes(&workflow, "KSampler");
+            assert!(!samplers.is_empty(), "{mode}: missing sampler");
+            let main_sampler = samplers[0].1;
+
+            let pos_link = &main_sampler["inputs"]["positive"];
+            let pos_node = linked(&workflow, pos_link);
+            assert_eq!(
+                pos_node["class_type"], "ConditioningCombine",
+                "{mode}: positive input not combined"
+            );
+
+            let neg_link = &main_sampler["inputs"]["negative"];
+            let neg_node = linked(&workflow, neg_link);
+            assert_eq!(
+                neg_node["class_type"], "ConditioningCombine",
+                "{mode}: negative input not combined"
+            );
+        }
+    }
+
+    #[test]
+    fn regional_conditioning_in_inpainting_mask_only() {
+        let mut p = params("inpainting", "sdxl");
+        p.inpaint_area = "mask_only".to_string();
+        p.positive_regions = vec![PositiveRegion {
+            text: "patch pattern".to_string(),
+            negative_text: Some("dirty stains".to_string()),
+            x: 0.2,
+            y: 0.2,
+            width: 0.5,
+            height: 0.5,
+            strength: 1.2,
+        }];
+        let workflow = build(&p);
+
+        let area_nodes = nodes(&workflow, "ConditioningSetAreaPercentage");
+        assert_eq!(
+            area_nodes.len(),
+            2,
+            "mask_only inpaint: expected 2 area nodes (pos + neg)"
+        );
+
+        let samplers = nodes(&workflow, "KSampler");
+        assert!(!samplers.is_empty(), "mask_only inpaint: missing sampler");
+        let main_sampler = samplers[0].1;
+
+        let pos_node = linked(&workflow, &main_sampler["inputs"]["positive"]);
+        assert_eq!(pos_node["class_type"], "ConditioningCombine");
+
+        let neg_node = linked(&workflow, &main_sampler["inputs"]["negative"]);
+        assert_eq!(neg_node["class_type"], "ConditioningCombine");
+    }
+
+    #[test]
+    fn regional_conditioning_in_txt2img_with_negative() {
+        let mut p = params("txt2img", "sdxl");
+        p.positive_regions = vec![PositiveRegion {
+            text: "golden crown".to_string(),
+            negative_text: Some("silver crown".to_string()),
+            x: 0.3,
+            y: 0.0,
+            width: 0.4,
+            height: 0.2,
+            strength: 1.0,
+        }];
+        let workflow = build(&p);
+
+        let area_nodes = nodes(&workflow, "ConditioningSetAreaPercentage");
+        assert_eq!(
+            area_nodes.len(),
+            2,
+            "txt2img: expected 2 area nodes (pos + neg)"
+        );
+
+        let texts = encoded_texts(&workflow);
+        assert!(texts.contains(&"golden crown".to_string()));
+        assert!(texts.contains(&"silver crown".to_string()));
+
+        let samplers = nodes(&workflow, "KSampler");
+        let main_sampler = samplers[0].1;
+        assert_eq!(
+            linked(&workflow, &main_sampler["inputs"]["positive"])["class_type"],
+            "ConditioningCombine"
+        );
+        assert_eq!(
+            linked(&workflow, &main_sampler["inputs"]["negative"])["class_type"],
+            "ConditioningCombine"
+        );
+    }
+
+    #[test]
+    fn regional_negative_lora_tags_are_stripped() {
+        let mut p = params("txt2img", "sdxl");
+        p.positive_regions = vec![PositiveRegion {
+            text: "dress <lora:outfit:1.0>".to_string(),
+            negative_text: Some("ugly <lora:bad:0.5>, wrinkles".to_string()),
+            x: 0.0,
+            y: 0.5,
+            width: 1.0,
+            height: 0.5,
+            strength: 1.0,
+        }];
+        let workflow = build(&p);
+
+        let texts = encoded_texts(&workflow);
+        assert!(texts.contains(&"dress".to_string()));
+        assert!(texts.contains(&"ugly, wrinkles".to_string()));
+        for text in &texts {
+            assert!(!text.contains("<lora:"), "LoRA tag leaked: {text}");
+        }
+    }
+
+    #[test]
+    fn non_sdxl_families_skip_regions_across_all_templates() {
+        for mode in ["txt2img", "img2img", "inpainting"] {
+            let mut p = params(mode, "flux1d");
+            p.positive_regions = vec![PositiveRegion {
+                text: "dress".to_string(),
+                negative_text: Some("wrinkles".to_string()),
+                x: 0.0,
+                y: 0.0,
+                width: 0.5,
+                height: 0.5,
+                strength: 1.0,
+            }];
+            let workflow = build(&p);
+            assert!(
+                nodes(&workflow, "ConditioningSetAreaPercentage").is_empty(),
+                "{mode}: flux1d should not have area conditioning"
+            );
+        }
+    }
 }
 
 #[cfg(test)]
@@ -1771,6 +1956,172 @@ mod validation_and_seed_tests {
         cn.controlnet_model = None;
         p.controlnet = Some(cn);
         assert!(validate_generation_params(&p).is_ok());
+    }
+
+    #[test]
+    fn multi_controlnet_chains_sequentially_in_workflow() {
+        let mut p = params("txt2img", "sdxl");
+        p.controlnets = vec![
+            ControlNetParam {
+                enabled: true,
+                preset: None,
+                controlnet_model: Some("pose.safetensors".into()),
+                image: Some("pose.png".into()),
+                preprocessor: None,
+                strength: 0.8,
+                start_percent: 0.0,
+                end_percent: 1.0,
+            },
+            ControlNetParam {
+                enabled: true,
+                preset: None,
+                controlnet_model: Some("depth.safetensors".into()),
+                image: Some("depth.png".into()),
+                preprocessor: None,
+                strength: 0.5,
+                start_percent: 0.1,
+                end_percent: 0.9,
+            },
+        ];
+
+        let workflow = build(&p);
+
+        // Verify two ControlNetApplyAdvanced nodes exist
+        let cn_nodes = nodes(&workflow, "ControlNetApplyAdvanced");
+        assert_eq!(
+            cn_nodes.len(),
+            2,
+            "must create exactly 2 ControlNetApplyAdvanced nodes"
+        );
+
+        // Sampler must receive conditioning from the 2nd ControlNet
+        let sampler = single(&workflow, "KSampler");
+        let sampler_pos = linked(&workflow, &sampler["inputs"]["positive"]);
+        assert_eq!(sampler_pos["class_type"], "ControlNetApplyAdvanced");
+        assert_eq!(sampler_pos["inputs"]["strength"], 0.5);
+
+        // 2nd ControlNet must receive conditioning from the 1st ControlNet
+        let cn1 = linked(&workflow, &sampler_pos["inputs"]["positive"]);
+        assert_eq!(cn1["class_type"], "ControlNetApplyAdvanced");
+        assert_eq!(cn1["inputs"]["strength"], 0.8);
+
+        // 1st ControlNet links to CLIPTextEncode
+        let prompt_node = linked(&workflow, &cn1["inputs"]["positive"]);
+        assert_eq!(prompt_node["class_type"], "CLIPTextEncode");
+    }
+
+    #[test]
+    fn multi_controlnet_retains_backward_compatibility_with_single_param() {
+        let mut p = params("txt2img", "sdxl");
+        p.controlnet = Some(ControlNetParam {
+            enabled: true,
+            preset: None,
+            controlnet_model: Some("pose.safetensors".into()),
+            image: Some("pose.png".into()),
+            preprocessor: None,
+            strength: 0.9,
+            start_percent: 0.0,
+            end_percent: 1.0,
+        });
+
+        let workflow = build(&p);
+        let cn_nodes = nodes(&workflow, "ControlNetApplyAdvanced");
+        assert_eq!(cn_nodes.len(), 1);
+
+        let sampler = single(&workflow, "KSampler");
+        let sampler_pos = linked(&workflow, &sampler["inputs"]["positive"]);
+        assert_eq!(sampler_pos["class_type"], "ControlNetApplyAdvanced");
+        assert_eq!(sampler_pos["inputs"]["strength"], 0.9);
+    }
+
+    #[test]
+    fn multi_controlnet_deduplicates_legacy_and_vector_entry() {
+        let mut p = params("txt2img", "sdxl");
+        let cn = ControlNetParam {
+            enabled: true,
+            preset: None,
+            controlnet_model: Some("pose.safetensors".into()),
+            image: Some("pose.png".into()),
+            preprocessor: None,
+            strength: 0.9,
+            start_percent: 0.0,
+            end_percent: 1.0,
+        };
+        p.controlnet = Some(cn.clone());
+        p.controlnets = vec![cn]; // Same entry in both places
+
+        let workflow = build(&p);
+        let cn_nodes = nodes(&workflow, "ControlNetApplyAdvanced");
+        assert_eq!(
+            cn_nodes.len(),
+            1,
+            "deduplication must prevent injecting identical legacy param twice"
+        );
+    }
+
+    #[test]
+    fn multi_controlnet_vector_validation_rejects_missing_model() {
+        let mut p = params("txt2img", "sdxl");
+        p.controlnets = vec![
+            ControlNetParam {
+                enabled: true,
+                preset: None,
+                controlnet_model: Some("pose.safetensors".into()),
+                image: Some("pose.png".into()),
+                preprocessor: None,
+                strength: 1.0,
+                start_percent: 0.0,
+                end_percent: 1.0,
+            },
+            ControlNetParam {
+                enabled: true,
+                preset: None,
+                controlnet_model: None, // Missing model
+                image: Some("depth.png".into()),
+                preprocessor: None,
+                strength: 1.0,
+                start_percent: 0.0,
+                end_percent: 1.0,
+            },
+        ];
+
+        let err = validate_generation_params(&p).unwrap_err();
+        assert!(err.contains("no ControlNet model is selected"), "{err}");
+    }
+
+    #[test]
+    fn multi_controlnet_skips_disabled_layers() {
+        let mut p = params("txt2img", "sdxl");
+        p.controlnets = vec![
+            ControlNetParam {
+                enabled: true,
+                preset: None,
+                controlnet_model: Some("pose.safetensors".into()),
+                image: Some("pose.png".into()),
+                preprocessor: None,
+                strength: 1.0,
+                start_percent: 0.0,
+                end_percent: 1.0,
+            },
+            ControlNetParam {
+                enabled: false, // Disabled
+                preset: None,
+                controlnet_model: Some("depth.safetensors".into()),
+                image: Some("depth.png".into()),
+                preprocessor: None,
+                strength: 1.0,
+                start_percent: 0.0,
+                end_percent: 1.0,
+            },
+        ];
+
+        let workflow = build(&p);
+        let cn_nodes = nodes(&workflow, "ControlNetApplyAdvanced");
+        assert_eq!(
+            cn_nodes.len(),
+            1,
+            "only the enabled ControlNet layer must be injected"
+        );
     }
 
     #[test]

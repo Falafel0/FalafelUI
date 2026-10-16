@@ -201,6 +201,33 @@ pub fn inject_anima_lllite(
     rewire_sampler_model(result);
 }
 
+/// Inject multiple ControlNet nodes into an existing workflow sequentially.
+/// Rewires positive_source and negative_source through each successive node:
+/// Layer 0 takes the initial prompt encodes; Layer N takes the positive/negative
+/// outputs of Layer N-1.
+pub fn inject_controlnets<'a, I>(result: &mut WorkflowResult, controlnets: I)
+where
+    I: IntoIterator<Item = &'a ControlNetParam>,
+{
+    for cn in controlnets {
+        inject_controlnet(result, cn);
+    }
+}
+
+/// Inject multiple Anima ControlNet-LLLite nodes into an existing workflow sequentially.
+/// Each layer patches the MODEL output from the previous layer.
+pub fn inject_anima_lllites<'a, I>(
+    result: &mut WorkflowResult,
+    controlnets: I,
+    mask_image: Option<&str>,
+) where
+    I: IntoIterator<Item = &'a ControlNetParam>,
+{
+    for cn in controlnets {
+        inject_anima_lllite(result, cn, mask_image);
+    }
+}
+
 fn current_sampler_model_source(result: &WorkflowResult) -> (String, u32) {
     result
         .workflow
@@ -430,5 +457,101 @@ mod tests {
                 .unwrap(),
             &json!("LoadImageMask")
         );
+    }
+
+    #[test]
+    fn inject_controlnets_chains_multiple_layers_sequentially() {
+        let mut result = sample_workflow_result();
+
+        let cn1 = ControlNetParam {
+            enabled: true,
+            preset: None,
+            controlnet_model: Some("pose.safetensors".into()),
+            image: Some("pose.png".into()),
+            preprocessor: None,
+            strength: 0.85,
+            start_percent: 0.0,
+            end_percent: 0.75,
+        };
+
+        let cn2 = ControlNetParam {
+            enabled: true,
+            preset: None,
+            controlnet_model: Some("depth.safetensors".into()),
+            image: Some("depth.png".into()),
+            preprocessor: None,
+            strength: 0.60,
+            start_percent: 0.1,
+            end_percent: 1.0,
+        };
+
+        inject_controlnets(&mut result, [&cn1, &cn2]);
+
+        // Output of result points to the second ControlNet node
+        let apply2_id = result.positive_source.0.clone();
+        assert_eq!(result.positive_source.1, 0);
+        assert_eq!(result.negative_source, (apply2_id.clone(), 1));
+
+        let apply2_node = result.workflow.get(&apply2_id).unwrap();
+        assert_eq!(apply2_node["class_type"], "ControlNetApplyAdvanced");
+        assert_eq!(apply2_node["inputs"]["strength"], 0.60);
+
+        // Positive and negative inputs of apply2 must point to outputs 0 and 1 of apply1
+        let pos2 = apply2_node["inputs"]["positive"].as_array().unwrap();
+        let neg2 = apply2_node["inputs"]["negative"].as_array().unwrap();
+        let apply1_id = pos2[0].as_str().unwrap();
+        assert_eq!(neg2[0].as_str().unwrap(), apply1_id);
+        assert_eq!(pos2[1].as_u64().unwrap(), 0);
+        assert_eq!(neg2[1].as_u64().unwrap(), 1);
+
+        // Apply1 must point to the initial workflow sources
+        let apply1_node = result.workflow.get(apply1_id).unwrap();
+        assert_eq!(apply1_node["class_type"], "ControlNetApplyAdvanced");
+        assert_eq!(apply1_node["inputs"]["strength"], 0.85);
+        assert_eq!(apply1_node["inputs"]["positive"], json!(["positive", 0]));
+        assert_eq!(apply1_node["inputs"]["negative"], json!(["negative", 0]));
+    }
+
+    #[test]
+    fn inject_anima_lllites_chains_multiple_model_patches() {
+        let mut result = sample_workflow_result();
+
+        let cn1 = ControlNetParam {
+            enabled: true,
+            preset: None,
+            controlnet_model: Some("anima-patch-1.safetensors".into()),
+            image: Some("pose.png".into()),
+            preprocessor: None,
+            strength: 1.0,
+            start_percent: 0.0,
+            end_percent: 1.0,
+        };
+
+        let cn2 = ControlNetParam {
+            enabled: true,
+            preset: None,
+            controlnet_model: Some("anima-patch-2.safetensors".into()),
+            image: Some("line.png".into()),
+            preprocessor: None,
+            strength: 0.7,
+            start_percent: 0.0,
+            end_percent: 1.0,
+        };
+
+        inject_anima_lllites(&mut result, [&cn1, &cn2], None);
+
+        let final_model_id = result.model_source.0.clone();
+        let apply2_node = result.workflow.get(&final_model_id).unwrap();
+        assert_eq!(apply2_node["class_type"], "AnimaLLLiteApply");
+
+        // apply2 model input connects to apply1
+        let apply1_id = apply2_node["inputs"]["model"][0].as_str().unwrap();
+        let apply1_node = result.workflow.get(apply1_id).unwrap();
+        assert_eq!(apply1_node["class_type"], "AnimaLLLiteApply");
+        assert_eq!(apply1_node["inputs"]["model"], json!(["base-model", 0]));
+
+        // Sampler has been rewired to final_model_id
+        let sampler = result.workflow.get(&result.sampler_id).unwrap();
+        assert_eq!(sampler["inputs"]["model"], json!([final_model_id, 0]));
     }
 }

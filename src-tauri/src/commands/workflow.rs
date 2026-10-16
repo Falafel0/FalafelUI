@@ -146,10 +146,7 @@ pub async fn generate(
         params.model_architecture,
         params.positive_regions.len(),
     );
-    if params.controlnet.as_ref().is_some_and(|cn| cn.enabled)
-        || params.facefix_enabled
-        || !params.loras.is_empty()
-    {
+    if params.has_enabled_controlnet() || params.facefix_enabled || !params.loras.is_empty() {
         log::info!(
             "Workflow JSON: {}",
             serde_json::to_string_pretty(&workflow).unwrap_or_default()
