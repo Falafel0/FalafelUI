@@ -2287,6 +2287,7 @@ mod tests {
             H3_TEACACHE_PACKAGES,
             INT8_FAST_PACKAGES,
             IPADAPTER_PLUS_PACKAGES,
+            INPAINT_CROP_STITCH_PACKAGES,
         ]
         .concat()
     }

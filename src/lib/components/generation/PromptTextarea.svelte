@@ -4,7 +4,9 @@
   import { autocomplete, type TagEntry } from "../../stores/autocomplete.svelte.js";
   import { locale } from "../../stores/locale.svelte.js";
   import { generation } from "../../stores/generation.svelte.js";
+  import { connection } from "../../stores/connection.svelte.js";
   import { promptPresets } from "../../stores/promptPresets.svelte.js";
+  import ArtistHoverPreview from "../../artist-gallery/components/ArtistHoverPreview.svelte";
   import {
     renderHighlightedPrompt,
     hasSchedulingTags,
@@ -1172,6 +1174,18 @@
         </button>
       {/each}
     </div>
+    {#if suggestions[selectedIndex]?.c === 1 && connection.artistGalleryManifestUrl}
+      <div
+        use:portal
+        class="fixed z-[200] pointer-events-none"
+        style="top: {dropdownTop}px; left: {dropdownLeft + 328}px;"
+      >
+        <ArtistHoverPreview
+          manifestUrl={connection.artistGalleryManifestUrl}
+          slugOrTag={suggestions[selectedIndex].n}
+        />
+      </div>
+    {/if}
   {/if}
   <ContextMenu
     items={spellMenuItems}
