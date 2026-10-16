@@ -7,6 +7,7 @@ import { startup } from "../stores/startup.svelte.js";
 import { models } from "../stores/models.svelte.js";
 import { generation } from "../stores/generation.svelte.js";
 import { locale } from "../stores/locale.svelte.js";
+import { canvas } from "../stores/canvas.svelte.js";
 
 export function initMockPreview() {
   if (typeof window === "undefined") return;
@@ -22,9 +23,41 @@ export function initMockPreview() {
     localStorage.setItem("mooshieui.hint.interrogate-sidebar.v1", "true");
   } catch {}
 
+  if (preview === "prompts") {
+    try {
+      const layout = JSON.stringify({
+        sides: { prompts: "left", dimensions: "right" },
+        order: ["prompts", "dimensions", "model", "sampler"]
+      });
+      const collapsed = JSON.stringify({
+        dimensions: false,
+        prompts: true,
+      });
+      localStorage.setItem("mooshieui.generation.sections.layout.v1", layout);
+      localStorage.setItem("mooshieui.generation.sections.layout.v1.desktop", layout);
+      localStorage.setItem("mooshieui.generation.sections.collapsed.v1", collapsed);
+      localStorage.setItem("mooshieui.generation.sections.collapsed.v1.desktop", collapsed);
+    } catch {}
+  } else if (preview === "crop") {
+    try {
+      const layout = JSON.stringify({
+        sides: { dimensions: "left", prompts: "right" },
+        order: ["dimensions", "prompts", "model", "sampler"]
+      });
+      const collapsed = JSON.stringify({
+        dimensions: true,
+        prompts: false,
+      });
+      localStorage.setItem("mooshieui.generation.sections.layout.v1", layout);
+      localStorage.setItem("mooshieui.generation.sections.layout.v1.desktop", layout);
+      localStorage.setItem("mooshieui.generation.sections.collapsed.v1", collapsed);
+      localStorage.setItem("mooshieui.generation.sections.collapsed.v1.desktop", collapsed);
+    } catch {}
+  }
+
   console.info(`[MockPreview] Initializing mock mode: ${preview}, lang: ${targetLang}`);
 
-  const isMain = preview === "main" || preview === "gallery" || preview === "settings";
+  const isMain = preview === "main" || preview === "gallery" || preview === "settings" || preview === "canvas" || preview === "crop" || preview === "prompts";
   const isDetected = preview === "setup_detected";
 
   (window as any).__IPC_MOCK__ = async (command: string, args?: any) => {
@@ -168,12 +201,26 @@ export function initMockPreview() {
 
       generation.checkpoint = "FalafelAnime_v1.safetensors";
       generation.positivePrompt = "1girl, solo, purple eyes, violet hair, glowing neon accents, cyberpunk city, detailed, masterpiece";
+      generation.negativePrompt = "blurry, low quality, deformed, bad hands";
       generation.samplerName = "euler_ancestral";
       generation.scheduler = "karras";
       generation.steps = 28;
       generation.cfg = 6.5;
       generation.width = 1024;
       generation.height = 1024;
+
+      if (preview === "canvas") {
+        generation.mode = "inpainting";
+        canvas.isCanvasMode = true;
+        canvas.initCanvas(1024, 1024);
+        if (canvas.layers.length === 0) {
+          canvas.addLayer("raster");
+          canvas.addLayer("mask");
+        }
+      } else if (preview === "crop") {
+        generation.mode = "inpainting";
+        canvas.inpaintFullRes = true;
+      }
     }, 150);
   }
 }

@@ -662,7 +662,7 @@
           <!-- Mask Box Resolution (Width x Height) -->
           <div>
             <span class="text-[10px] uppercase font-semibold text-neutral-400 tracking-wider block mb-1">
-              {locale.t('generation.image.width')} × {locale.t('generation.image.height')}
+              {locale.t('generation.dimensions.width')} × {locale.t('generation.dimensions.height')}
             </span>
             <div class="grid grid-cols-2 gap-2">
               <label class="relative block">
