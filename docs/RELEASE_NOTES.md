@@ -1,3 +1,28 @@
+## What's New in v1.3.0-falafel.0
+
+### Canvas Layer System V2 & Multi-Mask Inpaint Chains
+- **Per-Mask Prompt Override & Denoise**: Mask layers in the layer stack can now configure their own custom prompt overrides and denoise levels.
+- **Sequential Multi-Mask Inpainting**: Generate with multiple active masks sequentially in a single click, applying specialized prompts and denoise strengths per region with real-time status notifications.
+- **Diff-Based "Apply as Layer" with Edge Feathering**: New inpaint results can be committed as independent cutout layers isolating only altered pixels, blended with smooth 2px Gaussian edge feathering.
+- **True Vector Layer Duplication**: Konva layer cloning preserves vector stroke data and node hierarchies before falling back to high-resolution raster snapshots.
+- **Enhanced `.falafel` Project Persistence**: Layer projects serialize per-layer prompt and denoise settings, ensuring complete session fidelity.
+
+### Inpaint Crop & Stitch Controls & Generation Sidebar
+- **Integrated Crop & Stitch Controls**: Full suite of `InpaintCropImproved` and `InpaintStitchImproved` controls directly in the Canvas Dimension panel — Width × Height, padding, mask blend, grow mask, context factor, HiPass filter, and CPU/GPU device modes.
+- **Inpaint Layers Panel**: Dedicated Generation sidebar panel with real-time Denoise slider, Face Detailer switch, and Differential Diffusion toggle.
+- **Optimized Differential Diffusion**: Automatically bypasses differential diffusion when denoise is 1.0 to eliminate boundary artifacts.
+- **Verified Node Packages**: Registered and verified node packages in the backend test pins.
+
+### Artist Hover Preview & Autocomplete
+- **Danbooru Artist Previews**: Hovering over artist tags in the prompt autocomplete dropdown displays a live artwork sample card.
+- **Viewport Boundary Clamping**: Intelligent positioning automatically flips the artist preview card to avoid overflowing the viewport edge.
+
+### Canvas & Inpaint Engine Hardening
+- **28 Stability Fixes**: Included concurrency guard `_maskSyncInFlight`, `wasGenerating` anti-flicker protection, pointer-leave stroke auto-commit, separated scaleX/scaleY transform error resilience, and sensitive 16-level alpha thresholding.
+- **100% 12-Locale Parity**: Maintained full translation parity across all 12 supported languages (4,373 keys each).
+
+---
+
 ## What's New in v1.2.0-falafel.0
 
 ### Unified Canvas & Pro Photo Editor
