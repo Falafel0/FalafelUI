@@ -1,5 +1,26 @@
 # Changelog
 
+## What's New in v1.4.0-falafel.0
+
+### Pure Modeless Canvas Workspace
+- **Elimination of Mode Switchers**: Completely removed legacy mode buttons and tabs (`txt2img`, `img2img`, `inpainting`, `image_edit`) and the studio/canvas toggle from the interface. The Canvas is now the sole, permanent, full-height creative stage for all image workflows.
+- **Smart Automatic Modeless Dispatch**: Canvas state dynamically infers the target pipeline under the hood (`resolveUnifiedGenerationMode()`): empty canvas generates with prompt (`txt2img`), present raster transforms with denoise (`img2img`), drawn mask or mask layer inpainting (`inpainting`), and bounding box expansion triggers generative outpaint (`outpaint`).
+
+### Photoshop-Grade Layer System & Tools
+- **Rich 4-Type Layer Stack**: Dedicated support for Raster Layers, Mask Layers (with alpha linkage), Regional Conditioning Layers (with sub-region prompts and weights), and ControlNet Layers (with model, preprocessor, and strength controls).
+- **Photoshop Toolbar**: 10-tool creative set (Move, Transform, Brush, Eraser, Lasso, Marquee, Eyedropper, Hand, Zoom, Quick Mask) with industry-standard hotkeys (`V`, `T`, `B`, `E`, `L`, `M`, `I`, `H`, `Z`, `Q`) and layer shortcuts (`Ctrl+J`, `Ctrl+E`, `Ctrl+Shift+E`).
+- **Contextual Tool Options Bar**: Horizontal top bar displaying active tool properties (brush hardness 0–100%, diameter, opacity, color preview, transform coordinates).
+- **Floating Contextual Task Bar**: Dynamic bottom-center bar with multi-candidate staging carousel, single-click "Accept & Inpaint Immediately" hero action (`Alt+Enter`), "Accept as New Layer", "Apply to Base", "Use as Mask", "Discard", and "Reroll".
+- **Non-Destructive Result Staging**: Generated candidates preview directly on the canvas with before/after comparison (`👁️`) and 64-step undo/redo history with Copy-on-Write structural sharing.
+
+### Domain Separation & Architecture Unification
+- **Clean Generation Sidebar**: Dimension controls stripped of residual inpaint settings, strictly focused on resolution, aspect ratio presets, side length, orientation swapping, and model family badges. Prompt inputs support advanced Prompt Scheduling (`[from:to:step]`) and Alternations (`[alt1|alt2]`).
+- **Right-Hand Inspector Suite**: Houses the Photoshop Layer Stack (`LayerPanel.svelte`), Layer Properties Inspector (`LayerPropertiesInspector.svelte`), Bounding Box Context Controls (`BoundingBoxControls.svelte`), and Inpaint Chain Controller (`InpaintInspector.svelte`).
+- **ComfyUI Regional & Multi-ControlNet Pipeline**: Rust template injection supporting up to 4 concurrent ControlNet layers and spatial conditioning (`ConditioningSetAreaPercentage` + `ConditioningCombine`) with 1:1 aspect ratio boundary clamping.
+- **100% 12-Locale Parity**: Added 43 localized keys across all 12 supported languages (`de`, `en`, `es`, `fr`, `it`, `ja`, `ko`, `pl`, `pt`, `ru`, `zh-tw`, `zh`), expanding each dictionary to exactly 4,416 keys with zero missing or mismatched placeholders.
+
+---
+
 ## What's New in v1.3.0-falafel.0
 
 ### Canvas Layer System V2 & Multi-Mask Inpaint Chains

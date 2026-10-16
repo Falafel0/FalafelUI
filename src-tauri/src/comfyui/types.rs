@@ -93,12 +93,28 @@ pub struct DetailSegment {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PositiveRegion {
     pub text: String,
+    #[serde(default, alias = "negativeText")]
+    pub negative_text: Option<String>,
     pub x: f64,
     pub y: f64,
     pub width: f64,
     pub height: f64,
     #[serde(default = "default_region_strength")]
     pub strength: f64,
+}
+
+impl Default for PositiveRegion {
+    fn default() -> Self {
+        Self {
+            text: String::new(),
+            negative_text: None,
+            x: 0.0,
+            y: 0.0,
+            width: 1.0,
+            height: 1.0,
+            strength: default_region_strength(),
+        }
+    }
 }
 
 /// Seeds are 63-bit and exceed JavaScript's 2^53 safe-integer range, so they
@@ -376,9 +392,12 @@ pub struct GenerationParams {
     /// stereo track — with no audio segments that output is digital silence.
     #[serde(default)]
     pub video_timeline_custom_audio: bool,
-    /// Optional ControlNet parameters
+    /// Optional ControlNet parameters (legacy single)
     #[serde(default)]
     pub controlnet: Option<ControlNetParam>,
+    /// Multi-ControlNet parameters list
+    #[serde(default)]
+    pub controlnets: Vec<ControlNetParam>,
     /// Detected model architecture from the frontend (e.g. "sd3", "sdxl", "sd15", "illustrious", "unknown")
     #[serde(default)]
     pub model_architecture: String,
@@ -588,6 +607,44 @@ pub struct GenerationParams {
     pub stage: Option<StageContext>,
 }
 
+impl GenerationParams {
+    /// Returns true if any ControlNet is enabled across legacy `controlnet` and `controlnets`.
+    pub fn has_enabled_controlnet(&self) -> bool {
+        self.controlnet.as_ref().is_some_and(|cn| cn.enabled)
+            || self.controlnets.iter().any(|cn| cn.enabled)
+    }
+
+    /// Return all active and valid ControlNet parameters, reconciling legacy `controlnet`
+    /// and `controlnets` without duplication.
+    pub fn active_controlnets(&self) -> Vec<&ControlNetParam> {
+        let is_valid = |cn: &ControlNetParam| {
+            cn.enabled
+                && !cn
+                    .controlnet_model
+                    .as_deref()
+                    .map(str::trim)
+                    .unwrap_or("")
+                    .is_empty()
+                && !cn.image.as_deref().map(str::trim).unwrap_or("").is_empty()
+        };
+
+        let mut list = Vec::new();
+        if let Some(ref cn) = self.controlnet {
+            if is_valid(cn) {
+                list.push(cn);
+            }
+        }
+        for cn in &self.controlnets {
+            if is_valid(cn) {
+                if !self.controlnet.as_ref().is_some_and(|legacy| legacy == cn) {
+                    list.push(cn);
+                }
+            }
+        }
+        list
+    }
+}
+
 /// One completed stage of a paused txt2img run.
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct ResumeStage {
@@ -758,7 +815,7 @@ fn default_video_interp_engine() -> String {
     "rife".to_string()
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct ControlNetParam {
     #[serde(default)]
     pub enabled: bool,

@@ -1,151 +1,155 @@
 <script lang="ts">
-  import { canvas } from "../../../stores/canvas.svelte.js";
+  import { canvas, type CanvasLayerType } from "../../../stores/canvas.svelte.js";
   import { locale } from "../../../stores/locale.svelte.js";
   import LayerItem from "./LayerItem.svelte";
 
-  type GroupKey = "mask" | "raster";
+  let draggedLayerId = $state<string | null>(null);
+  let dragOverIndex = $state<number | null>(null);
 
-  let collapsed = $state<Record<GroupKey, boolean>>({ mask: false, raster: false });
+  const rasterLayers = $derived(canvas.layers.filter((l) => l.type === "raster"));
+  const sortedLayers = $derived(canvas.sortedLayers);
 
-  const maskLayers = $derived(canvas.sortedLayers.filter((l) => l.type === "mask"));
-  const rasterLayers = $derived(canvas.sortedLayers.filter((l) => l.type === "raster"));
-  const activeType = $derived(canvas.activeLayer?.type ?? null);
-
-  const groups = $derived([
-    { key: "mask" as GroupKey, titleKey: "canvas.mask_layers", addKey: "canvas.add_mask", layers: maskLayers },
-    { key: "raster" as GroupKey, titleKey: "canvas.raster_layers", addKey: "canvas.add_raster", layers: rasterLayers },
-  ]);
-
-  function toggleGroup(key: GroupKey) {
-    collapsed = { ...collapsed, [key]: !collapsed[key] };
+  function handleAddLayer(type: CanvasLayerType) {
+    canvas.addLayer(type);
   }
 
-  function addToGroup(key: GroupKey) {
-    canvas.addLayer(key);
-    // Adding a layer should reveal it, so make sure the group is open.
-    collapsed = { ...collapsed, [key]: false };
+  function handleDragStart(e: DragEvent, id: string) {
+    draggedLayerId = id;
+    if (e.dataTransfer) {
+      e.dataTransfer.effectAllowed = "move";
+      e.dataTransfer.setData("text/plain", id);
+    }
   }
 
-  function handleSendToMask() {
-    canvas.sendActiveLayerToMask();
+  function handleDragOver(e: DragEvent, index: number) {
+    e.preventDefault();
+    if (e.dataTransfer) {
+      e.dataTransfer.dropEffect = "move";
+    }
+    dragOverIndex = index;
   }
 
-  const activeIsRaster = $derived(canvas.activeLayer?.type === "raster" && !canvas.activeLayer?.locked);
+  function handleDragLeave() {
+    dragOverIndex = null;
+  }
+
+  function handleDrop(e: DragEvent, targetVisualIndex: number) {
+    e.preventDefault();
+    const sourceId = draggedLayerId || e.dataTransfer?.getData("text/plain");
+    draggedLayerId = null;
+    dragOverIndex = null;
+
+    if (!sourceId) return;
+
+    // In canvas.sortedLayers (descending by order):
+    // visual index 0 is top-most (order = N-1)
+    // visual index N-1 is bottom-most (order = 0)
+    // So target order = (canvas.layers.length - 1) - targetVisualIndex
+    const total = canvas.layers.length;
+    const targetOrder = Math.max(0, Math.min(total - 1, total - 1 - targetVisualIndex));
+    canvas.reorderLayer(sourceId, targetOrder);
+  }
 </script>
 
-<div class="space-y-2">
+<div class="flex flex-col h-full space-y-2 select-none">
   <!-- Top Layer Actions Bar -->
   <div class="flex items-center justify-between pb-2 border-b border-neutral-800 text-[11px] text-neutral-400">
-    <span class="font-semibold text-neutral-200">{locale.t("canvas.layers")}</span>
+    <div class="flex items-center gap-1.5">
+      <span class="font-semibold text-neutral-200">{locale.t("canvas.layers") || "Layers"}</span>
+      <span class="px-1.5 py-0.2 rounded-full bg-neutral-800 text-[10px] text-neutral-400 font-medium tabular-nums">
+        {canvas.layers.length}
+      </span>
+    </div>
+
+    <!-- Quick action buttons -->
     <div class="flex items-center gap-1 bg-neutral-900/60 p-0.5 rounded-lg border border-neutral-800">
       <button
         onclick={() => canvas.duplicateActiveLayer()}
         disabled={!canvas.activeLayerId}
-        class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-medium bg-neutral-800/80 hover:bg-neutral-700 disabled:opacity-30 disabled:pointer-events-none text-neutral-300 hover:text-white transition-colors"
-        title={locale.t("canvas.layer.duplicate")}
+        class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium bg-neutral-800/80 hover:bg-neutral-700 disabled:opacity-30 disabled:pointer-events-none text-neutral-300 hover:text-white transition-colors"
+        title="{locale.t('canvas.duplicate') || 'Duplicate Layer'} (Ctrl+J)"
       >
         <svg xmlns="http://www.w3.org/2000/svg" class="w-3 h-3 text-neutral-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
-        <span>Ctrl+J</span>
       </button>
       <button
         onclick={() => void canvas.mergeDownActiveLayer()}
         disabled={!canvas.activeLayerId || canvas.activeLayer?.type !== 'raster'}
-        class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-medium bg-neutral-800/80 hover:bg-neutral-700 disabled:opacity-30 disabled:pointer-events-none text-neutral-300 hover:text-white transition-colors"
-        title={locale.t("canvas.layer.merge_down")}
+        class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium bg-neutral-800/80 hover:bg-neutral-700 disabled:opacity-30 disabled:pointer-events-none text-neutral-300 hover:text-white transition-colors"
+        title="{locale.t('canvas.layer.merge_down') || 'Merge Down'} (Ctrl+E)"
       >
         <svg xmlns="http://www.w3.org/2000/svg" class="w-3 h-3 text-neutral-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m7 15 5 5 5-5"/><path d="M12 9v11"/><path d="M4 4h16"/></svg>
-        <span>Ctrl+E</span>
       </button>
       <button
         onclick={() => void canvas.flattenLayers()}
         disabled={rasterLayers.length <= 1}
-        class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-medium bg-neutral-800/80 hover:bg-neutral-700 disabled:opacity-30 disabled:pointer-events-none text-neutral-300 hover:text-white transition-colors"
-        title={locale.t("canvas.layer.flatten")}
+        class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium bg-neutral-800/80 hover:bg-neutral-700 disabled:opacity-30 disabled:pointer-events-none text-neutral-300 hover:text-white transition-colors"
+        title="{locale.t('canvas.layer.flatten') || 'Flatten Layers'} (Ctrl+Shift+E)"
       >
-        <span>Ctrl+Shift+E</span>
+        <svg xmlns="http://www.w3.org/2000/svg" class="w-3 h-3 text-neutral-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="2" width="20" height="20" rx="2"/><path d="m9 12 2 2 4-4"/></svg>
       </button>
     </div>
   </div>
 
-  {#each groups as group (group.key)}
-    <div>
-      <!-- Group header -->
-      <div class="flex items-center gap-1 py-0.5">
-        <button
-          onclick={() => toggleGroup(group.key)}
-          class="flex-1 flex items-center gap-1.5 py-1 text-left select-none group/title"
-        >
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            class="w-3 h-3 shrink-0 text-neutral-500 group-hover/title:text-neutral-300 transition-transform {collapsed[group.key] ? '' : 'rotate-90'}"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="2.5"
-            stroke-linecap="round"
-            stroke-linejoin="round"
-          >
-            <polyline points="9 18 15 12 9 6" />
-          </svg>
-          <span class="text-xs font-semibold {activeType === group.key ? 'text-neutral-200' : 'text-neutral-400 group-hover/title:text-neutral-300'}">
-            {locale.t(group.titleKey)}
-          </span>
-          <span class="px-1.5 py-0.2 rounded-full bg-neutral-800 text-[10px] text-neutral-400 font-medium tabular-nums">
-            {group.layers.length}
-          </span>
-        </button>
-        {#if group.key === "mask" && group.layers.length > 0}
-          <button
-            onclick={() => canvas.invertMask()}
-            class="w-6 h-6 flex items-center justify-center rounded-md text-neutral-400 hover:text-white hover:bg-neutral-800 transition-colors cursor-pointer"
-            title={locale.t("canvas.invert_mask")}
-          >
-            <svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <circle cx="12" cy="12" r="10"/>
-              <path d="M12 2a10 10 0 0 1 0 20Z" fill="currentColor"/>
-            </svg>
-          </button>
-          <button
-            onclick={() => canvas.clearMask()}
-            class="w-6 h-6 flex items-center justify-center rounded-md text-neutral-400 hover:text-red-400 hover:bg-neutral-800 transition-colors cursor-pointer"
-            title={locale.t("canvas.clear")}
-          >
-            <svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <line x1="18" y1="6" x2="6" y2="18"/>
-              <line x1="6" y1="6" x2="18" y2="18"/>
-            </svg>
-          </button>
-        {/if}
-        <button
-          onclick={() => addToGroup(group.key)}
-          class="w-6 h-6 flex items-center justify-center rounded-md text-neutral-400 hover:text-neutral-200 hover:bg-neutral-800 transition-colors"
-          title={locale.t(group.addKey)}
-        >
-          <svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-        </button>
-        {#if group.key === "raster" && activeIsRaster}
-          <button
-            onclick={handleSendToMask}
-            class="w-6 h-6 flex items-center justify-center rounded-md text-indigo-400 hover:text-indigo-300 hover:bg-indigo-500/10 transition-colors"
-            title={locale.t('canvas.send_to_mask')}
-          >
-            <svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20"/></svg>
-          </button>
-        {/if}
-      </div>
+  <!-- Add Layer Type Selector Bar -->
+  <div class="grid grid-cols-4 gap-1 p-1 rounded-lg bg-neutral-900/60 border border-neutral-800/80">
+    <button
+      onclick={() => handleAddLayer("raster")}
+      class="flex items-center justify-center gap-1 py-1 px-1.5 rounded text-[10px] font-medium bg-neutral-800/60 hover:bg-sky-500/20 hover:text-sky-300 border border-transparent hover:border-sky-500/40 text-neutral-300 transition-colors"
+      title={locale.t("canvas.add_raster") || "Add Raster Layer"}
+    >
+      <span class="w-2 h-2 rounded-full bg-sky-400"></span>
+      <span>+Raster</span>
+    </button>
+    <button
+      onclick={() => handleAddLayer("mask")}
+      class="flex items-center justify-center gap-1 py-1 px-1.5 rounded text-[10px] font-medium bg-neutral-800/60 hover:bg-rose-500/20 hover:text-rose-300 border border-transparent hover:border-rose-500/40 text-neutral-300 transition-colors"
+      title={locale.t("canvas.add_mask") || "Add Mask Layer"}
+    >
+      <span class="w-2 h-2 rounded-full bg-rose-400"></span>
+      <span>+Mask</span>
+    </button>
+    <button
+      onclick={() => handleAddLayer("regional")}
+      class="flex items-center justify-center gap-1 py-1 px-1.5 rounded text-[10px] font-medium bg-neutral-800/60 hover:bg-emerald-500/20 hover:text-emerald-300 border border-transparent hover:border-emerald-500/40 text-neutral-300 transition-colors"
+      title={locale.t("canvas.layer.add_regional") || "Add Regional Conditioning Layer"}
+    >
+      <span class="w-2 h-2 rounded-full bg-emerald-400"></span>
+      <span>+Region</span>
+    </button>
+    <button
+      onclick={() => handleAddLayer("controlnet")}
+      class="flex items-center justify-center gap-1 py-1 px-1.5 rounded text-[10px] font-medium bg-neutral-800/60 hover:bg-violet-500/20 hover:text-violet-300 border border-transparent hover:border-violet-500/40 text-neutral-300 transition-colors"
+      title={locale.t("canvas.layer.add_controlnet") || "Add ControlNet Layer"}
+    >
+      <span class="w-2 h-2 rounded-full bg-violet-400"></span>
+      <span>+CN</span>
+    </button>
+  </div>
 
-      <!-- Group body -->
-      {#if !collapsed[group.key]}
-        <div class="space-y-0.5 mt-1">
-          {#if group.layers.length === 0}
-            <p class="px-2 py-1.5 text-[10px] text-neutral-600 italic">{locale.t('canvas.no_layers')}</p>
-          {:else}
-            {#each group.layers as layer (layer.id)}
-              <LayerItem {layer} />
-            {/each}
+  <!-- Unified Flat Layer Stack (Top = Highest Z-Index) -->
+  <div class="flex-1 overflow-y-auto space-y-1 min-h-[140px] pr-0.5">
+    {#if sortedLayers.length === 0}
+      <div class="flex flex-col items-center justify-center h-28 text-neutral-500 text-xs italic">
+        {locale.t("canvas.no_layers") || "No layers yet"}
+      </div>
+    {:else}
+      {#each sortedLayers as layer, visualIdx (layer.id)}
+        <!-- svelte-ignore a11y_no_static_element_interactions -->
+        <div
+          draggable={!layer.locked}
+          ondragstart={(e) => handleDragStart(e, layer.id)}
+          ondragover={(e) => handleDragOver(e, visualIdx)}
+          ondragleave={handleDragLeave}
+          ondrop={(e) => handleDrop(e, visualIdx)}
+          class="relative transition-all"
+        >
+          {#if dragOverIndex === visualIdx}
+            <div class="absolute -top-1 left-0 right-0 h-0.5 bg-indigo-500 z-10 rounded-full shadow-xs"></div>
           {/if}
+
+          <LayerItem {layer} />
         </div>
-      {/if}
-    </div>
-  {/each}
+      {/each}
+    {/if}
+  </div>
 </div>

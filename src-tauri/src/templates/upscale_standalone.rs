@@ -159,6 +159,7 @@ pub fn build_params(params: &GenerationParams, input_filename: &str) -> Option<G
     // would fail outright when a LoRA does not match the refiner.
     out.loras = Vec::new();
     out.controlnet = None;
+    out.controlnets = Vec::new();
     out.style_transfer_enabled = false;
     // The Style Reference panel is hidden in NovelAI mode, so a reference left
     // on in local mode would otherwise steer the refine unseen.

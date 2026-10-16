@@ -1,8 +1,8 @@
 use serde_json::json;
 
 use super::{
-    build_scheduled_conditioning, insert_vae_decode, is_sdxl_like_family, load_model_nodes,
-    needs_flux2_latent, needs_sd3_latent, strip_lora_tags, WorkflowResult,
+    build_scheduled_conditioning, insert_vae_decode, load_model_nodes, needs_flux2_latent,
+    needs_sd3_latent, WorkflowResult,
 };
 use crate::comfyui::types::GenerationParams;
 
@@ -31,76 +31,8 @@ pub fn build(params: &GenerationParams, seed: i64) -> WorkflowResult {
     );
     next_id = nid;
 
-    // Regional prompting (syntax-first): <region:x1,y1,x2,y2>text</region>
-    // Scope-gated to SDXL-family txt2img to keep v1 risk contained.
-    let supports_regions = is_sdxl_like_family(&params.model_architecture);
-    if params.mode == "txt2img" && supports_regions {
-        for region in &params.positive_regions {
-            // The frontend sends each region already merged with the prompt
-            // context (without scheduled segments, which must stay inside
-            // their timestep window), so it is encoded as is. Only the LoRA
-            // tags that context carries are removed.
-            let text = strip_lora_tags(&region.text).trim().to_string();
-            if text.is_empty() {
-                continue;
-            }
-
-            let x = region.x.clamp(0.0, 1.0);
-            let y = region.y.clamp(0.0, 1.0);
-            let w = region.width.clamp(0.0, 1.0 - x);
-            let h = region.height.clamp(0.0, 1.0 - y);
-            if w <= 0.0 || h <= 0.0 {
-                continue;
-            }
-
-            let region_encode_id = next_id.to_string();
-            workflow.insert(
-                region_encode_id.clone(),
-                json!({
-                    "class_type": "CLIPTextEncode",
-                    "inputs": {
-                        "text": text,
-                        "clip": [clip_source.0.clone(), clip_source.1]
-                    }
-                }),
-            );
-            next_id += 1;
-
-            let region_area_id = next_id.to_string();
-            workflow.insert(
-                region_area_id.clone(),
-                json!({
-                    "class_type": "ConditioningSetAreaPercentage",
-                    "inputs": {
-                        "conditioning": [region_encode_id, 0],
-                        "x": x,
-                        "y": y,
-                        "width": w,
-                        "height": h,
-                        "strength": region.strength.clamp(0.0, 2.0)
-                    }
-                }),
-            );
-            next_id += 1;
-
-            let region_combine_id = next_id.to_string();
-            workflow.insert(
-                region_combine_id.clone(),
-                json!({
-                    "class_type": "ConditioningCombine",
-                    "inputs": {
-                        "conditioning_1": [pos_source.0.clone(), pos_source.1],
-                        "conditioning_2": [region_area_id, 0]
-                    }
-                }),
-            );
-            pos_source = (region_combine_id, 0);
-            next_id += 1;
-        }
-    }
-
     // Negative conditioning (with optional timestep scheduling)
-    let (neg_source, nid) = build_scheduled_conditioning(
+    let (mut neg_source, nid) = build_scheduled_conditioning(
         &mut workflow,
         next_id,
         &clip_source,
@@ -109,6 +41,16 @@ pub fn build(params: &GenerationParams, seed: i64) -> WorkflowResult {
         params.steps,
     );
     next_id = nid;
+
+    // Regional conditioning (positive and optional negative area conditioning)
+    super::regional::inject_regional_conditioning(
+        &mut workflow,
+        &mut next_id,
+        &clip_source,
+        &mut pos_source,
+        &mut neg_source,
+        params,
+    );
 
     let stage = params.stage.as_ref();
 

@@ -31,4 +31,19 @@
     />
     <span class="text-neutral-300 tabular-nums w-8 text-right text-[11px]">{Math.round(canvas.brushSettings.opacity * 100)}%</span>
   </label>
+
+  <div class="w-px h-6 bg-neutral-700"></div>
+
+  <label class="flex items-center gap-2 text-xs text-neutral-400">
+    {locale.t('canvas.brush_hardness') || 'Hardness'}
+    <input
+      type="range"
+      bind:value={canvas.brushSettings.hardness}
+      min="0"
+      max="1"
+      step="0.05"
+      class="w-16 accent-indigo-500"
+    />
+    <span class="text-neutral-300 tabular-nums w-8 text-right text-[11px]">{Math.round((canvas.brushSettings.hardness ?? 0.8) * 100)}%</span>
+  </label>
 </div>

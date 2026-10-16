@@ -47,6 +47,7 @@ export interface DetailSegment {
 
 export interface PositiveRegion {
   text: string;
+  negative_text?: string;
   x: number;
   y: number;
   width: number;
@@ -428,6 +429,7 @@ export interface GenerationParams {
   /** Reuse the positive prompt for each detected face instead of a generic prompt. */
   facefix_auto_prompt: boolean;
   controlnet: ControlNetPayload | null;
+  controlnets?: ControlNetPayload[];
   model_architecture: string;
   is_sdxl_like?: boolean;
   is_vpred_model?: boolean;

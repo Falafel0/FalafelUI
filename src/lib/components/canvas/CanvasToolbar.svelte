@@ -1,45 +1,25 @@
 <script lang="ts">
   import { canvas, type ToolType } from "../../stores/canvas.svelte.js";
-  import { generation } from "../../stores/generation.svelte.js";
   import { canvasHistory } from "../../stores/canvasHistory.svelte.js";
   import { locale } from "../../stores/locale.svelte.js";
   import BrushSettings from "./controls/BrushSettings.svelte";
+  import ToolOptionsBar from "./controls/ToolOptionsBar.svelte";
   import ColorPicker from "./controls/ColorPicker.svelte";
   import CanvasShortcutsModal from "./CanvasShortcutsModal.svelte";
 
   let showShortcutsModal = $state(false);
 
-  const tools: { id: ToolType; labelKey: string; hotkey: string; icon: string }[] = [
-    {
-      id: "brush",
-      labelKey: "canvas.brush",
-      hotkey: "B",
-      icon: `<path d="M12 19l7-7 3 3-7 7-3-3z"/><path d="M18 13l-1.5-7.5L2 2l3.5 14.5L13 18l5-5z"/><path d="M2 2l7.586 7.586"/><circle cx="11" cy="11" r="2"/>`,
-    },
-    {
-      id: "eraser",
-      labelKey: "canvas.eraser",
-      hotkey: "E",
-      icon: `<path d="M20 20H7L3 16c-.8-.8-.8-2 0-2.8L13.8 2.4c.8-.8 2-.8 2.8 0L21 6.8c.8.8.8 2 0 2.8L12 18"/>`,
-    },
-    {
-      id: "rectFill",
-      labelKey: "canvas.rectangle",
-      hotkey: "U",
-      icon: `<rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>`,
-    },
-    {
-      id: "lasso",
-      labelKey: "canvas.lasso",
-      hotkey: "Q",
-      icon: `<path d="M3 14.5A6.5 6.5 0 0 1 2 11c0-4.4 4.5-8 10-8s10 3.6 10 8-4.5 8-10 8a12.6 12.6 0 0 1-4.7-.9"/><path d="M7 21.5a5 5 0 0 1-2-4"/><circle cx="5" cy="16" r="2"/>`,
-    },
-    {
-      id: "eyedropper",
-      labelKey: "canvas.eyedropper",
-      hotkey: "I",
-      icon: `<path d="M2 22l1-1h3l9-9"/><path d="M3 21v-3l9-9"/><path d="M14.5 5.5l4-4a1.4 1.4 0 0 1 2 2l-4 4"/>`,
-    },
+  type ToolbarToolId = ToolType | "quickMask";
+
+  interface CanvasToolbarTool {
+    id: ToolbarToolId;
+    labelKey: string;
+    hotkey: string;
+    icon: string;
+    isToggle?: boolean;
+  }
+
+  const tools: CanvasToolbarTool[] = [
     {
       id: "move",
       labelKey: "canvas.move",
@@ -53,10 +33,53 @@
       icon: `<path d="M3 7V3h4"/><path d="M17 3h4v4"/><path d="M21 17v4h-4"/><path d="M7 21H3v-4"/><rect x="7" y="7" width="10" height="10" stroke-dasharray="2 2"/>`,
     },
     {
+      id: "brush",
+      labelKey: "canvas.brush",
+      hotkey: "B",
+      icon: `<path d="M12 19l7-7 3 3-7 7-3-3z"/><path d="M18 13l-1.5-7.5L2 2l3.5 14.5L13 18l5-5z"/><path d="M2 2l7.586 7.586"/><circle cx="11" cy="11" r="2"/>`,
+    },
+    {
+      id: "eraser",
+      labelKey: "canvas.eraser",
+      hotkey: "E",
+      icon: `<path d="M20 20H7L3 16c-.8-.8-.8-2 0-2.8L13.8 2.4c.8-.8 2-.8 2.8 0L21 6.8c.8.8.8 2 0 2.8L12 18"/>`,
+    },
+    {
+      id: "lasso",
+      labelKey: "canvas.lasso",
+      hotkey: "L",
+      icon: `<path d="M3 14.5A6.5 6.5 0 0 1 2 11c0-4.4 4.5-8 10-8s10 3.6 10 8-4.5 8-10 8a12.6 12.6 0 0 1-4.7-.9"/><path d="M7 21.5a5 5 0 0 1-2-4"/><circle cx="5" cy="16" r="2"/>`,
+    },
+    {
+      id: "rectFill",
+      labelKey: "canvas.rectangle",
+      hotkey: "M",
+      icon: `<rect x="3" y="3" width="18" height="18" rx="2" stroke="currentColor" stroke-dasharray="3 3" fill="none"/>`,
+    },
+    {
+      id: "eyedropper",
+      labelKey: "canvas.eyedropper",
+      hotkey: "I",
+      icon: `<path d="M2 22l1-1h3l9-9"/><path d="M3 21v-3l9-9"/><path d="M14.5 5.5l4-4a1.4 1.4 0 0 1 2 2l-4 4"/>`,
+    },
+    {
       id: "view",
       labelKey: "canvas.pan",
       hotkey: "H",
       icon: `<path d="M18 11V6a2 2 0 0 0-2-2 2 2 0 0 0-2 2"/><path d="M14 10V4a2 2 0 0 0-2-2 2 2 0 0 0-2 2v2"/><path d="M10 10.5V6a2 2 0 0 0-2-2 2 2 0 0 0-2 2v8"/><path d="M18 8a2 2 0 1 1 4 0v6a8 8 0 0 1-8 8h-2c-2.8 0-4.5-.9-5.7-2.4L3.4 16a2 2 0 0 1 3.2-2.4L8 15"/>`,
+    },
+    {
+      id: "zoom",
+      labelKey: "canvas.zoom_in",
+      hotkey: "Z",
+      icon: `<circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/><line x1="11" y1="8" x2="11" y2="14"/><line x1="8" y1="11" x2="14" y2="11"/>`,
+    },
+    {
+      id: "quickMask",
+      labelKey: "canvas.inpaint_mask",
+      hotkey: "Q",
+      isToggle: true,
+      icon: `<rect x="3" y="3" width="18" height="18" rx="2" stroke="currentColor" stroke-dasharray="2 2" fill="none"/><circle cx="12" cy="12" r="5" fill="currentColor"/>`,
     },
   ];
 
@@ -71,13 +94,15 @@
     }
   }
 
-  function handleToolClick(id: ToolType) {
-    canvas.setTool(id);
+  function handleToolClick(tool: CanvasToolbarTool) {
+    if (tool.id === "quickMask") {
+      canvas.toggleQuickMask();
+      return;
+    }
+    canvas.setTool(tool.id as ToolType);
   }
 
   function handleKeyDown(e: KeyboardEvent) {
-    if (!canvas.isPointerOverStage) return;
-
     // Don't trigger if typing in an input
     if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement || e.target instanceof HTMLSelectElement) return;
 
@@ -104,6 +129,31 @@
       return;
     }
 
+    // Free Transform via Ctrl+T
+    if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "t") {
+      e.preventDefault();
+      canvas.setTool("transform");
+      return;
+    }
+
+    // Duplicate Layer via Ctrl+J
+    if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "j") {
+      e.preventDefault();
+      void canvas.duplicateActiveLayer();
+      return;
+    }
+
+    // Merge Down / Flatten via Ctrl+E / Ctrl+Shift+E
+    if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "e") {
+      e.preventDefault();
+      if (e.shiftKey) {
+        void canvas.flattenLayers();
+      } else {
+        void canvas.mergeDownActiveLayer();
+      }
+      return;
+    }
+
     // Delete key — clear active layer
     if (e.key === "Delete") {
       const layer = canvas.activeLayer;
@@ -121,18 +171,25 @@
     }
 
     switch (e.key.toLowerCase()) {
-      case "b": canvas.setTool("brush"); break;
-      case "e": canvas.setTool("eraser"); break;
-      case "u": canvas.setTool("rectFill"); break;
-      case "q": canvas.setTool("lasso"); break;
-      case "i": canvas.setTool("eyedropper"); break;
       case "v": canvas.setTool("move"); break;
       case "t": canvas.setTool("transform"); break;
+      case "b": canvas.setTool("brush"); break;
+      case "e": canvas.setTool("eraser"); break;
+      case "l": canvas.setTool("lasso"); break;
+      case "m":
+      case "u":
+        canvas.setTool("rectFill");
+        break;
+      case "i": canvas.setTool("eyedropper"); break;
       case "h": canvas.setTool("view"); break;
+      case "z": canvas.setTool("zoom"); break;
+      case "q": canvas.toggleQuickMask(); break;
       case "x": canvas.swapColors(); break;
       case "d": canvas.resetColors(); break;
       case "[": canvas.adjustBrushSize(-5); break;
       case "]": canvas.adjustBrushSize(5); break;
+      case "{": canvas.adjustBrushHardness(-0.1); break;
+      case "}": canvas.adjustBrushHardness(0.1); break;
     }
   }
 </script>
@@ -140,46 +197,20 @@
 <svelte:window onkeydown={handleKeyDown} />
 
 <div class="flex items-center gap-1.5 px-3 py-1.5 bg-neutral-900/95 border-b border-neutral-800 flex-wrap select-none backdrop-blur-sm">
-  {#if generation.mode === "inpainting"}
-    <div class="flex items-center gap-1 mr-1">
-      <button
-        onclick={() => canvas.setInpaintDrawMode("mask")}
-        class="px-2 py-1 text-[10px] rounded border transition-colors {canvas.inpaintDrawMode === 'mask'
-          ? 'border-indigo-500 text-indigo-300 bg-indigo-500/10'
-          : 'border-neutral-700 text-neutral-400 hover:border-neutral-500 hover:text-neutral-200'}"
-        title={locale.t('canvas.inpaint_mask_mode')}
-      >
-        {locale.t('canvas.inpaint_mask')}
-      </button>
-      <button
-        onclick={() => canvas.setInpaintDrawMode("regular")}
-        class="px-2 py-1 text-[10px] rounded border transition-colors {canvas.inpaintDrawMode === 'regular'
-          ? 'border-indigo-500 text-indigo-300 bg-indigo-500/10'
-          : 'border-neutral-700 text-neutral-400 hover:border-neutral-500 hover:text-neutral-200'}"
-        title={locale.t('canvas.regular_inpaint_mode')}
-      >
-        {locale.t('canvas.regular_inpaint')}
-      </button>
-      <button
-        onclick={() => { canvas.clearMask(); canvas.clearStaging(); }}
-        class="px-2 py-1 text-[10px] rounded border border-neutral-700 text-neutral-400 hover:border-red-500 hover:text-red-300 transition-colors"
-        title={locale.t('canvas.clear_mask')}
-      >
-        {locale.t('canvas.clear_mask')}
-      </button>
-    </div>
-
-    <div class="w-px h-5 bg-neutral-800 mr-1"></div>
-  {/if}
-
   <!-- Tool buttons -->
   <div class="flex items-center gap-0.5 bg-neutral-800/40 p-0.5 rounded-lg border border-neutral-800">
     {#each tools as tool}
       <button
-        onclick={() => handleToolClick(tool.id)}
-        class="relative w-7 h-7 flex items-center justify-center rounded-md transition-colors {canvas.activeTool === tool.id
-          ? 'bg-indigo-600 text-white shadow-sm'
-          : 'text-neutral-400 hover:text-neutral-200 hover:bg-neutral-800'}"
+        onclick={() => handleToolClick(tool)}
+        class="relative w-7 h-7 flex items-center justify-center rounded-md transition-colors {
+          tool.id === 'quickMask'
+            ? canvas.quickMaskMode
+              ? 'bg-rose-600 text-white shadow-sm'
+              : 'text-neutral-400 hover:text-neutral-200 hover:bg-neutral-800'
+            : canvas.activeTool === tool.id
+              ? 'bg-indigo-600 text-white shadow-sm'
+              : 'text-neutral-400 hover:text-neutral-200 hover:bg-neutral-800'
+        }"
         title="{locale.t(tool.labelKey)} ({tool.hotkey})"
       >
         <svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -255,27 +286,7 @@
     </button>
   </div>
 
-  {#if generation.mode === "inpainting"}
-    <div class="w-px h-5 bg-neutral-800 mx-1"></div>
-    <div class="flex items-center gap-1">
-      {#if canvas.isCanvasUpscaled}
-        <span class="text-[10px] text-indigo-400 tabular-nums font-semibold">{canvas.maskUpscaleFactor}x</span>
-        <button
-          onclick={() => canvas.resetMaskScale()}
-          class="text-[10px] px-1.5 py-0.5 rounded border border-indigo-600 text-indigo-300 bg-indigo-500/10 hover:bg-indigo-500/20 transition-colors cursor-pointer"
-          title={locale.t('canvas.downscale_mask')}
-        >Reset</button>
-      {:else}
-        {#each [2, 3, 4] as f (f)}
-          <button
-            onclick={() => canvas.upscaleMask(Math.round(canvas.canvasWidth * f), Math.round(canvas.canvasHeight * f))}
-            class="text-[10px] px-1.5 py-0.5 rounded border border-neutral-700 text-neutral-400 hover:border-neutral-500 hover:text-neutral-200 transition-colors cursor-pointer"
-            title={locale.t('canvas.upscale_mask', { factor: String(f) })}
-          >{f}x</button>
-        {/each}
-      {/if}
-    </div>
-  {/if}
+
 
   <div class="w-px h-5 bg-neutral-800 mx-1"></div>
 
@@ -338,6 +349,8 @@
     </button>
   </div>
 </div>
+
+<ToolOptionsBar />
 
 {#if showShortcutsModal}
   <CanvasShortcutsModal onclose={() => (showShortcutsModal = false)} />

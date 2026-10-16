@@ -3487,9 +3487,7 @@ async fn dispatch_command(
                 params.steps,
                 params.mode,
             );
-            if params.controlnet.as_ref().is_some_and(|cn| cn.enabled)
-                || params.facefix_enabled
-                || !params.loras.is_empty()
+            if params.has_enabled_controlnet() || params.facefix_enabled || !params.loras.is_empty()
             {
                 log::info!(
                     "Workflow JSON: {}",

@@ -29,6 +29,9 @@
   import PreviewImage from "../progress/PreviewImage.svelte";
   import CanvasEditor from "../canvas/CanvasEditor.svelte";
   import LayerPanel from "../canvas/layers/LayerPanel.svelte";
+  import LayerPropertiesInspector from "../canvas/inspector/LayerPropertiesInspector.svelte";
+  import BoundingBoxControls from "../canvas/inspector/BoundingBoxControls.svelte";
+  import InpaintInspector from "../canvas/inspector/InpaintInspector.svelte";
   import { canvas } from "../../stores/canvas.svelte.js";
   import { uploadImage, uploadImageBytes, getOutputImage, readClipboardImageSafe } from "../../utils/api.js";
   import { uploadOutputImageForGenerationInput } from "../../utils/galleryActions.js";
@@ -73,13 +76,17 @@
   type SectionId =
     | "dimensions"
     | "prompts"
+    | "model"
+    | "sampler"
+    | "layers_stack"
+    | "layer_inspector"
+    | "bounding_box"
+    | "inpaint_inspector"
     | "imageInputs"
     | "imageEdit"
     | "videoSettings"
     | "inpaintLayers"
     | "generationSettings"
-    | "model"
-    | "sampler"
     | "novelai"
     | "naiFaceDetail"
     | "controlnet"
@@ -89,22 +96,6 @@
     | "upscaleHistory";
 
   type SectionSide = "left" | "right";
-
-  const ALL_MODES = [
-    { id: "txt2img" as const, label: () => locale.t('generation.mode.txt2img') },
-    { id: "img2img" as const, label: () => locale.t('generation.mode.img2img') },
-    { id: "inpainting" as const, label: () => locale.t('generation.mode.inpainting') },
-    { id: "image_edit" as const, label: () => locale.t('generation.mode.image_edit') },
-  ];
-
-  // Video has its own primary navigation entry. These tabs only switch image modes.
-  const modes = $derived(
-    generation.mode === "video"
-      ? []
-      : generation.isNovelAi
-        ? ALL_MODES.filter((m) => m.id !== "image_edit")
-        : ALL_MODES,
-  );
 
   let canvasEditorRef: CanvasEditor | undefined = $state();
   let imagePreviewUrl = $state<string | null>(null);
@@ -123,22 +114,26 @@
   let metadataDropCounters: Record<string, number> = {};
 
   let sectionSides = $state<Record<SectionId, SectionSide>>({
-    dimensions: "left",
+    model: "left",
+    sampler: "left",
     prompts: "left",
-    imageInputs: "left",
-    imageEdit: "left",
-    videoSettings: "left",
-    inpaintLayers: "right",
-    generationSettings: "right",
-    model: "right",
-    sampler: "right",
-    novelai: "right",
+    dimensions: "left",
+    layers_stack: "right",
+    layer_inspector: "right",
+    bounding_box: "right",
+    inpaint_inspector: "right",
+    facefix: "right",
+    upscaleHistory: "right",
+    novelai: "left",
     naiFaceDetail: "right",
     controlnet: "right",
     styleTransfer: "right",
     styleRef: "right",
-    facefix: "right",
-    upscaleHistory: "right",
+    videoSettings: "left",
+    imageInputs: "left",
+    imageEdit: "left",
+    inpaintLayers: "right",
+    generationSettings: "right",
   });
 
   let draggingSection = $state<SectionId | null>(null);
@@ -155,22 +150,26 @@
   let rightColumnRef = $state<HTMLElement | null>(null);
 
   const SECTION_ORDER: SectionId[] = [
-    "dimensions",
-    "prompts",
-    "imageInputs",
-    "imageEdit",
-    "videoSettings",
-    "inpaintLayers",
-    "generationSettings",
     "model",
     "sampler",
+    "prompts",
+    "dimensions",
+    "layers_stack",
+    "layer_inspector",
+    "bounding_box",
+    "inpaint_inspector",
+    "facefix",
+    "upscaleHistory",
     "novelai",
     "naiFaceDetail",
     "controlnet",
     "styleTransfer",
     "styleRef",
-    "facefix",
-    "upscaleHistory",
+    "videoSettings",
+    "imageInputs",
+    "imageEdit",
+    "inpaintLayers",
+    "generationSettings",
   ];
 
   let sectionOrder = $state<SectionId[]>([...SECTION_ORDER]);
@@ -310,7 +309,10 @@
     if (section === "imageInputs") return locale.t('generation.image.title');
     if (section === "imageEdit") return locale.t('generation.image_edit.title');
     if (section === "videoSettings") return locale.t('generation.video.title');
-    if (section === "inpaintLayers") return locale.t('generation.inpaint.title');
+    if (section === "inpaintLayers" || section === "layers_stack") return locale.t('generation.inpaint.title');
+    if (section === "layer_inspector") return locale.t('canvas.layer.properties');
+    if (section === "bounding_box") return locale.t('canvas.inspector.bbox_title');
+    if (section === "inpaint_inspector") return locale.t('generation.inpaint.inspector_title');
     if (section === "generationSettings") return locale.t('generation.settings.title');
     if (section === "model") return locale.t('generation.model.title');
     if (section === "sampler") return locale.t('generation.sampler.title');
@@ -331,7 +333,10 @@
         section === "styleRef" ||
         section === "facefix" ||
         section === "naiFaceDetail" ||
-        section === "upscaleHistory"
+        section === "upscaleHistory" ||
+        section === "layer_inspector" ||
+        section === "bounding_box" ||
+        section === "inpaint_inspector"
       ) {
         return false;
       }
@@ -348,21 +353,22 @@
     // own engine dropdown; showing both would give two panels the same job.
     if (section === "novelai") return generation.isNovelAi;
     if (section === "naiFaceDetail")
-      return generation.isNovelAi && generation.mode !== "inpainting";
+      return generation.isNovelAi;
     if (generation.isNovelAi && (section === "controlnet" || section === "styleTransfer"))
       return false;
-    if (section === "imageInputs")
-      return generation.mode === "img2img" || generation.mode === "inpainting";
-    if (section === "imageEdit") return generation.mode === "image_edit";
-    if (section === "inpaintLayers") return generation.mode === "inpainting";
-    if (section === "generationSettings") return generation.mode === "inpainting";
-    if (section === "model") return generation.mode !== "inpainting";
-    if (section === "sampler") return generation.mode !== "inpainting";
-    if (section === "upscaleHistory") return generation.mode !== "inpainting";
-    if (section === "facefix")
-      return generation.mode !== "inpainting" && !generation.isNovelAi;
-    if (section === "styleTransfer") return generation.isAnima && generation.mode === "txt2img";
-    if (section === "styleRef") return !generation.isNovelAi && (generation.mode === "txt2img" || generation.mode === "img2img" || generation.mode === "inpainting");
+    if (section === "imageInputs") return false;
+    if (section === "imageEdit") return false;
+    if (section === "inpaintLayers" || section === "generationSettings") return false;
+    if (section === "layers_stack" || section === "layer_inspector" || section === "bounding_box" || section === "inpaint_inspector") {
+      return true;
+    }
+    if (section === "model" || section === "sampler" || section === "dimensions" || section === "prompts") {
+      return true;
+    }
+    if (section === "facefix") return !generation.isNovelAi;
+    if (section === "styleTransfer") return generation.isAnima;
+    if (section === "styleRef") return !generation.isNovelAi;
+    if (section === "upscaleHistory") return true;
     return true;
   }
 
@@ -407,6 +413,10 @@
   let naiFaceDetailSectionOpen = $state(savedCollapse.naiFaceDetail !== false);
   let facefixSectionOpen = $state(savedCollapse.facefix !== false);
   let postSectionOpen = $state(savedCollapse.upscaleHistory !== false);
+  let layersStackSectionOpen = $state(savedCollapse.layers_stack !== false);
+  let layerInspectorSectionOpen = $state(savedCollapse.layer_inspector !== false);
+  let boundingBoxSectionOpen = $state(savedCollapse.bounding_box !== false);
+  let inpaintInspectorSectionOpen = $state(savedCollapse.inpaint_inspector !== false);
 
   let collapseSaveTimer: ReturnType<typeof setTimeout> | null = null;
   $effect(() => {
@@ -426,6 +436,10 @@
       naiFaceDetail: naiFaceDetailSectionOpen,
       facefix: facefixSectionOpen,
       upscaleHistory: postSectionOpen,
+      layers_stack: layersStackSectionOpen,
+      layer_inspector: layerInspectorSectionOpen,
+      bounding_box: boundingBoxSectionOpen,
+      inpaint_inspector: inpaintInspectorSectionOpen,
     };
     if (collapseSaveTimer) clearTimeout(collapseSaveTimer);
     collapseSaveTimer = setTimeout(() => {
@@ -750,17 +764,6 @@
       console.error("Failed to set up inpainting:", e);
       gallery.showToast(locale.t('generation.toast.failed_load'), "error");
     }
-  }
-
-  function selectMode(newMode: GenerationMode) {
-    if (generation.mode === "inpainting" && newMode !== "inpainting") {
-      canvas.isCanvasMode = false;
-      canvas.resetMaskScale();
-      generation.maskImage = null;
-      generation.postScaleWidth = null;
-      generation.postScaleHeight = null;
-    }
-    generation.mode = newMode;
   }
 
   // Context menu + interrogation for session images
@@ -1244,22 +1247,6 @@
     bottomHeight = BOTTOM_DEFAULT;
   }
 
-  let prevInpaintMode: boolean | null = $state(null);
-  $effect(() => {
-    const isInpainting = generation.mode === "inpainting";
-    // Auto-open the canvas on entering inpainting; auto-close on leaving.
-    // Only act on the transition so a manual toggle within inpainting isn't overridden.
-    if (isInpainting && prevInpaintMode !== true) {
-      canvas.isCanvasMode = true;
-    } else if (!isInpainting && prevInpaintMode === true) {
-      canvas.isCanvasMode = false;
-      // Clear inpaint session on explicit mode exit so stale mask/pending
-      // result/history don't leak into the next inpaint session.
-      canvas.clearInpaintSession();
-    }
-    prevInpaintMode = isInpainting;
-  });
-
   function hasFilePayload(dt: DataTransfer | null): boolean {
     if (!dt) return false;
     if (dt.files && dt.files.length > 0) return true;
@@ -1478,6 +1465,11 @@
   }
 
   onMount(() => {
+    canvas.isCanvasMode = true;
+    if (canvas.layers.length === 0) {
+      canvas.initCanvas(generation.width, generation.height);
+    }
+
     if (mobileFriendly) {
       // Mobile starts with side panels collapsed, but keeps full desktop controls available.
       leftCollapsed = true;
@@ -1958,142 +1950,96 @@
     </div>
   {/snippet}
 
-  {#snippet inpaintLayersSection()}
-    <div bind:this={sectionRefs['inpaintLayers']} class="rounded-lg border border-neutral-800 bg-neutral-900/40 transition-[height,opacity] duration-150 {draggingSection === 'inpaintLayers' ? 'h-0 overflow-hidden opacity-0 m-0! p-0! border-0!' : 'opacity-100'}">
+  {#snippet layersStackSection()}
+    <div bind:this={sectionRefs['layers_stack']} class="rounded-lg border border-neutral-800 bg-neutral-900/40 transition-[height,opacity] duration-150 {draggingSection === 'layers_stack' ? 'h-0 overflow-hidden opacity-0 m-0! p-0! border-0!' : 'opacity-100'}">
       <div class="flex items-stretch w-full rounded-t-lg transition-colors hover:bg-neutral-800/50">
-        {@render dragHandle("inpaintLayers")}
+        {@render dragHandle("layers_stack")}
         <button
           class="flex-1 px-3 py-2 flex items-center justify-between text-xs text-neutral-300 hover:text-neutral-100 transition-colors"
-          onclick={() => (layersSectionOpen = !layersSectionOpen)}
-          title={layersSectionOpen ? locale.t('common.collapse', { section: locale.t('generation.inpaint.title') }) : locale.t('common.expand', { section: locale.t('generation.inpaint.title') })}
+          onclick={() => (layersStackSectionOpen = !layersStackSectionOpen)}
+          title={layersStackSectionOpen ? locale.t('common.collapse', { section: locale.t('generation.inpaint.title') }) : locale.t('common.expand', { section: locale.t('generation.inpaint.title') })}
         >
           <span class="font-medium">{locale.t('generation.inpaint.title')}</span>
-          <svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5 transition-transform {layersSectionOpen ? '' : '-rotate-90'}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+          <svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5 transition-transform {layersStackSectionOpen ? '' : '-rotate-90'}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
         </button>
       </div>
-      {#if layersSectionOpen}
-        <div class="px-3 pb-2 pt-0.5 space-y-2">
-          <div class="grid grid-cols-2 gap-1">
-            <button
-              onclick={() => canvas.setInpaintDrawMode("mask")}
-              class="px-2 py-1 text-[10px] rounded border transition-colors {canvas.inpaintDrawMode === 'mask'
-                ? 'border-indigo-500 text-indigo-300 bg-indigo-500/10'
-                : 'border-neutral-700 text-neutral-400 hover:border-neutral-500 hover:text-neutral-200'}"
-              title={locale.t('generation.inpaint.inpaint_mask')}
-            >
-              {locale.t('generation.inpaint.inpaint_mask')}
-            </button>
-            <button
-              onclick={() => canvas.setInpaintDrawMode("regular")}
-              class="px-2 py-1 text-[10px] rounded border transition-colors {canvas.inpaintDrawMode === 'regular'
-                ? 'border-indigo-500 text-indigo-300 bg-indigo-500/10'
-                : 'border-neutral-700 text-neutral-400 hover:border-neutral-500 hover:text-neutral-200'}"
-              title={locale.t('generation.inpaint.regular_inpaint')}
-            >
-              {locale.t('generation.inpaint.regular_inpaint')}
-            </button>
-          </div>
-
-          <div class="border-t border-neutral-800 pt-2 space-y-2">
-            <div use:scrollCapture>
-              <div class="flex items-center justify-between text-xs mb-0.5">
-                <span class="text-neutral-400">{locale.t('generation.image.denoise')}<InfoTip text={locale.t('generation.image.denoise_tip')} /></span>
-                <span class="text-neutral-300 tabular-nums">{generation.denoise.toFixed(2)}</span>
-              </div>
-              <input
-                type="range"
-                bind:value={generation.denoise}
-                min="0.05"
-                max="1.0"
-                step="0.01"
-                class="w-full accent-indigo-500"
-              />
-            </div>
-
-            <label class="flex items-center justify-between cursor-pointer">
-              <span class="text-xs text-neutral-400">{locale.t('generation.facefix.title')}<InfoTip text={locale.t('generation.facefix.tip')} /></span>
-              <button
-                type="button"
-                role="switch"
-                aria-checked={generation.facefixEnabled}
-                aria-label={locale.t('generation.facefix.title')}
-                class="relative w-9 h-5 rounded-full transition-colors {generation.facefixEnabled ? 'bg-indigo-600' : 'bg-neutral-700'}"
-                onclick={() => { generation.facefixEnabled = !generation.facefixEnabled; generation.saveSettings(); }}
-              >
-                <span class="absolute top-0.5 left-0.5 w-4 h-4 rounded-full bg-white transition-transform {generation.facefixEnabled ? 'translate-x-4' : ''}"></span>
-              </button>
-            </label>
-
-            <label class="flex items-center justify-between cursor-pointer">
-              <span class="text-xs text-neutral-400">{locale.t('generation.inpaint.differential')}<InfoTip text={locale.t('generation.inpaint.differential_tip')} /></span>
-              <button
-                type="button"
-                role="switch"
-                aria-checked={generation.differentialDiffusion}
-                aria-label={locale.t('generation.inpaint.differential')}
-                class="relative w-9 h-5 rounded-full transition-colors {generation.differentialDiffusion ? 'bg-indigo-600' : 'bg-neutral-700'}"
-                onclick={() => { generation.differentialDiffusion = !generation.differentialDiffusion; generation.saveSettings(); }}
-              >
-                <span class="absolute top-0.5 left-0.5 w-4 h-4 rounded-full bg-white transition-transform {generation.differentialDiffusion ? 'translate-x-4' : ''}"></span>
-              </button>
-            </label>
-          </div>
-
-          {#if canvas.isCanvasMode}
-            <LayerPanel />
-          {:else}
-            <div class="space-y-2">
-              <p class="text-[11px] text-neutral-500">{locale.t('generation.inpaint.canvas_off')}</p>
-              <button
-                onclick={() => {
-                  canvas.isCanvasMode = true;
-                  if (canvas.layers.length === 0) {
-                    canvas.initCanvas(generation.width, generation.height);
-                  }
-                }}
-                class="w-full px-2 py-1.5 text-[11px] rounded border border-neutral-700 text-neutral-300 hover:border-indigo-500 hover:text-indigo-300 transition-colors"
-                title={locale.t('generation.inpaint.enable_canvas')}
-              >
-                {locale.t('generation.inpaint.enable_canvas')}
-              </button>
-            </div>
-          {/if}
+      {#if layersStackSectionOpen}
+        <div class="px-2 pb-2">
+          <LayerPanel />
         </div>
       {/if}
     </div>
   {/snippet}
 
-  {#snippet generationSettingsSection()}
-    <div bind:this={sectionRefs['generationSettings']} class="rounded-lg border border-neutral-800 bg-neutral-900/40 transition-[height,opacity] duration-150 {draggingSection === 'generationSettings' ? 'h-0 overflow-hidden opacity-0 m-0! p-0! border-0!' : 'opacity-100'}">
+  {#snippet layerInspectorSection()}
+    <div bind:this={sectionRefs['layer_inspector']} class="rounded-lg border border-neutral-800 bg-neutral-900/40 transition-[height,opacity] duration-150 {draggingSection === 'layer_inspector' ? 'h-0 overflow-hidden opacity-0 m-0! p-0! border-0!' : 'opacity-100'}">
       <div class="flex items-stretch w-full rounded-t-lg transition-colors hover:bg-neutral-800/50">
-        {@render dragHandle("generationSettings")}
+        {@render dragHandle("layer_inspector")}
         <button
           class="flex-1 px-3 py-2 flex items-center justify-between text-xs text-neutral-300 hover:text-neutral-100 transition-colors"
-          onclick={() => (controlsSectionOpen = !controlsSectionOpen)}
-          title={controlsSectionOpen ? locale.t('common.collapse', { section: locale.t('generation.settings.title') }) : locale.t('common.expand', { section: locale.t('generation.settings.title') })}
+          onclick={() => (layerInspectorSectionOpen = !layerInspectorSectionOpen)}
+          title={layerInspectorSectionOpen ? locale.t('common.collapse', { section: locale.t('canvas.layer.properties') }) : locale.t('common.expand', { section: locale.t('canvas.layer.properties') })}
         >
-          <span class="font-medium">{locale.t('generation.settings.title')}</span>
-          <svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5 transition-transform {controlsSectionOpen ? '' : '-rotate-90'}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+          <span class="font-medium">{locale.t('canvas.layer.properties')}</span>
+          <svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5 transition-transform {layerInspectorSectionOpen ? '' : '-rotate-90'}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
         </button>
       </div>
-      {#if controlsSectionOpen}
-        <div class="px-3 pb-2 pt-0.5 space-y-3">
-          <ModelSelector />
-
-          <div class="border-t border-neutral-800 pt-3">
-            <SamplerSettings />
-          </div>
-
-          <div class="border-t border-neutral-800 pt-3">
-            <UpscaleSettings />
-          </div>
-
-          <div class="border-t border-neutral-800 pt-3">
-            <FaceFixSettings />
-          </div>
+      {#if layerInspectorSectionOpen}
+        <div class="px-2 pb-2">
+          <LayerPropertiesInspector />
         </div>
       {/if}
     </div>
+  {/snippet}
+
+  {#snippet boundingBoxSection()}
+    <div bind:this={sectionRefs['bounding_box']} class="rounded-lg border border-neutral-800 bg-neutral-900/40 transition-[height,opacity] duration-150 {draggingSection === 'bounding_box' ? 'h-0 overflow-hidden opacity-0 m-0! p-0! border-0!' : 'opacity-100'}">
+      <div class="flex items-stretch w-full rounded-t-lg transition-colors hover:bg-neutral-800/50">
+        {@render dragHandle("bounding_box")}
+        <button
+          class="flex-1 px-3 py-2 flex items-center justify-between text-xs text-neutral-300 hover:text-neutral-100 transition-colors"
+          onclick={() => (boundingBoxSectionOpen = !boundingBoxSectionOpen)}
+          title={boundingBoxSectionOpen ? locale.t('common.collapse', { section: locale.t('canvas.inspector.bbox_title') }) : locale.t('common.expand', { section: locale.t('canvas.inspector.bbox_title') })}
+        >
+          <span class="font-medium">{locale.t('canvas.inspector.bbox_title')}</span>
+          <svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5 transition-transform {boundingBoxSectionOpen ? '' : '-rotate-90'}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+        </button>
+      </div>
+      {#if boundingBoxSectionOpen}
+        <div class="px-2 pb-2">
+          <BoundingBoxControls />
+        </div>
+      {/if}
+    </div>
+  {/snippet}
+
+  {#snippet inpaintInspectorSection()}
+    <div bind:this={sectionRefs['inpaint_inspector']} class="rounded-lg border border-neutral-800 bg-neutral-900/40 transition-[height,opacity] duration-150 {draggingSection === 'inpaint_inspector' ? 'h-0 overflow-hidden opacity-0 m-0! p-0! border-0!' : 'opacity-100'}">
+      <div class="flex items-stretch w-full rounded-t-lg transition-colors hover:bg-neutral-800/50">
+        {@render dragHandle("inpaint_inspector")}
+        <button
+          class="flex-1 px-3 py-2 flex items-center justify-between text-xs text-neutral-300 hover:text-neutral-100 transition-colors"
+          onclick={() => (inpaintInspectorSectionOpen = !inpaintInspectorSectionOpen)}
+          title={inpaintInspectorSectionOpen ? locale.t('common.collapse', { section: locale.t('generation.inpaint.inspector_title') }) : locale.t('common.expand', { section: locale.t('generation.inpaint.inspector_title') })}
+        >
+          <span class="font-medium">{locale.t('generation.inpaint.inspector_title')}</span>
+          <svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5 transition-transform {inpaintInspectorSectionOpen ? '' : '-rotate-90'}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+        </button>
+      </div>
+      {#if inpaintInspectorSectionOpen}
+        <div class="px-2 pb-2">
+          <InpaintInspector />
+        </div>
+      {/if}
+    </div>
+  {/snippet}
+
+  {#snippet inpaintLayersSection()}
+    {@render layersStackSection()}
+  {/snippet}
+
+  {#snippet generationSettingsSection()}
+    {@render inpaintInspectorSection()}
   {/snippet}
 
   {#snippet modelSection()}
@@ -2389,6 +2335,14 @@
       {@render imageEditSection()}
     {:else if section === "videoSettings"}
       {@render videoSettingsSection()}
+    {:else if section === "layers_stack"}
+      {@render layersStackSection()}
+    {:else if section === "layer_inspector"}
+      {@render layerInspectorSection()}
+    {:else if section === "bounding_box"}
+      {@render boundingBoxSection()}
+    {:else if section === "inpaint_inspector"}
+      {@render inpaintInspectorSection()}
     {:else if section === "inpaintLayers"}
       {@render inpaintLayersSection()}
     {:else if section === "generationSettings"}
@@ -2425,20 +2379,12 @@
     <div class="flex flex-1 min-h-0">
     {#if mobileFriendly}
       <div class="fixed top-2 left-1/2 -translate-x-1/2 z-50 w-[min(96vw,34rem)] px-2">
-        <div class="w-full flex gap-1 bg-neutral-900 rounded-lg p-1 border border-neutral-700 shadow">
+        <div class="w-full flex items-center justify-between gap-1 bg-neutral-900 rounded-lg p-1 border border-neutral-700 shadow">
           {#if generation.mode === "video"}
             <h1 class="flex-1 px-2.5 py-2 text-center text-xs font-medium text-neutral-200">{locale.t("generation.mode.video")}</h1>
+          {:else}
+            <span class="px-2.5 py-1 text-xs font-medium text-neutral-300">{locale.t('generation.view.canvas')}</span>
           {/if}
-          {#each modes as mode}
-            <button
-              onclick={() => selectMode(mode.id)}
-              class="min-w-0 flex-1 whitespace-nowrap text-[11px] leading-none px-2.5 py-2 rounded-md transition-colors {generation.mode === mode.id
-                ? 'bg-neutral-700 text-white'
-                : 'text-neutral-400 hover:text-neutral-200'}"
-            >
-              {mode.label()}
-            </button>
-          {/each}
           <button
             type="button"
             onclick={() => generation.toggleSimpleMode()}
@@ -2489,68 +2435,40 @@
         <div class="{mobileFriendly ? 'flex-1 min-h-0 overflow-y-auto overflow-x-hidden pl-3 pr-5 pt-20 pb-6 flex flex-col gap-2' : 'contents'}">
         {#if controlsSide === "left" && !mobileFriendly}
           <div class="sticky top-0 z-10 bg-neutral-950 -mx-3 px-3 -mt-2 pt-2 pb-2">
-            <div class="flex gap-1.5 items-center">
-              <div class="flex gap-1 bg-neutral-900 rounded-lg p-1 flex-1">
-                {#if generation.mode === "video"}
-                  <h1 class="flex-1 py-1.5 text-center text-xs font-medium text-neutral-200">{locale.t("generation.mode.video")}</h1>
-                {/if}
-                {#each modes as mode}
-                  <button
-                    onclick={() => selectMode(mode.id)}
-                    class="flex-1 text-xs py-1.5 rounded-md transition-colors {generation.mode === mode.id
-                      ? 'bg-neutral-700 text-white'
-                      : 'text-neutral-400 hover:text-neutral-200'}"
-                  >
-                    {mode.label()}
-                  </button>
-                {/each}
+            <div class="flex gap-1.5 items-center justify-between">
+              {#if generation.mode === "video"}
+                <h1 class="py-1.5 text-xs font-medium text-neutral-200">{locale.t("generation.mode.video")}</h1>
+              {:else}
+                <div class="flex items-center gap-1.5 text-xs font-medium text-neutral-300">
+                  <span>{locale.t('generation.view.canvas')}</span>
+                </div>
+              {/if}
+              <div class="flex items-center gap-1.5 ml-auto">
+                <button
+                  type="button"
+                  onclick={() => generation.toggleSimpleMode()}
+                  class="px-2 py-1.5 text-xs rounded-md border transition-colors flex items-center gap-1 font-medium {generation.simpleMode
+                    ? 'border-indigo-500/60 bg-indigo-950/70 text-indigo-300 hover:bg-indigo-900/60'
+                    : 'border-neutral-700 bg-neutral-900 text-neutral-400 hover:text-neutral-200 hover:bg-neutral-800'}"
+                  title={locale.t('generation.ui_mode.tooltip')}
+                >
+                  {#if generation.simpleMode}
+                    <svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5 text-indigo-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z"/></svg>
+                    <span>{locale.t('generation.ui_mode.simple')}</span>
+                  {:else}
+                    <svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5 text-neutral-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="4" x2="4" y1="21" y2="14"/><line x1="4" x2="4" y1="10" y2="3"/><line x1="12" x2="12" y1="21" y2="12"/><line x1="12" x2="12" y1="8" y2="3"/><line x1="20" x2="20" y1="21" y2="16"/><line x1="20" x2="20" y1="12" y2="3"/><line x1="1" x2="7" y1="14" y2="14"/><line x1="9" x2="15" y1="8" y2="8"/><line x1="17" x2="23" y1="16" y2="16"/></svg>
+                    <span>{locale.t('generation.ui_mode.pro')}</span>
+                  {/if}
+                </button>
+                <button
+                  onclick={swapPanels}
+                  class="p-1.5 rounded-md text-neutral-500 hover:text-neutral-200 hover:bg-neutral-800 transition-colors"
+                  title={locale.t('generation.swap_panels')}
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 7H20m0 0l-4-4m4 4l-4 4"/><path d="M16 17H4m0 0l4 4m-4-4l4-4"/></svg>
+                </button>
               </div>
-              <button
-                type="button"
-                onclick={() => generation.toggleSimpleMode()}
-                class="px-2 py-1.5 text-xs rounded-md border transition-colors flex items-center gap-1 font-medium {generation.simpleMode
-                  ? 'border-indigo-500/60 bg-indigo-950/70 text-indigo-300 hover:bg-indigo-900/60'
-                  : 'border-neutral-700 bg-neutral-900 text-neutral-400 hover:text-neutral-200 hover:bg-neutral-800'}"
-                title={locale.t('generation.ui_mode.tooltip')}
-              >
-                {#if generation.simpleMode}
-                  <svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5 text-indigo-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z"/></svg>
-                  <span>{locale.t('generation.ui_mode.simple')}</span>
-                {:else}
-                  <svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5 text-neutral-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="4" x2="4" y1="21" y2="14"/><line x1="4" x2="4" y1="10" y2="3"/><line x1="12" x2="12" y1="21" y2="12"/><line x1="12" x2="12" y1="8" y2="3"/><line x1="20" x2="20" y1="21" y2="16"/><line x1="20" x2="20" y1="12" y2="3"/><line x1="1" x2="7" y1="14" y2="14"/><line x1="9" x2="15" y1="8" y2="8"/><line x1="17" x2="23" y1="16" y2="16"/></svg>
-                  <span>{locale.t('generation.ui_mode.pro')}</span>
-                {/if}
-              </button>
-              <button
-                onclick={swapPanels}
-                class="p-1.5 rounded-md text-neutral-500 hover:text-neutral-200 hover:bg-neutral-800 transition-colors"
-                title={locale.t('generation.swap_panels')}
-              >
-                <svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 7H20m0 0l-4-4m4 4l-4 4"/><path d="M16 17H4m0 0l4 4m-4-4l4-4"/></svg>
-              </button>
             </div>
-
-            {#if generation.mode === "inpainting"}
-              <button
-                onclick={() => {
-                  canvas.isCanvasMode = !canvas.isCanvasMode;
-                  if (canvas.isCanvasMode && canvas.layers.length === 0) {
-                    canvas.initCanvas(generation.width, generation.height);
-                  }
-                }}
-                class="flex items-center justify-between w-full px-3 py-2 mt-2 rounded-lg text-xs transition-colors {canvas.isCanvasMode
-                  ? 'bg-indigo-600/20 border border-indigo-500/50 text-indigo-300'
-                  : 'bg-neutral-800 border border-neutral-700 text-neutral-400 hover:text-neutral-200 hover:border-neutral-600'}"
-              >
-                <span class="flex items-center gap-2">
-                  <svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19l7-7 3 3-7 7-3-3z"/><path d="M18 13l-1.5-7.5L2 2l3.5 14.5L13 18l5-5z"/><path d="M2 2l7.586 7.586"/><circle cx="11" cy="11" r="2"/></svg>
-                  {locale.t('generation.inpaint.canvas_editor')}
-                </span>
-                <span class="text-[10px] {canvas.isCanvasMode ? 'text-indigo-400' : 'text-neutral-500'}">
-                  {canvas.isCanvasMode ? locale.t('common.on') : locale.t('common.off')}
-                </span>
-              </button>
-            {/if}
           </div>
         {/if}
 
@@ -2593,13 +2511,9 @@
       </div>
     {/if}
 
-    {#if canvas.isCanvasMode}
+    {#if generation.mode === "video"}
       <div class="flex-1 min-w-0 flex flex-col overflow-hidden">
-        <CanvasEditor bind:this={canvasEditorRef} />
-      </div>
-    {:else}
-      <div class="flex-1 min-w-0 flex flex-col overflow-hidden">
-        <!-- Preview area -->
+        <!-- Video Preview area -->
         <div
           class="relative flex-1 min-h-0 p-6 {mobileFriendly ? 'pt-20' : ''} flex flex-col gap-4 overflow-hidden"
         >
@@ -2618,12 +2532,17 @@
           <!-- The H3 guide covers the preview rather than the screen, on purpose:
                it is read while writing the prompt, so the side panels must stay
                lit and clickable. Padding mirrors this container's own. -->
-          {#if h3Guide.open && generation.mode === "video"}
+          {#if h3Guide.open}
             <div class="absolute inset-0 z-20 p-6 {mobileFriendly ? 'pt-20' : ''}">
               <H3PromptGuidePanel onClose={() => h3Guide.hide()} />
             </div>
           {/if}
         </div>
+      </div>
+    {:else}
+      <!-- Pure Canvas: Permanent Central Viewport for All Image Generation -->
+      <div class="flex-1 min-w-0 flex flex-col overflow-hidden">
+        <CanvasEditor bind:this={canvasEditorRef} />
       </div>
     {/if}
 
@@ -2684,68 +2603,40 @@
         <div class="{mobileFriendly ? 'flex-1 min-h-0 overflow-y-auto pl-5 pr-3 pt-20 pb-6 space-y-2' : 'contents'}">
         {#if controlsSide === "right" && !mobileFriendly}
           <div class="sticky top-0 z-10 bg-neutral-950 -mx-3 px-3 -mt-3 pt-3 pb-2">
-            <div class="flex gap-1.5 items-center">
-              <div class="flex gap-1 bg-neutral-900 rounded-lg p-1 flex-1">
-                {#if generation.mode === "video"}
-                  <h1 class="flex-1 py-1.5 text-center text-xs font-medium text-neutral-200">{locale.t("generation.mode.video")}</h1>
-                {/if}
-                {#each modes as mode}
-                  <button
-                    onclick={() => selectMode(mode.id)}
-                    class="flex-1 text-xs py-1.5 rounded-md transition-colors {generation.mode === mode.id
-                      ? 'bg-neutral-700 text-white'
-                      : 'text-neutral-400 hover:text-neutral-200'}"
-                  >
-                    {mode.label()}
-                  </button>
-                {/each}
+            <div class="flex gap-1.5 items-center justify-between">
+              {#if generation.mode === "video"}
+                <h1 class="py-1.5 text-xs font-medium text-neutral-200">{locale.t("generation.mode.video")}</h1>
+              {:else}
+                <div class="flex items-center gap-1.5 text-xs font-medium text-neutral-300">
+                  <span>{locale.t('generation.view.canvas')}</span>
+                </div>
+              {/if}
+              <div class="flex items-center gap-1.5 ml-auto">
+                <button
+                  type="button"
+                  onclick={() => generation.toggleSimpleMode()}
+                  class="px-2 py-1.5 text-xs rounded-lg border transition-colors flex items-center gap-1 font-medium shrink-0 {generation.simpleMode
+                    ? 'border-indigo-500/60 bg-indigo-950/70 text-indigo-300 hover:bg-indigo-900/60'
+                    : 'border-neutral-700 bg-neutral-900 text-neutral-400 hover:text-neutral-200 hover:bg-neutral-800'}"
+                  title={locale.t('generation.ui_mode.tooltip')}
+                >
+                  {#if generation.simpleMode}
+                    <svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5 text-indigo-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z"/></svg>
+                    <span>{locale.t('generation.ui_mode.simple')}</span>
+                  {:else}
+                    <svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5 text-neutral-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="4" x2="4" y1="21" y2="14"/><line x1="4" x2="4" y1="10" y2="3"/><line x1="12" x2="12" y1="21" y2="12"/><line x1="12" x2="12" y1="8" y2="3"/><line x1="20" x2="20" y1="21" y2="16"/><line x1="20" x2="20" y1="12" y2="3"/><line x1="1" x2="7" y1="14" y2="14"/><line x1="9" x2="15" y1="8" y2="8"/><line x1="17" x2="23" y1="16" y2="16"/></svg>
+                    <span>{locale.t('generation.ui_mode.pro')}</span>
+                  {/if}
+                </button>
+                <button
+                  onclick={swapPanels}
+                  class="p-1.5 rounded-md text-neutral-500 hover:text-neutral-200 hover:bg-neutral-800 transition-colors"
+                  title={locale.t('generation.swap_panels')}
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 7H20m0 0l-4-4m4 4l-4 4"/><path d="M16 17H4m0 0l4 4m-4-4l4-4"/></svg>
+                </button>
               </div>
-              <button
-                type="button"
-                onclick={() => generation.toggleSimpleMode()}
-                class="px-2 py-1.5 text-xs rounded-lg border transition-colors flex items-center gap-1 font-medium shrink-0 {generation.simpleMode
-                  ? 'border-indigo-500/60 bg-indigo-950/70 text-indigo-300 hover:bg-indigo-900/60'
-                  : 'border-neutral-700 bg-neutral-900 text-neutral-400 hover:text-neutral-200 hover:bg-neutral-800'}"
-                title={locale.t('generation.ui_mode.tooltip')}
-              >
-                {#if generation.simpleMode}
-                  <svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5 text-indigo-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z"/></svg>
-                  <span>{locale.t('generation.ui_mode.simple')}</span>
-                {:else}
-                  <svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5 text-neutral-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="4" x2="4" y1="21" y2="14"/><line x1="4" x2="4" y1="10" y2="3"/><line x1="12" x2="12" y1="21" y2="12"/><line x1="12" x2="12" y1="8" y2="3"/><line x1="20" x2="20" y1="21" y2="16"/><line x1="20" x2="20" y1="12" y2="3"/><line x1="1" x2="7" y1="14" y2="14"/><line x1="9" x2="15" y1="8" y2="8"/><line x1="17" x2="23" y1="16" y2="16"/></svg>
-                  <span>{locale.t('generation.ui_mode.pro')}</span>
-                {/if}
-              </button>
-              <button
-                onclick={swapPanels}
-                class="p-1.5 rounded-md text-neutral-500 hover:text-neutral-200 hover:bg-neutral-800 transition-colors"
-                title={locale.t('generation.swap_panels')}
-              >
-                <svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 7H20m0 0l-4-4m4 4l-4 4"/><path d="M16 17H4m0 0l4 4m-4-4l4-4"/></svg>
-              </button>
             </div>
-
-            {#if generation.mode === "inpainting"}
-              <button
-                onclick={() => {
-                  canvas.isCanvasMode = !canvas.isCanvasMode;
-                  if (canvas.isCanvasMode && canvas.layers.length === 0) {
-                    canvas.initCanvas(generation.width, generation.height);
-                  }
-                }}
-                class="flex items-center justify-between w-full px-3 py-2 mt-2 rounded-lg text-xs transition-colors {canvas.isCanvasMode
-                  ? 'bg-indigo-600/20 border border-indigo-500/50 text-indigo-300'
-                  : 'bg-neutral-800 border border-neutral-700 text-neutral-400 hover:text-neutral-200 hover:border-neutral-600'}"
-              >
-                <span class="flex items-center gap-2">
-                  <svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19l7-7 3 3-7 7-3-3z"/><path d="M18 13l-1.5-7.5L2 2l3.5 14.5L13 18l5-5z"/><path d="M2 2l7.586 7.586"/><circle cx="11" cy="11" r="2"/></svg>
-                  {locale.t('generation.inpaint.canvas_editor')}
-                </span>
-                <span class="text-[10px] {canvas.isCanvasMode ? 'text-indigo-400' : 'text-neutral-500'}">
-                  {canvas.isCanvasMode ? locale.t('common.on') : locale.t('common.off')}
-                </span>
-              </button>
-            {/if}
           </div>
         {/if}
 

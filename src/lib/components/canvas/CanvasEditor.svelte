@@ -19,6 +19,7 @@
   let stageRef: CanvasStage | undefined = $state();
 
   onMount(() => {
+    canvas.isCanvasMode = true;
     // Initialize canvas with generation dimensions if not already set
     if (canvas.layers.length === 0) {
       canvas.initCanvas(generation.width, generation.height);

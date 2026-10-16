@@ -1,9 +1,9 @@
-import type { CanvasLayer, CanvasLayerBlendMode } from "../stores/canvas.svelte.js";
+import type { CanvasLayer, CanvasLayerBlendMode, CanvasLayerType } from "../stores/canvas.svelte.js";
 
 export interface FalafelLayerData {
   id: string;
   name: string;
-  type: "raster" | "mask";
+  type: CanvasLayerType;
   visible: boolean;
   opacity: number;
   locked: boolean;
@@ -73,8 +73,8 @@ export async function saveFalafelProject(
     opacity: layer.opacity,
     locked: layer.locked,
     order: layer.order,
-    denoise: layer.denoise,
-    prompt: layer.prompt,
+    denoise: "denoise" in layer ? (layer as any).denoise : undefined,
+    prompt: "prompt" in layer ? (layer as any).prompt : undefined,
     blendMode: layer.blendMode,
     dataUrl: layerDataUrls[layer.id] || "",
   }));

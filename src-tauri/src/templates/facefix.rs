@@ -78,11 +78,18 @@ pub(super) fn without_full_image_model_patch(
     workflow: &Map<String, Value>,
     model: (String, u32),
 ) -> (String, u32) {
-    workflow
-        .get(&model.0)
+    let mut current = model;
+    while let Some(node) = workflow
+        .get(&current.0)
         .filter(|node| node["class_type"] == "AnimaLLLiteApply")
-        .and_then(|node| link(&node["inputs"]["model"]))
-        .unwrap_or(model)
+    {
+        if let Some(inner) = link(&node["inputs"]["model"]) {
+            current = inner;
+        } else {
+            break;
+        }
+    }
+    current
 }
 
 /// Appends MooshieFaceDetailer node to an existing workflow.
@@ -231,6 +238,7 @@ mod tests {
         let mut p = with_facefix(params("txt2img", "sdxl"));
         p.positive_regions = vec![PositiveRegion {
             text: "1girl, smiling, red hair".to_string(),
+            negative_text: None,
             x: 0.5,
             y: 0.0,
             width: 0.5,

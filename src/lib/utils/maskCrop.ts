@@ -109,11 +109,42 @@ export function expandCropRegion(
   }
 
   // Ensure 8-pixel alignment for latent dimensions
-  const finalW = Math.max(64, Math.round((x2 - x1) / 8) * 8);
-  const finalH = Math.max(64, Math.round((y2 - y1) / 8) * 8);
+  let finalW = Math.max(64, Math.round((x2 - x1) / 8) * 8);
+  let finalH = Math.max(64, Math.round((y2 - y1) / 8) * 8);
 
-  x2 = Math.min(imageWidth, x1 + finalW);
-  y2 = Math.min(imageHeight, y1 + finalH);
+  // If final dimensions exceed image bounds, clamp them to image bounds aligned to 8
+  if (finalW > imageWidth) {
+    finalW = Math.max(8, Math.floor(imageWidth / 8) * 8);
+  }
+  if (finalH > imageHeight) {
+    finalH = Math.max(8, Math.floor(imageHeight / 8) * 8);
+  }
+
+  x2 = x1 + finalW;
+  y2 = y1 + finalH;
+
+  // Shift-back boundary clamping to preserve finalW and finalH
+  if (x2 > imageWidth) {
+    const overflow = x2 - imageWidth;
+    x1 -= overflow;
+    x2 = imageWidth;
+  }
+  if (x1 < 0) {
+    const underflow = -x1;
+    x1 = 0;
+    x2 = Math.min(imageWidth, x2 + underflow);
+  }
+
+  if (y2 > imageHeight) {
+    const overflow = y2 - imageHeight;
+    y1 -= overflow;
+    y2 = imageHeight;
+  }
+  if (y1 < 0) {
+    const underflow = -y1;
+    y1 = 0;
+    y2 = Math.min(imageHeight, y2 + underflow);
+  }
 
   return { x1, y1, x2, y2 };
 }

@@ -2,7 +2,14 @@
   import { onMount, onDestroy, tick } from "svelte";
   import Konva from "konva";
   import { generation } from "../../stores/generation.svelte.js";
-  import { canvas, type ToolType } from "../../stores/canvas.svelte.js";
+import {
+  canvas,
+  type ToolType,
+  type ActiveTransformBounds,
+  type CanvasLayer,
+  BLEND_MODE_COMPOSITE_MAP,
+  BLEND_MODE_CSS_MAP,
+} from "../../stores/canvas.svelte.js";
   import { canvasHistory } from "../../stores/canvasHistory.svelte.js";
   import { progress } from "../../stores/progress.svelte.js";
   import { locale } from "../../stores/locale.svelte.js";
@@ -53,6 +60,10 @@
   let lastMaskSource: string | null = null;
   // UI overlay layer (brush cursor, bounding box)
   let uiLayer: Konva.Layer | null = null;
+  // Dedicated staging layer (rendered directly above user layers, beneath uiLayer)
+  let stagingLayer: Konva.Layer | null = null;
+  let stagingImageNode: Konva.Image | null = null;
+  let lastStagedSource: string | null = null;
 
   // Drawing state (not reactive — performance-critical)
   let isDrawing = false;
@@ -214,6 +225,10 @@
     // Create Konva layers for each canvas layer
     syncKonvaLayers();
 
+    // Dedicated staging layer (rendered directly above user layers, beneath uiLayer)
+    stagingLayer = new Konva.Layer({ listening: false });
+    stage.add(stagingLayer);
+
     // UI overlay layer
     uiLayer = new Konva.Layer({ listening: false });
     stage.add(uiLayer);
@@ -233,6 +248,7 @@
     canvasHistory.setRefs(konvaLayers, canvas.canvasWidth, canvas.canvasHeight);
     canvasHistory.setOnRestored((layerIds) => {
       for (const id of layerIds) scheduleThumbRefresh(id);
+      applyViewport();
       stage?.batchDraw();
     });
 
@@ -258,6 +274,9 @@
       duplicateLayer: handleDuplicateLayer,
       applyInpaintAsLayer: handleApplyInpaintAsLayer,
       acceptStagingToLayer: handleAcceptStagingToLayer,
+      acceptCandidateAsMask: handleAcceptCandidateAsMask,
+      reorderStageLayers,
+      syncKonvaLayers,
       getLayerDataUrls,
       loadLayersFromProject,
       invertMask: handleInvertMask,
@@ -266,6 +285,19 @@
       getRasterComposite,
       getMaskCanvas,
       getLayerCanvas,
+      setTransformBounds: (bounds: ActiveTransformBounds) => {
+        if (!transformTargetGroup) return;
+        transformTargetGroup.x(bounds.x);
+        transformTargetGroup.y(bounds.y);
+        if (transformTargetGroup.width() > 0) {
+          transformTargetGroup.scaleX(bounds.width / transformTargetGroup.width());
+        }
+        if (transformTargetGroup.height() > 0) {
+          transformTargetGroup.scaleY(bounds.height / transformTargetGroup.height());
+        }
+        transformTargetGroup.rotation(bounds.rotation);
+        stage?.batchDraw();
+      },
     });
 
     reorderStageLayers();
@@ -289,6 +321,10 @@
     for (const layer of sorted) {
       const kLayer = konvaLayers.get(layer.id);
       if (kLayer) kLayer.moveToTop();
+    }
+
+    if (stagingLayer) {
+      stagingLayer.moveToTop();
     }
 
     uiLayer?.moveToTop();
@@ -357,6 +393,150 @@
       }
     };
     img.src = url;
+  }
+
+  function updateStagingLayer(
+    url: string | null,
+    opacity: number,
+    compareMode: "overlay" | "split" | "original",
+    splitRatio: number,
+    candidateMeta?: any
+  ) {
+    if (!stagingLayer) return;
+
+    if (!url || !canvas.isStagingActive) {
+      lastStagedSource = null;
+      if (stagingImageNode) {
+        stagingImageNode.destroy();
+        stagingImageNode = null;
+      }
+      stagingLayer.clip(null);
+      stagingLayer.visible(false);
+      stagingLayer.batchDraw();
+      return;
+    }
+
+    if (compareMode === "original" || canvas.stagingShowOriginal || canvas.showingOriginal) {
+      stagingLayer.visible(false);
+      stagingLayer.batchDraw();
+      return;
+    }
+
+    stagingLayer.visible(true);
+    stagingLayer.opacity(Math.max(0.0, Math.min(1.0, opacity)));
+
+    if (compareMode === "split") {
+      const splitX = canvas.canvasWidth * Math.max(0.0, Math.min(1.0, splitRatio));
+      stagingLayer.clip({
+        x: splitX,
+        y: 0,
+        width: canvas.canvasWidth - splitX,
+        height: canvas.canvasHeight,
+      });
+    } else {
+      stagingLayer.clip(null);
+    }
+
+    if (lastStagedSource === url && stagingImageNode) {
+      stagingLayer.batchDraw();
+      return;
+    }
+
+    lastStagedSource = url;
+    const img = new Image();
+    img.onload = () => {
+      if (!stagingLayer || lastStagedSource !== url) return;
+
+      let x = 0;
+      let y = 0;
+      let width = canvas.canvasWidth;
+      let height = canvas.canvasHeight;
+
+      if (candidateMeta?.bounds) {
+        x = candidateMeta.bounds.x;
+        y = candidateMeta.bounds.y;
+        width = candidateMeta.bounds.width;
+        height = candidateMeta.bounds.height;
+      } else if (
+        img.naturalWidth === canvas.boundingBox.width &&
+        img.naturalHeight === canvas.boundingBox.height &&
+        (canvas.boundingBox.x !== 0 || canvas.boundingBox.y !== 0 ||
+         canvas.boundingBox.width !== canvas.canvasWidth || canvas.boundingBox.height !== canvas.canvasHeight)
+      ) {
+        x = canvas.boundingBox.x;
+        y = canvas.boundingBox.y;
+        width = canvas.boundingBox.width;
+        height = canvas.boundingBox.height;
+      } else if (img.naturalWidth !== canvas.canvasWidth || img.naturalHeight !== canvas.canvasHeight) {
+        const imageRatio = img.naturalWidth / img.naturalHeight;
+        const canvasRatio = canvas.canvasWidth / canvas.canvasHeight;
+        if (imageRatio > canvasRatio) {
+          height = canvas.canvasWidth / imageRatio;
+          y = (canvas.canvasHeight - height) / 2;
+        } else {
+          width = canvas.canvasHeight * imageRatio;
+          x = (canvas.canvasWidth - width) / 2;
+        }
+      }
+
+      if (!stagingImageNode) {
+        stagingImageNode = new Konva.Image({
+          image: img,
+          x,
+          y,
+          width,
+          height,
+          listening: false,
+        });
+        stagingLayer.add(stagingImageNode);
+      } else {
+        stagingImageNode.image(img);
+        stagingImageNode.x(x);
+        stagingImageNode.y(y);
+        stagingImageNode.width(width);
+        stagingImageNode.height(height);
+      }
+
+      reorderStageLayers();
+      stagingLayer.batchDraw();
+    };
+    img.onerror = () => {
+      if (!stagingLayer || lastStagedSource !== url) return;
+      if (stagingImageNode) {
+        stagingImageNode.destroy();
+        stagingImageNode = null;
+      }
+      stagingLayer.batchDraw();
+    };
+    img.src = url;
+  }
+
+  async function handleAcceptCandidateAsMask(url: string): Promise<boolean> {
+    if (!stage || !url) return false;
+    try {
+      const img = await loadImageEl(url);
+      const targetLayerId = canvas.activeLayerId;
+      if (!targetLayerId) return false;
+      syncKonvaLayers();
+      const kLayer = konvaLayers.get(targetLayerId);
+      if (!kLayer) return false;
+
+      const kImage = new Konva.Image({
+        image: img,
+        x: 0,
+        y: 0,
+        width: canvas.canvasWidth,
+        height: canvas.canvasHeight,
+        listening: false,
+      });
+      kLayer.destroyChildren();
+      kLayer.add(kImage);
+      kLayer.batchDraw();
+      scheduleThumbRefresh(targetLayerId);
+      return true;
+    } catch {
+      return false;
+    }
   }
 
   function parseHexColor(hex: string): { r: number; g: number; b: number } {
@@ -551,7 +731,7 @@
       // Apply CSS mixBlendMode to HTML5 canvas element of this Konva Layer
       const canvasEl = (kLayer as any).getCanvas?.()?._canvas as HTMLCanvasElement | undefined;
       if (canvasEl) {
-        canvasEl.style.mixBlendMode = layer.blendMode || "normal";
+        canvasEl.style.mixBlendMode = BLEND_MODE_CSS_MAP[layer.blendMode || "normal"] || "normal";
       }
     }
 
@@ -574,8 +754,8 @@
       borderRect.strokeWidth(1 / zoom);
     }
 
-    // Apply to all content layers (bg + reference + persisted mask + canvas layers), but NOT the UI layer.
-    const layers = [bgLayer, refLayer, persistedMaskLayer, ...konvaLayers.values()];
+    // Apply to all content layers (bg + reference + persisted mask + canvas layers + staging), but NOT the UI layer.
+    const layers = [bgLayer, refLayer, persistedMaskLayer, ...konvaLayers.values(), stagingLayer];
     for (const layer of layers) {
       if (!layer) continue;
       layer.scaleX(zoom);
@@ -871,18 +1051,50 @@
       let targetLayerId = canvas.activeLayerId;
       if (asNewLayer || !targetLayerId) {
         targetLayerId = canvas.addLayer("raster");
-        syncKonvaLayers();
       }
+      syncKonvaLayers();
 
       const kLayer = konvaLayers.get(targetLayerId);
       if (!kLayer) return false;
 
+      let x = 0;
+      let y = 0;
+      let width = canvas.canvasWidth;
+      let height = canvas.canvasHeight;
+      const candidateMeta = canvas.candidate;
+      if (candidateMeta?.bounds) {
+        x = candidateMeta.bounds.x;
+        y = candidateMeta.bounds.y;
+        width = candidateMeta.bounds.width;
+        height = candidateMeta.bounds.height;
+      } else if (
+        img.naturalWidth === canvas.boundingBox.width &&
+        img.naturalHeight === canvas.boundingBox.height &&
+        (canvas.boundingBox.x !== 0 || canvas.boundingBox.y !== 0 ||
+         canvas.boundingBox.width !== canvas.canvasWidth || canvas.boundingBox.height !== canvas.canvasHeight)
+      ) {
+        x = canvas.boundingBox.x;
+        y = canvas.boundingBox.y;
+        width = canvas.boundingBox.width;
+        height = canvas.boundingBox.height;
+      } else if (img.naturalWidth !== canvas.canvasWidth || img.naturalHeight !== canvas.canvasHeight) {
+        const imageRatio = img.naturalWidth / img.naturalHeight;
+        const canvasRatio = canvas.canvasWidth / canvas.canvasHeight;
+        if (imageRatio > canvasRatio) {
+          height = canvas.canvasWidth / imageRatio;
+          y = (canvas.canvasHeight - height) / 2;
+        } else {
+          width = canvas.canvasHeight * imageRatio;
+          x = (canvas.canvasWidth - width) / 2;
+        }
+      }
+
       const kImage = new Konva.Image({
         image: img,
-        x: 0,
-        y: 0,
-        width: canvas.canvasWidth,
-        height: canvas.canvasHeight,
+        x,
+        y,
+        width,
+        height,
         listening: false,
       });
       kLayer.add(kImage);
@@ -1207,18 +1419,54 @@
     if (project.canvas.positivePrompt) generation.positivePrompt = project.canvas.positivePrompt;
     if (project.canvas.negativePrompt) generation.negativePrompt = project.canvas.negativePrompt;
 
-    canvas.layers = project.layers.map((l) => ({
-      id: l.id,
-      name: l.name,
-      type: l.type,
-      visible: l.visible,
-      opacity: l.opacity,
-      locked: l.locked,
-      order: l.order,
-      blendMode: (l.blendMode as any) || "normal",
-      denoise: (l as any).denoise ?? (l.type === "mask" ? 0.7 : 1.0),
-      prompt: l.prompt,
-    }));
+    canvas.layers = project.layers.map((l): CanvasLayer => {
+      const base = {
+        id: l.id,
+        name: l.name,
+        visible: l.visible,
+        opacity: l.opacity,
+        locked: l.locked,
+        order: l.order,
+        blendMode: (l.blendMode as any) || "normal",
+      };
+      if (l.type === "mask") {
+        return {
+          ...base,
+          type: "mask",
+          denoise: (l as any).denoise ?? 0.7,
+          prompt: l.prompt,
+        };
+      }
+      if (l.type === "regional") {
+        return {
+          ...base,
+          type: "regional",
+          x: 0,
+          y: 0,
+          width: 1,
+          height: 1,
+          prompt: l.prompt || "",
+          weight: 1.0,
+        };
+      }
+      if (l.type === "controlnet") {
+        return {
+          ...base,
+          type: "controlnet",
+          model: "",
+          preprocessor: "none",
+          strength: 1.0,
+          startPercent: 0.0,
+          endPercent: 1.0,
+        };
+      }
+      return {
+        ...base,
+        type: "raster",
+        denoise: (l as any).denoise ?? 1.0,
+        prompt: l.prompt,
+      };
+    });
 
     syncKonvaLayers();
 
@@ -1308,7 +1556,32 @@
     });
     kLayer.add(transformer);
     transformActiveLayerId = targetLayerId;
+
+    transformTargetGroup.on("dragmove transform", () => {
+      syncTransformBoundsToStore();
+    });
+    syncTransformBoundsToStore();
+
     kLayer.batchDraw();
+  }
+
+  function syncTransformBoundsToStore() {
+    if (!transformTargetGroup) {
+      canvas.setActiveTransformBounds(null);
+      return;
+    }
+    const x = Math.round(transformTargetGroup.x());
+    const y = Math.round(transformTargetGroup.y());
+    const width = Math.round(transformTargetGroup.width() * transformTargetGroup.scaleX());
+    const height = Math.round(transformTargetGroup.height() * transformTargetGroup.scaleY());
+    const rotation = Math.round(transformTargetGroup.rotation());
+    canvas.setActiveTransformBounds({
+      x,
+      y,
+      width,
+      height,
+      rotation,
+    });
   }
 
   function commitTransform() {
@@ -1319,6 +1592,8 @@
       transformer.destroy();
       transformer = null;
     }
+
+    canvas.setActiveTransformBounds(null);
 
     if (!kLayer) {
       transformTargetGroup.destroy();
@@ -1382,6 +1657,7 @@
 
     const layerId = transformActiveLayerId;
     transformActiveLayerId = null;
+    canvas.setActiveTransformBounds(null);
 
     void canvasHistory.undo();
     scheduleThumbRefresh(layerId);
@@ -1412,6 +1688,17 @@
     if (tool === "view") {
       isPanning = true;
       lastPointerPos = stage!.getPointerPosition();
+      return;
+    }
+
+    if (tool === "zoom") {
+      const isZoomOut = canvas.zoomToolMode === "out" || evt.altKey;
+      const zoomFactor = isZoomOut ? 1 / 1.3 : 1.3;
+      const pointerPos = stage!.getPointerPosition();
+      if (pointerPos) {
+        canvas.setZoom(canvas.viewport.zoom * zoomFactor, pointerPos.x, pointerPos.y);
+        scheduleViewportApply();
+      }
       return;
     }
 
@@ -1925,10 +2212,16 @@
     const screenY = pos.y * zoom + panY;
     const pixel = ctx.getImageData(Math.round(screenX), Math.round(screenY), 1, 1).data;
 
+    const r = pixel[0];
+    const g = pixel[1];
+    const b = pixel[2];
+    const a = pixel[3] / 255;
+    const hex = `#${r.toString(16).padStart(2, "0")}${g.toString(16).padStart(2, "0")}${b.toString(16).padStart(2, "0")}`;
+
     if (pixel[3] > 0) {
-      const hex = `#${pixel[0].toString(16).padStart(2, "0")}${pixel[1].toString(16).padStart(2, "0")}${pixel[2].toString(16).padStart(2, "0")}`;
       canvas.foregroundColor = hex;
     }
+    canvas.setSampledColor({ hex, r, g, b, a });
   }
 
   // Keyboard shortcuts (Space pan, Eyedropper, Layer management, Staging)
@@ -1949,72 +2242,6 @@
         uiLayer?.batchDraw();
       }
       return;
-    }
-
-    // Staging keyboard shortcuts
-    if (canvas.isStagingActive) {
-      if (e.key === "Enter" && !e.shiftKey && !e.ctrlKey) {
-        e.preventDefault();
-        void canvas.acceptStagingToCurrentLayer();
-        return;
-      }
-      if (e.key === "Enter" && e.shiftKey && !e.ctrlKey) {
-        e.preventDefault();
-        void canvas.acceptStagingToNewLayer();
-        return;
-      }
-      if (e.key === "Escape") {
-        e.preventDefault();
-        canvas.clearStaging();
-        return;
-      }
-      if (e.key === "ArrowLeft") {
-        e.preventDefault();
-        canvas.prevStaging();
-        return;
-      }
-      if (e.key === "ArrowRight") {
-        e.preventDefault();
-        canvas.nextStaging();
-        return;
-      }
-    }
-
-    // Layer management shortcuts (Photoshop standard)
-    const isCtrl = e.ctrlKey || e.metaKey;
-    if (isCtrl && e.key.toLowerCase() === "j") {
-      e.preventDefault();
-      canvas.duplicateActiveLayer();
-      return;
-    }
-    if (isCtrl && !e.shiftKey && e.key.toLowerCase() === "e") {
-      e.preventDefault();
-      void canvas.mergeDownActiveLayer();
-      return;
-    }
-    if (isCtrl && e.shiftKey && e.key.toLowerCase() === "e") {
-      e.preventDefault();
-      void canvas.flattenLayers();
-      return;
-    }
-    if (e.key === "\\" || e.key === "|") {
-      e.preventDefault();
-      canvas.toggleShowOriginal();
-      return;
-    }
-
-    if (canvas.activeTool === "transform") {
-      if (e.key === "Enter") {
-        e.preventDefault();
-        commitTransform();
-        canvas.setTool(canvas.previousTool ?? "brush");
-        return;
-      }
-      if (e.key === "Escape") {
-        e.preventDefault();
-        cancelTransform();
-        return;
-      }
     }
 
     if (!canvas.isPointerOverStage) return;
@@ -2120,6 +2347,32 @@
   });
 
   $effect(() => {
+    const stagedImg = canvas.currentStagingImage;
+    const isStaging = canvas.isStagingActive;
+    const opacity = canvas.stagingOpacity;
+    const compareMode = canvas.stagingCompareMode;
+    const splitRatio = canvas.stagingSplitRatio;
+    const showOrig = canvas.stagingShowOriginal || canvas.showingOriginal;
+    const candidateMeta = canvas.candidate;
+
+    if (!isStaging || !stagedImg || showOrig) {
+      if (stagingLayer) {
+        if (!isStaging || !stagedImg) {
+          lastStagedSource = null;
+          if (stagingImageNode) {
+            stagingImageNode.destroy();
+            stagingImageNode = null;
+          }
+        }
+        stagingLayer.visible(false);
+        stagingLayer.batchDraw();
+      }
+    } else {
+      updateStagingLayer(stagedImg, opacity, compareMode, splitRatio, candidateMeta);
+    }
+  });
+
+  $effect(() => {
     // Toggle layer visibility when showingOriginal or pending-result hide state changes.
     // Only the Konva node's visibility is touched, never the layer model's
     // `visible`, so the panel toggle and mask export (which reads the model) are
@@ -2195,8 +2448,10 @@
         });
 
         ctx.globalAlpha = layer.opacity;
-        const blend = (layer.blendMode && layer.blendMode !== "normal") ? layer.blendMode : "source-over";
-        ctx.globalCompositeOperation = blend as GlobalCompositeOperation;
+        const blend = (layer.blendMode && layer.blendMode !== "normal")
+          ? (BLEND_MODE_COMPOSITE_MAP[layer.blendMode] || "source-over")
+          : "source-over";
+        ctx.globalCompositeOperation = blend;
         ctx.drawImage(layerCanvas, 0, 0);
         ctx.globalAlpha = 1;
         ctx.globalCompositeOperation = "source-over";

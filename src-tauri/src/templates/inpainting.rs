@@ -18,7 +18,7 @@ pub fn build(params: &GenerationParams, seed: i64) -> WorkflowResult {
     let vae_source = ml.vae_source;
 
     // Positive conditioning (with optional timestep scheduling)
-    let (pos_source, nid) = build_scheduled_conditioning(
+    let (mut pos_source, nid) = build_scheduled_conditioning(
         &mut workflow,
         next_id,
         &clip_source,
@@ -29,7 +29,7 @@ pub fn build(params: &GenerationParams, seed: i64) -> WorkflowResult {
     next_id = nid;
 
     // Negative conditioning (with optional timestep scheduling)
-    let (neg_source, nid) = build_scheduled_conditioning(
+    let (mut neg_source, nid) = build_scheduled_conditioning(
         &mut workflow,
         next_id,
         &clip_source,
@@ -38,6 +38,16 @@ pub fn build(params: &GenerationParams, seed: i64) -> WorkflowResult {
         params.steps,
     );
     next_id = nid;
+
+    // Regional conditioning (positive and optional negative area conditioning)
+    super::regional::inject_regional_conditioning(
+        &mut workflow,
+        &mut next_id,
+        &clip_source,
+        &mut pos_source,
+        &mut neg_source,
+        params,
+    );
 
     // Load input image
     let load_img_id = next_id.to_string();
@@ -244,7 +254,7 @@ pub fn build_crop_upscale(params: &GenerationParams, seed: i64) -> WorkflowResul
     let vae_source = ml.vae_source;
 
     // Positive / negative conditioning
-    let (pos_source, nid) = build_scheduled_conditioning(
+    let (mut pos_source, nid) = build_scheduled_conditioning(
         &mut workflow,
         next_id,
         &clip_source,
@@ -253,7 +263,7 @@ pub fn build_crop_upscale(params: &GenerationParams, seed: i64) -> WorkflowResul
         params.steps,
     );
     next_id = nid;
-    let (neg_source, nid) = build_scheduled_conditioning(
+    let (mut neg_source, nid) = build_scheduled_conditioning(
         &mut workflow,
         next_id,
         &clip_source,
@@ -262,6 +272,16 @@ pub fn build_crop_upscale(params: &GenerationParams, seed: i64) -> WorkflowResul
         params.steps,
     );
     next_id = nid;
+
+    // Regional conditioning (positive and optional negative area conditioning)
+    super::regional::inject_regional_conditioning(
+        &mut workflow,
+        &mut next_id,
+        &clip_source,
+        &mut pos_source,
+        &mut neg_source,
+        params,
+    );
 
     // Load input image
     let load_img_id = next_id.to_string();
