@@ -7,6 +7,7 @@
   import { progress } from "../../stores/progress.svelte.js";
   import { locale } from "../../stores/locale.svelte.js";
   import type { FalafelProjectDocument } from "../../utils/canvasProject.js";
+  import { gaussianBlurCanvas } from "../../utils/maskBlur.js";
   import ColorTooltip from "../ui/ColorTooltip.svelte";
 
   // Hide the editable inpaint mask while a finished result is being previewed, so
@@ -136,6 +137,7 @@
       cancelTransform: undefined,
       getRasterComposite: undefined,
       getMaskCanvas: undefined,
+      getLayerCanvas: undefined,
     });
     if (stage) {
       stage.destroy();
@@ -263,6 +265,7 @@
       cancelTransform,
       getRasterComposite,
       getMaskCanvas,
+      getLayerCanvas,
     });
 
     reorderStageLayers();
@@ -903,11 +906,32 @@
     const kNew = konvaLayers.get(newId);
     if (!kNew) return false;
 
-    // Reset viewport transforms to capture clean 1:1 canvas pixels
     const sX = kSource.scaleX();
     const sY = kSource.scaleY();
     const origX = kSource.x();
     const origY = kSource.y();
+
+    // 1. Vector clone: preserves individual Konva Line, Rect, and Image shapes
+    try {
+      const children = kSource.getChildren();
+      if (children && children.length > 0) {
+        kNew.destroyChildren();
+        for (const child of children) {
+          kNew.add(child.clone());
+        }
+        kNew.scaleX(sX);
+        kNew.scaleY(sY);
+        kNew.x(origX);
+        kNew.y(origY);
+        kNew.batchDraw();
+        scheduleThumbRefresh(newId);
+        return true;
+      }
+    } catch (e) {
+      console.warn("Vector layer clone failed, falling back to raster:", e);
+    }
+
+    // 2. Fallback to raster snapshot
     kSource.scaleX(1);
     kSource.scaleY(1);
     kSource.x(0);
@@ -958,21 +982,84 @@
     try {
       const resultImg = await loadImageEl(canvas.pendingResultPreviewUrl);
       const maskCanvas = getMaskCanvas();
+      const rasterComposite = getRasterComposite();
 
-      const offscreen = document.createElement("canvas");
-      offscreen.width = canvas.canvasWidth;
-      offscreen.height = canvas.canvasHeight;
-      const ctx = offscreen.getContext("2d");
-      if (!ctx) return false;
+      const width = canvas.canvasWidth;
+      const height = canvas.canvasHeight;
 
-      ctx.drawImage(resultImg, 0, 0, canvas.canvasWidth, canvas.canvasHeight);
+      // 1. Create solid alpha cutout mask with edge feathering
+      const alphaCanvas = document.createElement("canvas");
+      alphaCanvas.width = width;
+      alphaCanvas.height = height;
+      const actx = alphaCanvas.getContext("2d");
+      if (!actx) return false;
 
+      let hasAlphaData = false;
       if (maskCanvas) {
-        ctx.globalCompositeOperation = "destination-in";
-        ctx.drawImage(maskCanvas, 0, 0);
+        const mctx = maskCanvas.getContext("2d");
+        if (mctx) {
+          const mdata = mctx.getImageData(0, 0, width, height);
+          const adata = actx.createImageData(width, height);
+          for (let i = 0; i < mdata.data.length; i += 4) {
+            if (mdata.data[i + 3] > 0 && (mdata.data[i] > 16 || mdata.data[i + 1] > 16 || mdata.data[i + 2] > 16)) {
+              adata.data[i] = 255;
+              adata.data[i + 1] = 255;
+              adata.data[i + 2] = 255;
+              adata.data[i + 3] = 255;
+              hasAlphaData = true;
+            }
+          }
+          actx.putImageData(adata, 0, 0);
+        }
       }
 
-      const patchDataUrl = offscreen.toDataURL("image/png");
+      // If no explicit mask content, compute pixel diff against baseline
+      if (!hasAlphaData && rasterComposite) {
+        const bctx = rasterComposite.getContext("2d");
+        const tempCanvas = document.createElement("canvas");
+        tempCanvas.width = width;
+        tempCanvas.height = height;
+        const tctx = tempCanvas.getContext("2d");
+        if (bctx && tctx) {
+          tctx.drawImage(resultImg, 0, 0, width, height);
+          const bdata = bctx.getImageData(0, 0, width, height);
+          const rdata = tctx.getImageData(0, 0, width, height);
+          const adata = actx.createImageData(width, height);
+          for (let i = 0; i < bdata.data.length; i += 4) {
+            const diff = Math.abs(bdata.data[i] - rdata.data[i]) +
+                         Math.abs(bdata.data[i + 1] - rdata.data[i + 1]) +
+                         Math.abs(bdata.data[i + 2] - rdata.data[i + 2]);
+            if (diff > 20) {
+              adata.data[i] = 255;
+              adata.data[i + 1] = 255;
+              adata.data[i + 2] = 255;
+              adata.data[i + 3] = 255;
+              hasAlphaData = true;
+            }
+          }
+          actx.putImageData(adata, 0, 0);
+        }
+      }
+
+      // 2. Feather mask edges (radius 2px) for seamless boundary blending
+      if (hasAlphaData) {
+        gaussianBlurCanvas(alphaCanvas, 2);
+      }
+
+      // 3. Cut out result image using the feathered alpha mask
+      const patchCanvas = document.createElement("canvas");
+      patchCanvas.width = width;
+      patchCanvas.height = height;
+      const pctx = patchCanvas.getContext("2d");
+      if (!pctx) return false;
+
+      pctx.drawImage(resultImg, 0, 0, width, height);
+      if (hasAlphaData) {
+        pctx.globalCompositeOperation = "destination-in";
+        pctx.drawImage(alphaCanvas, 0, 0);
+      }
+
+      const patchDataUrl = patchCanvas.toDataURL("image/png");
       const patchImg = await loadImageEl(patchDataUrl);
 
       const targetLayerId = canvas.addLayer("raster", "Inpaint Patch");
@@ -991,8 +1078,8 @@
         image: patchImg,
         x: 0,
         y: 0,
-        width: canvas.canvasWidth,
-        height: canvas.canvasHeight,
+        width,
+        height,
         listening: false,
       });
       kLayer.add(kImage);
@@ -1130,6 +1217,7 @@
       order: l.order,
       blendMode: (l.blendMode as any) || "normal",
       denoise: (l as any).denoise ?? (l.type === "mask" ? 0.7 : 1.0),
+      prompt: l.prompt,
     }));
 
     syncKonvaLayers();
@@ -2172,6 +2260,49 @@
         kLayer.y(origY);
         kLayer.visible(origVisible);
       }
+    }
+
+    return offscreen;
+  }
+
+  export function getLayerCanvas(layerId: string): HTMLCanvasElement | null {
+    if (!stage) return null;
+    const kLayer = konvaLayers.get(layerId);
+    if (!kLayer) return null;
+
+    const offscreen = document.createElement("canvas");
+    offscreen.width = canvas.canvasWidth;
+    offscreen.height = canvas.canvasHeight;
+    const ctx = offscreen.getContext("2d");
+    if (!ctx) return null;
+
+    const origScaleX = kLayer.scaleX();
+    const origScaleY = kLayer.scaleY();
+    const origX = kLayer.x();
+    const origY = kLayer.y();
+    const origVisible = kLayer.visible();
+    kLayer.scaleX(1);
+    kLayer.scaleY(1);
+    kLayer.x(0);
+    kLayer.y(0);
+    kLayer.visible(true);
+
+    try {
+      const layerCanvas = kLayer.toCanvas({
+        pixelRatio: 1,
+        width: canvas.canvasWidth,
+        height: canvas.canvasHeight,
+      });
+      ctx.drawImage(layerCanvas, 0, 0);
+    } catch (err) {
+      console.error("Failed to capture layer:", err);
+      return null;
+    } finally {
+      kLayer.scaleX(origScaleX);
+      kLayer.scaleY(origScaleY);
+      kLayer.x(origX);
+      kLayer.y(origY);
+      kLayer.visible(origVisible);
     }
 
     return offscreen;

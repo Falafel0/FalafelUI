@@ -8,6 +8,8 @@ export interface FalafelLayerData {
   opacity: number;
   locked: boolean;
   order: number;
+  denoise?: number;
+  prompt?: string;
   blendMode?: CanvasLayerBlendMode;
   dataUrl: string;
 }
@@ -71,6 +73,8 @@ export async function saveFalafelProject(
     opacity: layer.opacity,
     locked: layer.locked,
     order: layer.order,
+    denoise: layer.denoise,
+    prompt: layer.prompt,
     blendMode: layer.blendMode,
     dataUrl: layerDataUrls[layer.id] || "",
   }));

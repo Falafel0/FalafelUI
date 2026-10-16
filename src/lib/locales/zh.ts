@@ -4670,6 +4670,7 @@ const zh: Record<string, string> = {
   "canvas.downscale_mask": "重置遮罩尺寸",
   "canvas.send_to_mask": "发送至遮罩图层",
   "canvas.layer.denoise": "Denoise",
+  "canvas.layer.prompt_placeholder": "图层提示词 (可选)...",
   "canvas.show_original": "原图 (修改前)",
   "canvas.original_active": "正在查看原图 (修改前)",
 };

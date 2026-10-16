@@ -4695,6 +4695,7 @@ const fr: Record<string, string> = {
   "canvas.downscale_mask": "Réinitialiser taille masque",
   "canvas.send_to_mask": "Envoyer vers calque masque",
   "canvas.layer.denoise": "Denoise",
+  "canvas.layer.prompt_placeholder": "Prompt de calque (optionnel)...",
   "canvas.show_original": "Avant / Original",
   "canvas.original_active": "Affichage original (Avant)",
 };

@@ -4669,6 +4669,7 @@ const it: Record<string, string> = {
   "canvas.downscale_mask": "Ripristina dimensione maschera",
   "canvas.send_to_mask": "Invia a livello maschera",
   "canvas.layer.denoise": "Denoise",
+  "canvas.layer.prompt_placeholder": "Prompt del livello (opzionale)...",
   "canvas.show_original": "Prima / Originale",
   "canvas.original_active": "Visualizzazione originale (Prima)",
 };

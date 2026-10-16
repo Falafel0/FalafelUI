@@ -4698,6 +4698,7 @@ const es: Record<string, string> = {
   "canvas.downscale_mask": "Restablecer tamaño de máscara",
   "canvas.send_to_mask": "Enviar a capa de máscara",
   "canvas.layer.denoise": "Denoise",
+  "canvas.layer.prompt_placeholder": "Prompt de capa (opcional)...",
   "canvas.show_original": "Antes / Original",
   "canvas.original_active": "Viendo original (Antes)",
 };

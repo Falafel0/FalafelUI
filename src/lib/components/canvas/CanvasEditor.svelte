@@ -64,6 +64,10 @@
   export function getMaskCanvas(): HTMLCanvasElement | null {
     return stageRef?.getMaskCanvas() ?? null;
   }
+
+  export function getLayerCanvas(layerId: string): HTMLCanvasElement | null {
+    return stageRef?.getLayerCanvas(layerId) ?? null;
+  }
 </script>
 
 <div class="flex flex-col h-full rounded-xl border border-neutral-800 overflow-hidden">

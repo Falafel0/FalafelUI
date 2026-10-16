@@ -32,6 +32,7 @@ export interface CanvasLayer {
   locked: boolean;
   order: number;
   denoise?: number;
+  prompt?: string;
   blendMode?: CanvasLayerBlendMode;
   x?: number;
   y?: number;
@@ -224,6 +225,7 @@ class CanvasStore {
     cancelTransform?: () => void;
     getRasterComposite?: () => HTMLCanvasElement | null;
     getMaskCanvas?: () => HTMLCanvasElement | null;
+    getLayerCanvas?: (layerId: string) => HTMLCanvasElement | null;
   } = {};
 
   setStageRef(stage: any) {
@@ -247,6 +249,7 @@ class CanvasStore {
     cancelTransform?: () => void;
     getRasterComposite?: () => HTMLCanvasElement | null;
     getMaskCanvas?: () => HTMLCanvasElement | null;
+    getLayerCanvas?: (layerId: string) => HTMLCanvasElement | null;
   }) {
     this._stageOps = { ...this._stageOps, ...ops };
   }
@@ -1064,8 +1067,16 @@ class CanvasStore {
     this.layers = this.layers.map((l) => (l.id === id ? { ...l, denoise } : l));
   }
 
+  setLayerPrompt(id: string, prompt: string) {
+    this.layers = this.layers.map((l) => (l.id === id ? { ...l, prompt } : l));
+  }
+
   setLayerBlendMode(id: string, blendMode: CanvasLayerBlendMode) {
     this.layers = this.layers.map((l) => (l.id === id ? { ...l, blendMode } : l));
+  }
+
+  getLayerCanvas(layerId: string): HTMLCanvasElement | null {
+    return this._stageOps.getLayerCanvas ? this._stageOps.getLayerCanvas(layerId) : null;
   }
 
   async duplicateActiveLayer(): Promise<string | null> {

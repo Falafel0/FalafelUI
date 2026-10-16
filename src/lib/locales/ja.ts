@@ -4694,6 +4694,7 @@ const ja: Record<string, string> = {
   "canvas.downscale_mask": "マスクサイズをリセット",
   "canvas.send_to_mask": "マスクレイヤーに送る",
   "canvas.layer.denoise": "Denoise",
+  "canvas.layer.prompt_placeholder": "レイヤープロンプト (任意)...",
   "canvas.show_original": "オリジナル (前)",
   "canvas.original_active": "オリジナルを表示中 (前)",
 };

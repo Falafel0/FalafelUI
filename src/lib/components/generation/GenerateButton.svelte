@@ -21,6 +21,7 @@
   import { isBrowserMode } from "../../utils/ipc.js";
   import type { GenerationParams } from "../../types/index.js";
   import { runRegionalInpaintChain } from "../../utils/regionalInpaintChain.js";
+  import { runMaskInpaintChain } from "../../utils/maskInpaintChain.js";
   import {
     suppressRegionalChainGallerySave,
     clearAllRegionalChainGallerySuppress,
@@ -35,7 +36,11 @@
   import QueuePanel from "../ui/QueuePanel.svelte";
 
   interface Props {
-    canvasEditorRef?: { getRasterComposite: () => HTMLCanvasElement | null; getMaskCanvas: () => HTMLCanvasElement | null };
+    canvasEditorRef?: {
+      getRasterComposite: () => HTMLCanvasElement | null;
+      getMaskCanvas: () => HTMLCanvasElement | null;
+      getLayerCanvas?: (layerId: string) => HTMLCanvasElement | null;
+    };
   }
 
   let { canvasEditorRef }: Props = $props();
@@ -418,6 +423,29 @@
           }
         } finally {
           clearAllRegionalChainGallerySuppress();
+        }
+      } else if (
+        canvas.isCanvasMode &&
+        generation.mode === "inpainting" &&
+        canvas.layers.filter((l) => l.type === "mask" && l.visible).length > 1 &&
+        canvas.layers.filter((l) => l.type === "mask" && l.visible).some((l) => (l.prompt && l.prompt.trim()) || l.denoise !== undefined)
+      ) {
+        const visibleMasks = canvas.layers.filter((l) => l.type === "mask" && l.visible);
+        try {
+          const chainResult = await runMaskInpaintChain(visibleMasks, {
+            submit: async (chainParams, ctx) => {
+              const result = await requestGeneration(chainParams);
+              trackGeneration(chainParams, result);
+              return { promptId: result.prompt_id, seed: result.seed };
+            },
+            onStep: ({ index, total, layerName }) => {
+              gallery.showToast(`Inpainting mask ${index}/${total}: ${layerName}`, "info");
+            },
+          });
+          console.log("[maskInpaintChain] Completed", chainResult.stepCount, "steps");
+        } catch (chainError) {
+          console.error("Mask inpaint chain failed:", chainError);
+          throw chainError;
         }
       } else {
         const params = generation.toParams();

@@ -199,24 +199,37 @@
     </div>
   {/if}
 
-  <!-- Denoise slider (mask layers only, when expanded) -->
+  <!-- Denoise slider & prompt override (mask layers only, when expanded) -->
   {#if layer.type === "mask" && showDenoise}
     <!-- svelte-ignore a11y_click_events_have_key_events -->
     <!-- svelte-ignore a11y_no_static_element_interactions -->
-    <div class="flex items-center gap-2 px-2 py-1.5 border-t border-neutral-700/60 bg-neutral-900/40" onclick={(e) => e.stopPropagation()}>
-      <span class="text-[10px] text-neutral-500 shrink-0">{locale.t('canvas.layer.denoise')}</span>
-      <input
-        type="range"
-        value={layer.denoise ?? 0.7}
-        oninput={(e) => {
-          canvas.setLayerDenoise(layer.id, parseFloat((e.target as HTMLInputElement).value));
-        }}
-        min="0"
-        max="1"
-        step="0.01"
-        class="flex-1 accent-indigo-500 h-1"
-      />
-      <span class="text-[10px] text-neutral-400 tabular-nums w-7 text-right">{(layer.denoise ?? 0.7).toFixed(2)}</span>
+    <div class="px-2 py-1.5 border-t border-neutral-700/60 bg-neutral-900/40 space-y-1.5" onclick={(e) => e.stopPropagation()}>
+      <div class="flex items-center gap-2">
+        <span class="text-[10px] text-neutral-500 shrink-0">{locale.t('canvas.layer.denoise')}</span>
+        <input
+          type="range"
+          value={layer.denoise ?? 0.7}
+          oninput={(e) => {
+            canvas.setLayerDenoise(layer.id, parseFloat((e.target as HTMLInputElement).value));
+          }}
+          min="0"
+          max="1"
+          step="0.01"
+          class="flex-1 accent-indigo-500 h-1"
+        />
+        <span class="text-[10px] text-neutral-400 tabular-nums w-7 text-right">{(layer.denoise ?? 0.7).toFixed(2)}</span>
+      </div>
+      <div class="flex items-center gap-1.5">
+        <input
+          type="text"
+          value={layer.prompt ?? ""}
+          oninput={(e) => {
+            canvas.setLayerPrompt(layer.id, (e.target as HTMLInputElement).value);
+          }}
+          placeholder={locale.t('canvas.layer.prompt_placeholder')}
+          class="w-full bg-neutral-800 border border-neutral-700 rounded px-1.5 py-0.5 text-[10px] text-neutral-200 placeholder-neutral-500 outline-none focus:border-indigo-500"
+        />
+      </div>
     </div>
   {/if}
 </div>

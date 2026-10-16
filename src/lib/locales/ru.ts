@@ -4669,6 +4669,7 @@ const ru: Record<string, string> = {
   "canvas.downscale_mask": "Сбросить размер маски",
   "canvas.send_to_mask": "Отправить на слой маски",
   "canvas.layer.denoise": "Denoise",
+  "canvas.layer.prompt_placeholder": "Промпт слоя (опционально)...",
   "canvas.show_original": "До / Оригинал",
   "canvas.original_active": "Просмотр оригинала (До)",
 };
