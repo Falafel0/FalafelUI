@@ -139,9 +139,9 @@
 
 <svelte:window onkeydown={handleKeyDown} />
 
-<div class="flex items-center gap-1 px-3 py-1.5 bg-neutral-900 border-b border-neutral-800">
+<div class="flex items-center gap-1.5 px-3 py-1.5 bg-neutral-900/95 border-b border-neutral-800 flex-wrap select-none backdrop-blur-sm">
   {#if generation.mode === "inpainting"}
-    <div class="flex items-center gap-1 mr-2">
+    <div class="flex items-center gap-1 mr-1">
       <button
         onclick={() => canvas.setInpaintDrawMode("mask")}
         class="px-2 py-1 text-[10px] rounded border transition-colors {canvas.inpaintDrawMode === 'mask'
@@ -169,81 +169,86 @@
       </button>
     </div>
 
-    <div class="w-px h-6 bg-neutral-700 mr-2"></div>
+    <div class="w-px h-5 bg-neutral-800 mr-1"></div>
   {/if}
 
   <!-- Tool buttons -->
-  <div class="flex items-center gap-0.5">
+  <div class="flex items-center gap-0.5 bg-neutral-800/40 p-0.5 rounded-lg border border-neutral-800">
     {#each tools as tool}
       <button
         onclick={() => handleToolClick(tool.id)}
-        class="relative w-8 h-8 flex items-center justify-center rounded-md transition-colors {canvas.activeTool === tool.id
-          ? 'bg-indigo-600 text-white'
+        class="relative w-7 h-7 flex items-center justify-center rounded-md transition-colors {canvas.activeTool === tool.id
+          ? 'bg-indigo-600 text-white shadow-sm'
           : 'text-neutral-400 hover:text-neutral-200 hover:bg-neutral-800'}"
         title="{locale.t(tool.labelKey)} ({tool.hotkey})"
       >
-        <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
           {@html tool.icon}
         </svg>
       </button>
     {/each}
   </div>
 
-  <div class="w-px h-6 bg-neutral-700 mx-2"></div>
+  <div class="w-px h-5 bg-neutral-800 mx-1"></div>
 
   <BrushSettings />
 
-  <div class="w-px h-6 bg-neutral-700 mx-2"></div>
+  <div class="w-px h-5 bg-neutral-800 mx-1"></div>
 
   <ColorPicker />
 
-  <div class="w-px h-6 bg-neutral-700 mx-2"></div>
+  <div class="w-px h-5 bg-neutral-800 mx-1"></div>
 
+  <!-- History: Undo / Redo with icons -->
   <div class="flex items-center gap-1">
     <button
       onclick={() => canvasHistory.undo()}
       disabled={!canvasHistory.canUndo}
-      class="px-2 py-1 text-[10px] rounded border transition-colors {canvasHistory.canUndo
-        ? 'border-neutral-700 text-neutral-300 hover:border-indigo-500 hover:text-indigo-300'
-        : 'border-neutral-800 text-neutral-600 cursor-not-allowed'}"
+      class="w-7 h-7 flex items-center justify-center rounded-md border transition-colors {canvasHistory.canUndo
+        ? 'border-neutral-700 bg-neutral-800/80 text-neutral-300 hover:border-indigo-500 hover:text-indigo-300 cursor-pointer'
+        : 'border-neutral-800/60 bg-neutral-900/40 text-neutral-600 cursor-not-allowed'}"
       title={locale.t('canvas.undo') + ' (Ctrl+Z)'}
+      aria-label={locale.t('canvas.undo')}
     >
-      {locale.t('canvas.undo')}
+      <svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7v6h6"/><path d="M21 17a9 9 0 0 0-9-9 9 9 0 0 0-6 2.3L3 13"/></svg>
     </button>
     <button
       onclick={() => canvasHistory.redo()}
       disabled={!canvasHistory.canRedo}
-      class="px-2 py-1 text-[10px] rounded border transition-colors {canvasHistory.canRedo
-        ? 'border-neutral-700 text-neutral-300 hover:border-indigo-500 hover:text-indigo-300'
-        : 'border-neutral-800 text-neutral-600 cursor-not-allowed'}"
+      class="w-7 h-7 flex items-center justify-center rounded-md border transition-colors {canvasHistory.canRedo
+        ? 'border-neutral-700 bg-neutral-800/80 text-neutral-300 hover:border-indigo-500 hover:text-indigo-300 cursor-pointer'
+        : 'border-neutral-800/60 bg-neutral-900/40 text-neutral-600 cursor-not-allowed'}"
       title={locale.t('canvas.redo') + ' (Ctrl+Shift+Z / Ctrl+Y)'}
+      aria-label={locale.t('canvas.redo')}
     >
-      {locale.t('canvas.redo')}
+      <svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 7v6h-6"/><path d="M3 17a9 9 0 0 1 9-9 9 9 0 0 1 6 2.3l3 2.7"/></svg>
     </button>
   </div>
 
-  <div class="w-px h-6 bg-neutral-700 mx-2"></div>
+  <div class="w-px h-5 bg-neutral-800 mx-1"></div>
 
-  <!-- Zoom controls -->
-  <div class="flex items-center gap-1">
+  <!-- Zoom controls segmented bar -->
+  <div class="flex items-center gap-1 bg-neutral-800/50 rounded-md p-0.5 border border-neutral-700/60">
     <button
       onclick={() => canvas.zoomOut()}
-      class="w-6 h-6 flex items-center justify-center rounded text-neutral-400 hover:text-neutral-200 hover:bg-neutral-800 text-sm"
+      class="w-5 h-5 flex items-center justify-center rounded text-neutral-400 hover:text-neutral-100 hover:bg-neutral-700 transition-colors cursor-pointer"
       title={locale.t('canvas.zoom_out')}
+      aria-label={locale.t('canvas.zoom_out')}
     >
-      -
+      <svg xmlns="http://www.w3.org/2000/svg" class="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="5" y1="12" x2="19" y2="12"/></svg>
     </button>
-    <span class="text-xs text-neutral-300 tabular-nums w-10 text-center">{canvas.zoomPercent}%</span>
+    <span class="text-[11px] font-mono text-neutral-300 tabular-nums w-9 text-center select-none">{canvas.zoomPercent}%</span>
     <button
       onclick={() => canvas.zoomIn()}
-      class="w-6 h-6 flex items-center justify-center rounded text-neutral-400 hover:text-neutral-200 hover:bg-neutral-800 text-sm"
+      class="w-5 h-5 flex items-center justify-center rounded text-neutral-400 hover:text-neutral-100 hover:bg-neutral-700 transition-colors cursor-pointer"
       title={locale.t('canvas.zoom_in')}
+      aria-label={locale.t('canvas.zoom_in')}
     >
-      +
+      <svg xmlns="http://www.w3.org/2000/svg" class="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
     </button>
     <button
       onclick={() => canvas.resetZoom()}
-      class="text-[10px] px-1.5 py-0.5 rounded text-neutral-400 hover:text-neutral-200 hover:bg-neutral-800"
+      class="text-[10px] font-mono px-1 py-0.5 rounded text-neutral-400 hover:text-neutral-100 hover:bg-neutral-700 transition-colors cursor-pointer"
       title={locale.t('canvas.reset_zoom')}
     >
       1:1
@@ -251,7 +256,7 @@
   </div>
 
   {#if generation.mode === "inpainting"}
-    <div class="w-px h-6 bg-neutral-700 mx-2"></div>
+    <div class="w-px h-5 bg-neutral-800 mx-1"></div>
     <div class="flex items-center gap-1">
       {#if canvas.isCanvasUpscaled}
         <span class="text-[10px] text-indigo-400 tabular-nums font-semibold">{canvas.maskUpscaleFactor}x</span>
@@ -272,7 +277,7 @@
     </div>
   {/if}
 
-  <div class="w-px h-6 bg-neutral-700 mx-2"></div>
+  <div class="w-px h-5 bg-neutral-800 mx-1"></div>
 
   <!-- Before / After comparison toggle -->
   <button
@@ -287,7 +292,7 @@
     <span>{canvas.showingOriginal ? locale.t('canvas.original_active') : locale.t('canvas.show_original')}</span>
   </button>
 
-  <div class="w-px h-6 bg-neutral-700 mx-2"></div>
+  <div class="w-px h-5 bg-neutral-800 mx-1"></div>
 
   <!-- Project & Export Actions -->
   <input

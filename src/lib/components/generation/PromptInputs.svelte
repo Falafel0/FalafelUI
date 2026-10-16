@@ -292,13 +292,13 @@
     {#if combinedMode && activeTab === "negative"}
       {@render negativeFields()}
     {:else}
-    <div class="mb-1 flex items-center justify-between">
+    <div class="mb-1.5 flex items-center justify-between gap-1.5">
       <div class="flex items-center gap-1.5">
         <!-- One enhance button, three rewrites, all through the Enhance modal.
              The image one grounds on danbooru tags, which is exactly wrong for
              H3 prose, so video mode swaps it out rather than offering both. -->
         <button
-          class="rounded-lg border border-neutral-600 px-2 py-0.5 text-[10px] text-neutral-300 hover:bg-neutral-800 disabled:opacity-40"
+          class="inline-flex items-center gap-1 rounded-md border border-neutral-700 bg-neutral-900/80 px-2.5 py-1 text-xs font-medium text-neutral-300 hover:bg-neutral-800 hover:border-neutral-600 hover:text-white disabled:opacity-40 transition-colors shadow-xs"
           disabled={promptAssistant.isGenerating}
           title={isVideoMode
             ? locale.t("prompt_assistant.enhance_h3_tooltip")
@@ -312,30 +312,31 @@
               : onEnhanceClick}
         >
           {#if promptAssistant.isGenerating}
-            <span class="inline-block animate-spin">⟳</span>
+            <span class="inline-block animate-spin text-[11px]">⟳</span>
           {:else}
-            ✨
+            <span class="text-xs">✨</span>
           {/if}
-          {isVideoMode
+          <span>{isVideoMode
             ? locale.t("prompt_assistant.enhance_h3")
             : isNaiV5
               ? locale.t("prompt_assistant.enhance_nai")
-              : locale.t("prompt_assistant.enhance")}
+              : locale.t("prompt_assistant.enhance")}</span>
         </button>
         {#if naiEnhance.showUndo}
           <!-- One pill for every Enhance flow: the V5 undo restores the
                character boxes too, so its label says so. -->
           <button
-            class="rounded-lg border border-neutral-600 px-2 py-0.5 text-[10px] text-indigo-400 hover:bg-neutral-800"
+            class="inline-flex items-center gap-1 rounded-md border border-neutral-700 bg-neutral-900/80 px-2.5 py-1 text-xs font-medium text-indigo-400 hover:bg-neutral-800 hover:border-indigo-500/60 hover:text-indigo-300 transition-colors shadow-xs"
             onclick={() => naiEnhance.undo()}
           >
-            ↩ {naiEnhance.undoFlow === "nai"
+            <span>↩</span>
+            <span>{naiEnhance.undoFlow === "nai"
               ? locale.t("prompt_assistant.nai_undo")
-              : locale.t("prompt_assistant.undo")}
+              : locale.t("prompt_assistant.undo")}</span>
           </button>
         {/if}
         {#if promptAssistant.stage === "loading_model"}
-          <span class="text-[10px] text-neutral-400">{locale.t("prompt_assistant.loading_model")}</span>
+          <span class="text-[11px] text-neutral-400 font-medium">{locale.t("prompt_assistant.loading_model")}</span>
         {/if}
       </div>
       <div class="flex items-center gap-1.5">
@@ -355,9 +356,9 @@
               }
               onOpenRegionalPrompt?.();
             }}
-            class="rounded-lg border px-2 py-0.5 text-[10px] transition-colors disabled:cursor-not-allowed {regionalPromptingSupported
-              ? 'border-neutral-700 bg-neutral-900 text-neutral-300 hover:border-indigo-500 hover:text-indigo-200'
-              : 'border-neutral-800 bg-neutral-950 text-neutral-500'}"
+            class="inline-flex items-center gap-1 rounded-md border px-2.5 py-1 text-xs font-medium transition-colors disabled:cursor-not-allowed shadow-xs {regionalPromptingSupported
+              ? 'border-neutral-700 bg-neutral-900/80 text-neutral-300 hover:border-indigo-500/70 hover:text-indigo-200 hover:bg-neutral-800'
+              : 'border-neutral-800 bg-neutral-950 text-neutral-600'}"
             title={!regionalPromptingSupported ? locale.t("generation.regional.unsupported") : undefined}
           >
             {locale.t("generation.regional.button", { count: String(generation.regionalPrompts.length) })}
@@ -407,7 +408,7 @@
     <button
       type="button"
       onclick={() => (combinedMode = !combinedMode)}
-      class="shrink-0 text-neutral-400 hover:text-neutral-200 transition-colors p-0.5"
+      class="w-7 h-7 flex items-center justify-center rounded-md border border-neutral-700 bg-neutral-900/80 text-neutral-400 hover:text-neutral-200 hover:bg-neutral-800 hover:border-neutral-600 transition-colors shadow-xs shrink-0"
       title={combinedMode ? locale.t('generation.prompts.combined_mode_split') : locale.t('generation.prompts.combined_mode_toggle')}
       aria-label={combinedMode ? locale.t('generation.prompts.combined_mode_split') : locale.t('generation.prompts.combined_mode_toggle')}
     >

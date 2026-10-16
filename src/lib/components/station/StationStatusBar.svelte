@@ -180,11 +180,13 @@
           </button>
         </div>
 
-        <!-- Temp & Util -->
-        <span class="text-neutral-500">•</span>
-        <span class="font-mono text-neutral-300">{primaryGpu.temperature}°C</span>
-        <span class="text-neutral-500">•</span>
-        <span class="font-mono text-neutral-300">{primaryGpu.gpu_util}%</span>
+        <!-- Temp & Util (responsive) -->
+        <div class="hidden md:flex items-center gap-2">
+          <span class="text-neutral-600">•</span>
+          <span class="font-mono text-neutral-300">{primaryGpu.temperature}°C</span>
+          <span class="text-neutral-600">•</span>
+          <span class="font-mono text-neutral-300">{primaryGpu.gpu_util}%</span>
+        </div>
       </div>
     {:else}
       <span class="text-neutral-500 font-mono text-[10px]">{locale.t("station.status.gpu_idle")}</span>

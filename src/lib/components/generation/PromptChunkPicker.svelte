@@ -82,9 +82,9 @@
 <button
   type="button"
   onclick={() => (open = true)}
-  class="rounded-lg border px-2 py-0.5 text-[10px] transition-colors {activeCount > 0
-    ? 'border-indigo-500/50 bg-indigo-500/10 text-indigo-200 hover:border-indigo-400'
-    : 'border-neutral-700 bg-neutral-900 text-neutral-300 hover:border-indigo-500 hover:text-indigo-200'}"
+  class="rounded-md border px-2.5 py-1 text-xs font-medium transition-colors shadow-xs {activeCount > 0
+    ? 'border-indigo-500/60 bg-indigo-500/15 text-indigo-200 hover:border-indigo-400 hover:bg-indigo-500/25'
+    : 'border-neutral-700 bg-neutral-900/80 text-neutral-300 hover:border-neutral-600 hover:bg-neutral-800 hover:text-neutral-100'}"
   title={locale.t("generation.prompts.chunks_title")}
   aria-expanded={open}
   aria-haspopup="dialog"
