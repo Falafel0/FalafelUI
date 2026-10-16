@@ -1,5 +1,20 @@
 # Changelog
 
+## What's New in v1.4.1-falafel.0
+
+### Generation Pipeline & Denoise 1.0 Mode Switching
+- **Fix Text-to-Image Auto-Detection**: Resolved a bug where unset edit reference images triggered `Image Edit` mode with empty references and caused generation failures. Empty image references are now properly checked and ignored.
+- **Denoise 1.0 txt2img Override**: Setting denoise to 1.0 (`denoise >= 0.999`) automatically bypasses raster base and mask inputs to run pure `txt2img` generation.
+- **ControlNet Integration with txt2img**: Visible ControlNet layers on the canvas are now automatically extracted and attached to the `txt2img` generation pipeline, enabling guided scratch generation.
+
+### Layer Hierarchy & Contextual Settings UX Overhaul
+- **Restored MooshieUI Upstream Layer Ergonomics**: Restored categorized collapsible accordion groups (Raster, Mask, ControlNet, Regional) with count badges, add buttons, and quick actions (`Ctrl+J`, `Ctrl+E`, `Ctrl+Shift+E`).
+- **In-Place Contextual Layer Controls**: Embedded all layer-specific settings (blend mode, opacity, raster denoise, mask blur, inpaint denoise, prompt overrides, ControlNet model/preprocessor/strength/timing, regional prompt/weight/coordinates) directly inside each active layer card in `LayerItem.svelte`.
+- **Canvas Viewport Expansion**: Removed the intrusive floating contextual bar from the canvas stage to give users an unobstructed full-stage drawing experience.
+- **Sidebar Organization**: Cleaned up detached and redundant inspector panels from the generation sidebar.
+
+---
+
 ## What's New in v1.4.0-falafel.0
 
 ### Pure Modeless Canvas Workspace

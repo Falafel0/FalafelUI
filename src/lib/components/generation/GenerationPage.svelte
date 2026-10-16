@@ -358,8 +358,9 @@
       return false;
     if (section === "imageInputs") return false;
     if (section === "imageEdit") return false;
+    if (section === "layer_inspector") return false;
     if (section === "inpaintLayers" || section === "generationSettings") return false;
-    if (section === "layers_stack" || section === "layer_inspector" || section === "bounding_box" || section === "inpaint_inspector") {
+    if (section === "layers_stack" || section === "bounding_box" || section === "inpaint_inspector") {
       return true;
     }
     if (section === "model" || section === "sampler" || section === "dimensions" || section === "prompts") {

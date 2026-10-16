@@ -11,7 +11,7 @@ import { getCropRegionV2, expandCropRegion, cropCanvas, type CropRegion } from "
 import { gaussianBlurCanvas } from "../utils/maskBlur.js";
 import { fillMaskedRegion } from "../utils/maskFill.js";
 import { canvasHistory } from "./canvasHistory.svelte.js";
-import type { GenerationMode } from "../types/index.js";
+import type { GenerationMode, ControlNetPayload } from "../types/index.js";
 
 import type {
   CanvasBlendMode,
@@ -1674,15 +1674,33 @@ class CanvasStore {
 
   resolveUnifiedGenerationMode(): GenerationMode {
     if (generation.mode === "video") return "video";
-    if (generation.editReferenceImages && generation.editReferenceImages.length > 0) {
+
+    // 1. Only switch to image_edit if edit reference images are non-empty strings
+    const hasEditReference =
+      generation.editReferenceImages?.some(
+        (img) => typeof img === "string" && img.trim().length > 0
+      ) && (generation.supportsImageEditMode === undefined || generation.supportsImageEditMode);
+    if (hasEditReference) {
       return "image_edit";
     }
+
+    // 2. When denoise is 1.0 (>= 0.999), user explicitly desires regular txt2img generation
+    // (including with ControlNet layers), bypassing base img2img / inpainting input.
+    if (generation.denoise !== undefined && generation.denoise >= 0.999) {
+      return "txt2img";
+    }
+
+    // 3. Inpainting when active mask exists
     if (this.hasActiveMask) {
       return "inpainting";
     }
+
+    // 4. Img2img when raster content or reference image exists
     if (this.referenceImageUrl || this.currentPreparedInputImage || this.hasRasterContent) {
       return "img2img";
     }
+
+    // 5. Default: txt2img
     return "txt2img";
   }
 
@@ -1860,11 +1878,18 @@ class CanvasStore {
     }
   }
 
-  // Export
   async exportLayerAsImage(layerCanvas: HTMLCanvasElement, filename: string): Promise<{ name: string; subfolder: string; type: string }> {
     const blob = await new Promise<Blob>((resolve) => {
       layerCanvas.toBlob((b) => resolve(b!), "image/png");
     });
+    const arrayBuffer = await blob.arrayBuffer();
+    const bytes = Array.from(new Uint8Array(arrayBuffer));
+    return uploadImageBytes(bytes, filename);
+  }
+
+  async uploadDataUrl(dataUrl: string, filename: string): Promise<{ name: string; subfolder: string; type: string }> {
+    const response = await fetch(dataUrl);
+    const blob = await response.blob();
     const arrayBuffer = await blob.arrayBuffer();
     const bytes = Array.from(new Uint8Array(arrayBuffer));
     return uploadImageBytes(bytes, filename);
@@ -2023,7 +2048,8 @@ class CanvasStore {
   // Sync canvas to generation store before generating
   async syncToGeneration(
     getRasterComposite: () => HTMLCanvasElement | null,
-    getMaskCanvas: () => HTMLCanvasElement | null
+    getMaskCanvas: () => HTMLCanvasElement | null,
+    getLayerCanvas?: (layerId: string) => HTMLCanvasElement | null,
   ) {
     // Modeless Smart Dispatch: dynamically infer pipeline from canvas state
     if (generation.mode !== "video") {
@@ -2033,6 +2059,74 @@ class CanvasStore {
     const rasterCanvas = getRasterComposite();
     const maskCanvas = getMaskCanvas();
     const isInpainting = generation.mode === "inpainting";
+
+    // ── Multi-ControlNet Layers from Canvas ──
+    const activeCnLayers = this.layers.filter(
+      (l): l is ControlNetCanvasLayer =>
+        l.type === "controlnet" && l.visible && !!l.model?.trim(),
+    );
+
+    const cnPayloads: ControlNetPayload[] = [];
+    for (const cnLayer of activeCnLayers) {
+      let cnImageName: string | null = null;
+      if (cnLayer.referenceImage) {
+        if (!cnLayer.referenceImage.startsWith("data:") && !cnLayer.referenceImage.startsWith("blob:")) {
+          cnImageName = cnLayer.referenceImage;
+        } else {
+          try {
+            const res = await this.uploadDataUrl(cnLayer.referenceImage, `canvas_cn_${cnLayer.id}.png`);
+            cnImageName = res.name;
+          } catch (e) {
+            console.warn("[canvas] failed to upload referenceImage for controlnet layer", cnLayer.id, e);
+          }
+        }
+      }
+      if (!cnImageName && getLayerCanvas) {
+        const layerCanvas = getLayerCanvas(cnLayer.id);
+        if (layerCanvas) {
+          try {
+            const res = await this.exportLayerAsImage(layerCanvas, `canvas_cn_${cnLayer.id}.png`);
+            cnImageName = res.name;
+          } catch (e) {
+            console.warn("[canvas] failed to export layerCanvas for controlnet layer", cnLayer.id, e);
+          }
+        }
+      }
+      if (!cnImageName && this.layerThumbnails[cnLayer.id]) {
+        try {
+          const res = await this.uploadDataUrl(this.layerThumbnails[cnLayer.id], `canvas_cn_${cnLayer.id}.png`);
+          cnImageName = res.name;
+        } catch (e) {
+          console.warn("[canvas] failed to upload thumbnail for controlnet layer", cnLayer.id, e);
+        }
+      }
+
+      if (cnImageName) {
+        cnPayloads.push({
+          enabled: true,
+          preset: null,
+          controlnet_model: cnLayer.model.trim(),
+          preprocessor: cnLayer.preprocessor && cnLayer.preprocessor !== "none" ? cnLayer.preprocessor : null,
+          image: cnImageName,
+          strength: cnLayer.strength ?? 1.0,
+          start_percent: cnLayer.startPercent ?? 0.0,
+          end_percent: cnLayer.endPercent ?? 1.0,
+        });
+      }
+    }
+    generation.controlnets = cnPayloads;
+
+    // In regular txt2img generation (including when denoise == 1.0),
+    // bypass raster and mask inpainting uploads and sync dimensions.
+    if (generation.mode === "txt2img") {
+      generation.inputImage = null;
+      generation.maskImage = null;
+      if (this.maskUpscaleFactor <= 1) {
+        generation.width = this.boundingBox.width;
+        generation.height = this.boundingBox.height;
+      }
+      return;
+    }
 
     let hasRaster = false;
     let hasMask = false;

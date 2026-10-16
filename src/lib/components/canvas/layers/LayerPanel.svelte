@@ -3,51 +3,60 @@
   import { locale } from "../../../stores/locale.svelte.js";
   import LayerItem from "./LayerItem.svelte";
 
-  let draggedLayerId = $state<string | null>(null);
-  let dragOverIndex = $state<number | null>(null);
+  type GroupKey = "raster" | "mask" | "controlnet" | "regional";
 
-  const rasterLayers = $derived(canvas.layers.filter((l) => l.type === "raster"));
-  const sortedLayers = $derived(canvas.sortedLayers);
+  let collapsed = $state<Record<GroupKey, boolean>>({
+    raster: false,
+    mask: false,
+    controlnet: false,
+    regional: false,
+  });
 
-  function handleAddLayer(type: CanvasLayerType) {
-    canvas.addLayer(type);
+  const rasterLayers = $derived(canvas.sortedLayers.filter((l) => l.type === "raster"));
+  const maskLayers = $derived(canvas.sortedLayers.filter((l) => l.type === "mask"));
+  const controlnetLayers = $derived(canvas.sortedLayers.filter((l) => l.type === "controlnet"));
+  const regionalLayers = $derived(canvas.sortedLayers.filter((l) => l.type === "regional"));
+
+  const activeType = $derived(canvas.activeLayer?.type ?? null);
+
+  const groups = $derived([
+    {
+      key: "raster" as GroupKey,
+      title: locale.t("canvas.raster_layers") || "Raster Layers",
+      addTitle: locale.t("canvas.add_raster") || "Add Raster Layer",
+      layers: rasterLayers,
+      dotColor: "bg-sky-400",
+    },
+    {
+      key: "mask" as GroupKey,
+      title: locale.t("canvas.mask_layers") || "Mask Layers",
+      addTitle: locale.t("canvas.add_mask") || "Add Mask Layer",
+      layers: maskLayers,
+      dotColor: "bg-rose-400",
+    },
+    {
+      key: "controlnet" as GroupKey,
+      title: locale.t("canvas.layer.type_controlnet") || "ControlNet Guidance",
+      addTitle: locale.t("canvas.layer.add_controlnet") || "Add ControlNet Layer",
+      layers: controlnetLayers,
+      dotColor: "bg-violet-400",
+    },
+    {
+      key: "regional" as GroupKey,
+      title: locale.t("canvas.layer.type_regional") || "Regional Conditioning",
+      addTitle: locale.t("canvas.layer.add_regional") || "Add Regional Layer",
+      layers: regionalLayers,
+      dotColor: "bg-emerald-400",
+    },
+  ]);
+
+  function toggleGroup(key: GroupKey) {
+    collapsed = { ...collapsed, [key]: !collapsed[key] };
   }
 
-  function handleDragStart(e: DragEvent, id: string) {
-    draggedLayerId = id;
-    if (e.dataTransfer) {
-      e.dataTransfer.effectAllowed = "move";
-      e.dataTransfer.setData("text/plain", id);
-    }
-  }
-
-  function handleDragOver(e: DragEvent, index: number) {
-    e.preventDefault();
-    if (e.dataTransfer) {
-      e.dataTransfer.dropEffect = "move";
-    }
-    dragOverIndex = index;
-  }
-
-  function handleDragLeave() {
-    dragOverIndex = null;
-  }
-
-  function handleDrop(e: DragEvent, targetVisualIndex: number) {
-    e.preventDefault();
-    const sourceId = draggedLayerId || e.dataTransfer?.getData("text/plain");
-    draggedLayerId = null;
-    dragOverIndex = null;
-
-    if (!sourceId) return;
-
-    // In canvas.sortedLayers (descending by order):
-    // visual index 0 is top-most (order = N-1)
-    // visual index N-1 is bottom-most (order = 0)
-    // So target order = (canvas.layers.length - 1) - targetVisualIndex
-    const total = canvas.layers.length;
-    const targetOrder = Math.max(0, Math.min(total - 1, total - 1 - targetVisualIndex));
-    canvas.reorderLayer(sourceId, targetOrder);
+  function addToGroup(key: GroupKey) {
+    canvas.addLayer(key);
+    collapsed = { ...collapsed, [key]: false };
   }
 </script>
 
@@ -90,66 +99,58 @@
     </div>
   </div>
 
-  <!-- Add Layer Type Selector Bar -->
-  <div class="grid grid-cols-4 gap-1 p-1 rounded-lg bg-neutral-900/60 border border-neutral-800/80">
-    <button
-      onclick={() => handleAddLayer("raster")}
-      class="flex items-center justify-center gap-1 py-1 px-1.5 rounded text-[10px] font-medium bg-neutral-800/60 hover:bg-sky-500/20 hover:text-sky-300 border border-transparent hover:border-sky-500/40 text-neutral-300 transition-colors"
-      title={locale.t("canvas.add_raster") || "Add Raster Layer"}
-    >
-      <span class="w-2 h-2 rounded-full bg-sky-400"></span>
-      <span>+Raster</span>
-    </button>
-    <button
-      onclick={() => handleAddLayer("mask")}
-      class="flex items-center justify-center gap-1 py-1 px-1.5 rounded text-[10px] font-medium bg-neutral-800/60 hover:bg-rose-500/20 hover:text-rose-300 border border-transparent hover:border-rose-500/40 text-neutral-300 transition-colors"
-      title={locale.t("canvas.add_mask") || "Add Mask Layer"}
-    >
-      <span class="w-2 h-2 rounded-full bg-rose-400"></span>
-      <span>+Mask</span>
-    </button>
-    <button
-      onclick={() => handleAddLayer("regional")}
-      class="flex items-center justify-center gap-1 py-1 px-1.5 rounded text-[10px] font-medium bg-neutral-800/60 hover:bg-emerald-500/20 hover:text-emerald-300 border border-transparent hover:border-emerald-500/40 text-neutral-300 transition-colors"
-      title={locale.t("canvas.layer.add_regional") || "Add Regional Conditioning Layer"}
-    >
-      <span class="w-2 h-2 rounded-full bg-emerald-400"></span>
-      <span>+Region</span>
-    </button>
-    <button
-      onclick={() => handleAddLayer("controlnet")}
-      class="flex items-center justify-center gap-1 py-1 px-1.5 rounded text-[10px] font-medium bg-neutral-800/60 hover:bg-violet-500/20 hover:text-violet-300 border border-transparent hover:border-violet-500/40 text-neutral-300 transition-colors"
-      title={locale.t("canvas.layer.add_controlnet") || "Add ControlNet Layer"}
-    >
-      <span class="w-2 h-2 rounded-full bg-violet-400"></span>
-      <span>+CN</span>
-    </button>
-  </div>
-
-  <!-- Unified Flat Layer Stack (Top = Highest Z-Index) -->
-  <div class="flex-1 overflow-y-auto space-y-1 min-h-[140px] pr-0.5">
-    {#if sortedLayers.length === 0}
-      <div class="flex flex-col items-center justify-center h-28 text-neutral-500 text-xs italic">
-        {locale.t("canvas.no_layers") || "No layers yet"}
-      </div>
-    {:else}
-      {#each sortedLayers as layer, visualIdx (layer.id)}
-        <!-- svelte-ignore a11y_no_static_element_interactions -->
-        <div
-          draggable={!layer.locked}
-          ondragstart={(e) => handleDragStart(e, layer.id)}
-          ondragover={(e) => handleDragOver(e, visualIdx)}
-          ondragleave={handleDragLeave}
-          ondrop={(e) => handleDrop(e, visualIdx)}
-          class="relative transition-all"
-        >
-          {#if dragOverIndex === visualIdx}
-            <div class="absolute -top-1 left-0 right-0 h-0.5 bg-indigo-500 z-10 rounded-full shadow-xs"></div>
-          {/if}
-
-          <LayerItem {layer} />
+  <!-- Collapsible Groups (Mooshie UI standard) -->
+  <div class="flex-1 overflow-y-auto space-y-2 min-h-[140px] pr-0.5">
+    {#each groups as group (group.key)}
+      <div class="rounded-lg border border-neutral-800/80 bg-neutral-900/30 overflow-hidden">
+        <!-- Group header -->
+        <div class="flex items-center gap-1 px-2 py-1.5 bg-neutral-900/60 hover:bg-neutral-800/40 transition-colors">
+          <button
+            onclick={() => toggleGroup(group.key)}
+            class="flex-1 flex items-center gap-1.5 text-left cursor-pointer"
+          >
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              class="w-3 h-3 shrink-0 text-neutral-500 transition-transform {collapsed[group.key] ? '' : 'rotate-90'}"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2.5"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            >
+              <polyline points="9 18 15 12 9 6" />
+            </svg>
+            <span class="w-2 h-2 rounded-full {group.dotColor} shrink-0"></span>
+            <span class="text-xs font-medium {activeType === group.key ? 'text-neutral-100 font-semibold' : 'text-neutral-400'}">
+              {group.title}
+            </span>
+            <span class="px-1.5 rounded-full bg-neutral-800 text-[10px] text-neutral-400 tabular-nums">
+              {group.layers.length}
+            </span>
+          </button>
+          <button
+            onclick={() => addToGroup(group.key)}
+            class="w-5 h-5 flex items-center justify-center rounded text-neutral-500 hover:text-neutral-200 hover:bg-neutral-800 transition-colors"
+            title={group.addTitle}
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" class="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+          </button>
         </div>
-      {/each}
-    {/if}
+
+        <!-- Group body -->
+        {#if !collapsed[group.key]}
+          <div class="p-1 space-y-1">
+            {#if group.layers.length === 0}
+              <p class="px-2 py-1.5 text-[10px] text-neutral-600 italic">{locale.t('canvas.no_layers') || 'No layers'}</p>
+            {:else}
+              {#each group.layers as layer (layer.id)}
+                <LayerItem {layer} />
+              {/each}
+            {/if}
+          </div>
+        {/if}
+      </div>
+    {/each}
   </div>
 </div>

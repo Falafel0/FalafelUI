@@ -69,6 +69,7 @@ import {
 } from "../utils/novelaiEnhance.js";
 import type { ModelFamily, TurboModelVariant } from "../utils/modelFamily.js";
 import type {
+  ControlNetPayload,
   ExtraPromptBox,
   GenerationMode,
   GenerationParams,
@@ -891,6 +892,7 @@ class GenerationStore {
   controlnetStrength = $state(1.0);
   controlnetStartPercent = $state(0.0);
   controlnetEndPercent = $state(1.0);
+  controlnets = $state<ControlNetPayload[]>([]);
   styleTransferEnabled = $state(false);
   styleReferenceImage = $state<string | null>(null);
   /** Image Edit mode reference images; slot 0 primary, slots 1-2 Qwen Edit Plus extras. */
@@ -4263,6 +4265,9 @@ class GenerationStore {
             end_percent: this.controlnetEndPercent,
           }
         : null,
+      controlnets: (this.controlnets ?? []).filter(
+        (cn) => cn.enabled && !!cn.image && !!cn.controlnet_model,
+      ),
       facefix_enabled: this.facefixEnabled,
       facefix_detector: this.facefixDetector,
       facefix_denoise: this.facefixDenoise,

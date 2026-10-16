@@ -270,7 +270,8 @@
         }
         await canvas.syncToGeneration(
           () => canvasEditorRef.getRasterComposite(),
-          () => canvasEditorRef.getMaskCanvas()
+          () => canvasEditorRef.getMaskCanvas(),
+          (layerId: string) => canvasEditorRef.getLayerCanvas?.(layerId) ?? null
         );
       }
 
