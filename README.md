@@ -111,7 +111,7 @@ npm run tauri build    # production build
 
 ---
 
-## 🏗️ How it works
+## 🏗 How it works
 
 1. You adjust settings in the Svelte UI.
 2. On Generate, `ipcInvoke()` sends settings to Rust through Tauri IPC on desktop or HTTP in browser mode; `ipcListen()` receives events through Tauri or SSE.
@@ -123,7 +123,7 @@ MooshieUI also ships custom ComfyUI nodes (tiled diffusion, soft/smart guidance,
 
 ---
 
-## 🛠️ Tech Stack
+## 🛠 Tech Stack
 
 | Layer | Technology |
 |-------|------------|

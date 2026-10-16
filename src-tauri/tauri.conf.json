@@ -1,7 +1,7 @@
 {
   "$schema": "https://raw.githubusercontent.com/nicerlab/files/main/tauri/tauri.conf.json.schema",
   "productName": "FalafelUI",
-  "version": "1.4.0-falafel.0",
+  "version": "1.4.1-falafel.0",
   "identifier": "com.falafelui.desktop",
   "build": {
     "frontendDist": "../dist",

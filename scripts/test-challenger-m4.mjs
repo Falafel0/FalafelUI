@@ -221,8 +221,15 @@ class TestCanvasStore {
 
   resolveUnifiedGenerationMode() {
     if (this.generation.mode === "video") return "video";
-    if (this.generation.editReferenceImages && this.generation.editReferenceImages.length > 0) {
+    const hasEditReference =
+      this.generation.editReferenceImages?.some(
+        (img) => typeof img === "string" && img.trim().length > 0
+      ) && (this.generation.supportsImageEditMode === undefined || this.generation.supportsImageEditMode);
+    if (hasEditReference) {
       return "image_edit";
+    }
+    if (this.generation.denoise !== undefined && this.generation.denoise >= 0.999) {
+      return "txt2img";
     }
     if (this.hasActiveMask) {
       return "inpainting";
@@ -360,6 +367,28 @@ test("M4-SM-08: Edit mode with reference images resolves to image_edit", () => {
   const store = new TestCanvasStore();
   store.generation.editReferenceImages = ["ref1.png"];
   assert.equal(store.resolveUnifiedGenerationMode(), "image_edit");
+});
+
+test("M4-SM-08b: Unset/null edit reference images [null, null, null] resolve to txt2img, never image_edit", () => {
+  const store = new TestCanvasStore();
+  store.generation.editReferenceImages = [null, null, null];
+  assert.equal(store.resolveUnifiedGenerationMode(), "txt2img");
+});
+
+test("M4-SM-08c: Denoise = 1.0 switches to txt2img even with raster layer or mask present", () => {
+  const store = new TestCanvasStore();
+  store.addLayer({ id: "raster_1", type: "raster", visible: true, name: "Base" });
+  store.setThumbnail("raster_1", "data:image/png;base64,data");
+  store.generation.denoise = 1.0;
+  assert.equal(store.resolveUnifiedGenerationMode(), "txt2img");
+
+  store.addLayer({ id: "mask_1", type: "mask", visible: true, name: "Mask" });
+  store.setThumbnail("mask_1", "data:image/png;base64,data");
+  assert.equal(store.resolveUnifiedGenerationMode(), "txt2img");
+
+  // Denoise below 1.0 restores inpainting
+  store.generation.denoise = 0.7;
+  assert.equal(store.resolveUnifiedGenerationMode(), "inpainting");
 });
 
 test("M4-SM-09: Legacy referenceImageUrl or currentPreparedInputImage triggers img2img", () => {

@@ -82,7 +82,7 @@ If `commands/*.rs` or `lib.rs` changed: matching wrapper in `src/lib/utils/api.t
 ✅ Ready to commit
 — or —
 ❌ N blocking issue(s)
-⚠️ N warning(s)
+⚠ N warning(s)
 ```
 
 ## Rules

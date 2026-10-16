@@ -49,7 +49,8 @@ function linuxBuildEnv() {
 }
 
 async function runTauri(pm, tauriArgs, env = process.env) {
-  await run(pm, ["exec", "tauri", ...tauriArgs], { env });
+  const execArgs = pm === "npm" ? ["exec", "tauri", "--", ...tauriArgs] : ["exec", "tauri", ...tauriArgs];
+  await run(pm, execArgs, { env });
 }
 
 function tauriBuildArgs(args) {
@@ -58,7 +59,10 @@ function tauriBuildArgs(args) {
     return args;
   }
   // Local builds without release signing keys should still succeed.
-  return [...args, "--config", '{"bundle":{"createUpdaterArtifacts":false}}'];
+  const config = process.platform === "win32"
+    ? '{\\"bundle\\":{\\"createUpdaterArtifacts\\":false}}'
+    : '{"bundle":{"createUpdaterArtifacts":false}}';
+  return [...args, "--config", config];
 }
 
 async function main() {

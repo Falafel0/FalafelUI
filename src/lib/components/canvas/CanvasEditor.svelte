@@ -8,7 +8,6 @@
   import CanvasStage from "./CanvasStage.svelte";
   import CanvasStatusBar from "./CanvasStatusBar.svelte";
   import CanvasStagingStrip from "./staging/CanvasStagingStrip.svelte";
-  import CanvasContextualBar from "./CanvasContextualBar.svelte";
 
   interface Props {
     showInpaintPreviewOverlay?: boolean;
@@ -118,15 +117,6 @@
       </div>
     {/if}
 
-    <CanvasContextualBar
-      onGenerate={() => {
-        window.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", ctrlKey: true, bubbles: true }));
-      }}
-      onUpscale={() => {
-        generation.upscaleEnabled = true;
-        window.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", ctrlKey: true, bubbles: true }));
-      }}
-    />
   </div>
   <CanvasStagingStrip />
   <CanvasStatusBar />

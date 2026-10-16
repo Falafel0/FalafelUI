@@ -908,7 +908,7 @@ suite("Tier 1 - Feature 7: Center Stage View Switcher", () => {
 
   test("[T1-F07-04] View Switcher: View options bar contains Studio and Canvas items", () => {
     const views = [
-      { id: "studio", labelKey: "generation.view.studio", icon: "🖼️" },
+      { id: "studio", labelKey: "generation.view.studio", icon: "🖼" },
       { id: "canvas", labelKey: "generation.view.canvas", icon: "🎨" },
     ];
     assert.equal(views.length, 2);

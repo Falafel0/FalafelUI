@@ -1,5 +1,20 @@
 # Changelog
 
+## What's New in v1.4.1-falafel.0
+
+### Generation Pipeline & Denoise 1.0 Mode Switching
+- **Fix Text-to-Image Auto-Detection**: Resolved a bug where unset edit reference images triggered `Image Edit` mode with empty references and caused generation failures. Empty image references are now properly checked and ignored.
+- **Denoise 1.0 txt2img Override**: Setting denoise to 1.0 (`denoise >= 0.999`) automatically bypasses raster base and mask inputs to run pure `txt2img` generation.
+- **ControlNet Integration with txt2img**: Visible ControlNet layers on the canvas are now automatically extracted and attached to the `txt2img` generation pipeline, enabling guided scratch generation.
+
+### Layer Hierarchy & Contextual Settings UX Overhaul
+- **Restored MooshieUI Upstream Layer Ergonomics**: Restored categorized collapsible accordion groups (Raster, Mask, ControlNet, Regional) with count badges, add buttons, and quick actions (`Ctrl+J`, `Ctrl+E`, `Ctrl+Shift+E`).
+- **In-Place Contextual Layer Controls**: Embedded all layer-specific settings (blend mode, opacity, raster denoise, mask blur, inpaint denoise, prompt overrides, ControlNet model/preprocessor/strength/timing, regional prompt/weight/coordinates) directly inside each active layer card in `LayerItem.svelte`.
+- **Canvas Viewport Expansion**: Removed the intrusive floating contextual bar from the canvas stage to give users an unobstructed full-stage drawing experience.
+- **Sidebar Organization**: Cleaned up detached and redundant inspector panels from the generation sidebar.
+
+---
+
 ## What's New in v1.4.0-falafel.0
 
 ### Pure Modeless Canvas Workspace
@@ -11,7 +26,7 @@
 - **Photoshop Toolbar**: 10-tool creative set (Move, Transform, Brush, Eraser, Lasso, Marquee, Eyedropper, Hand, Zoom, Quick Mask) with industry-standard hotkeys (`V`, `T`, `B`, `E`, `L`, `M`, `I`, `H`, `Z`, `Q`) and layer shortcuts (`Ctrl+J`, `Ctrl+E`, `Ctrl+Shift+E`).
 - **Contextual Tool Options Bar**: Horizontal top bar displaying active tool properties (brush hardness 0–100%, diameter, opacity, color preview, transform coordinates).
 - **Floating Contextual Task Bar**: Dynamic bottom-center bar with multi-candidate staging carousel, single-click "Accept & Inpaint Immediately" hero action (`Alt+Enter`), "Accept as New Layer", "Apply to Base", "Use as Mask", "Discard", and "Reroll".
-- **Non-Destructive Result Staging**: Generated candidates preview directly on the canvas with before/after comparison (`👁️`) and 64-step undo/redo history with Copy-on-Write structural sharing.
+- **Non-Destructive Result Staging**: Generated candidates preview directly on the canvas with before/after comparison (`👁`) and 64-step undo/redo history with Copy-on-Write structural sharing.
 
 ### Domain Separation & Architecture Unification
 - **Clean Generation Sidebar**: Dimension controls stripped of residual inpaint settings, strictly focused on resolution, aspect ratio presets, side length, orientation swapping, and model family badges. Prompt inputs support advanced Prompt Scheduling (`[from:to:step]`) and Alternations (`[alt1|alt2]`).
