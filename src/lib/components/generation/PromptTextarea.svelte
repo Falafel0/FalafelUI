@@ -140,6 +140,15 @@
   const VIEWPORT_MARGIN = 8;
   const PANEL_GAP = 8;
   const SUGGEST_DEBOUNCE_MS = 60;
+  const ARTIST_PREVIEW_WIDTH = 136;
+
+  const artistPreviewLeft = $derived.by(() => {
+    if (typeof window === "undefined") return dropdownLeft + DROPDOWN_WIDTH + PANEL_GAP;
+    if (dropdownLeft + DROPDOWN_WIDTH + PANEL_GAP + ARTIST_PREVIEW_WIDTH > window.innerWidth) {
+      return Math.max(VIEWPORT_MARGIN, dropdownLeft - ARTIST_PREVIEW_WIDTH);
+    }
+    return dropdownLeft + DROPDOWN_WIDTH + PANEL_GAP;
+  });
 
   // Undo/redo stacks for autocomplete insertions
   let undoStack = $state<string[]>([]);
@@ -1178,7 +1187,7 @@
       <div
         use:portal
         class="fixed z-[200] pointer-events-none"
-        style="top: {dropdownTop}px; left: {dropdownLeft + 328}px;"
+        style="top: {dropdownTop}px; left: {artistPreviewLeft}px;"
       >
         <ArtistHoverPreview
           manifestUrl={connection.artistGalleryManifestUrl}
