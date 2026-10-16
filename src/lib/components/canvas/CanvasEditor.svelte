@@ -50,6 +50,9 @@
         restoreOriginal: false,
         savedLayers,
       };
+      // Bump the source version so any in-flight inpaint result with the
+      // old dimensions is rejected when it arrives.
+      canvas.inpaintSourceVersion += 1;
     }
   });
 

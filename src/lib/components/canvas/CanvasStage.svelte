@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { onMount, onDestroy } from "svelte";
+  import { onMount, onDestroy, tick } from "svelte";
   import Konva from "konva";
   import { generation } from "../../stores/generation.svelte.js";
   import { canvas, type ToolType } from "../../stores/canvas.svelte.js";
@@ -10,9 +10,21 @@
   import ColorTooltip from "../ui/ColorTooltip.svelte";
 
   // Hide the editable inpaint mask while a finished result is being previewed, so
-  // the clean output is visible. The mask un-hides once the user edits or paints
-  // more mask (markMaskEdited), avoiding flicker on re-roll.
-  const hideInpaintMask = $derived(canvas.shouldHideInpaintMask);
+  // the clean output is visible. Use a one-frame-delayed wasGenerating to suppress
+  // the flicker when isGenerating briefly flips false between clearing the old prompt
+  // and submitting the new one.
+  let wasGenerating = $state(false);
+  $effect(() => {
+    if (progress.isGenerating) {
+      wasGenerating = true;
+    } else {
+      tick().then(() => { wasGenerating = false; });
+    }
+  });
+
+  const hideInpaintMask = $derived(
+    canvas.shouldHideInpaintMask && !progress.isGenerating && !wasGenerating
+  );
 
   let containerEl: HTMLDivElement | undefined = $state();
   let stage: Konva.Stage | null = null;
@@ -1705,29 +1717,85 @@
     }
 
     if (isDrawing) {
+      const strokeLayerId = currentLine?.getLayer()?.id();
       isDrawing = false;
       currentLine = null;
       activeStrokeTool = null;
+      if (strokeLayerId) scheduleThumbRefresh(strokeLayerId);
+      void autoCommitMaskIfNeeded();
     }
 
     if (isDrawingRect) {
       isDrawingRect = false;
+      if (rectStartPos) {
+        const target = getDrawingTargetLayer();
+        if (target) {
+          const { layer, kLayer } = target;
+          const x = rectStartPos.x;
+          const y = rectStartPos.y;
+          const w = 1;
+          const h = 1;
+          if (w > 0 && h > 0) {
+            const inpaintMaskMode = isInpaintMaskMode();
+            const color = inpaintMaskMode
+              ? canvas.maskOverlayColor
+              : layer.type === "mask"
+                ? canvas.maskOverlayColor
+                : canvas.foregroundColor;
+            const rect = new Konva.Rect({
+              x, y, width: w, height: h,
+              fill: color,
+              opacity: inpaintMaskMode
+                ? Math.min(canvas.brushSettings.opacity, 0.45)
+                : canvas.brushSettings.opacity,
+              listening: false,
+            });
+            kLayer.add(rect);
+            kLayer.batchDraw();
+            scheduleThumbRefresh(layer.id);
+          }
+        }
+      }
       rectStartPos = null;
       if (rectPreview) {
         rectPreview.destroy();
         rectPreview = null;
         uiLayer?.batchDraw();
       }
+      void autoCommitMaskIfNeeded();
     }
 
     if (isLasso) {
       isLasso = false;
+      const target = getDrawingTargetLayer();
+      if (target && lassoPoints.length >= 6) {
+        const { layer, kLayer } = target;
+        const inpaintMaskMode = isInpaintMaskMode();
+        const color = inpaintMaskMode
+          ? canvas.maskOverlayColor
+          : layer.type === "mask"
+            ? canvas.maskOverlayColor
+            : canvas.foregroundColor;
+        const shape = new Konva.Line({
+          points: [...lassoPoints],
+          closed: true,
+          fill: color,
+          opacity: inpaintMaskMode
+            ? Math.min(canvas.brushSettings.opacity, 0.45)
+            : canvas.brushSettings.opacity,
+          listening: false,
+        });
+        kLayer.add(shape);
+        kLayer.batchDraw();
+        scheduleThumbRefresh(layer.id);
+      }
       lassoPoints = [];
       if (lassoPreviewLine) {
         lassoPreviewLine.destroy();
         lassoPreviewLine = null;
         uiLayer?.batchDraw();
       }
+      void autoCommitMaskIfNeeded();
     }
 
     if (isMovingLayer) {

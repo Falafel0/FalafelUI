@@ -158,8 +158,8 @@ pub fn build(params: &GenerationParams, seed: i64) -> WorkflowResult {
     let is_cfgpp_sampler = sampler_name_lc.contains("cfg_pp");
     let is_vpred_or_anima = is_vpred_model(params) || params.model_architecture == "anima";
 
-    let use_differential_diffusion =
-        params.differential_diffusion || (is_vpred_or_anima && !is_cfgpp_sampler);
+    let use_differential_diffusion = params.differential_diffusion
+        || (is_vpred_or_anima && !is_cfgpp_sampler && params.denoise < 1.0);
 
     let mut sampler_model_source = model_source.clone();
     if use_differential_diffusion {
@@ -443,8 +443,8 @@ pub fn build_crop_upscale(params: &GenerationParams, seed: i64) -> WorkflowResul
     let sampler_name_lc = params.sampler_name.to_lowercase();
     let is_cfgpp_sampler = sampler_name_lc.contains("cfg_pp");
     let is_vpred_or_anima = is_vpred_model(params) || params.model_architecture == "anima";
-    let use_differential_diffusion =
-        params.differential_diffusion || (is_vpred_or_anima && !is_cfgpp_sampler);
+    let use_differential_diffusion = params.differential_diffusion
+        || (is_vpred_or_anima && !is_cfgpp_sampler && params.denoise < 1.0);
 
     let mut sampler_model_source = model_source.clone();
     if use_differential_diffusion {

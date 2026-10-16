@@ -1251,8 +1251,11 @@
     // Only act on the transition so a manual toggle within inpainting isn't overridden.
     if (isInpainting && prevInpaintMode !== true) {
       canvas.isCanvasMode = true;
-    } else if (!isInpainting && canvas.isCanvasMode) {
+    } else if (!isInpainting && prevInpaintMode === true) {
       canvas.isCanvasMode = false;
+      // Clear inpaint session on explicit mode exit so stale mask/pending
+      // result/history don't leak into the next inpaint session.
+      canvas.clearInpaintSession();
     }
     prevInpaintMode = isInpainting;
   });
@@ -1989,6 +1992,51 @@
             >
               {locale.t('generation.inpaint.regular_inpaint')}
             </button>
+          </div>
+
+          <div class="border-t border-neutral-800 pt-2 space-y-2">
+            <div use:scrollCapture>
+              <div class="flex items-center justify-between text-xs mb-0.5">
+                <span class="text-neutral-400">{locale.t('generation.image.denoise')}<InfoTip text={locale.t('generation.image.denoise_tip')} /></span>
+                <span class="text-neutral-300 tabular-nums">{generation.denoise.toFixed(2)}</span>
+              </div>
+              <input
+                type="range"
+                bind:value={generation.denoise}
+                min="0.05"
+                max="1.0"
+                step="0.01"
+                class="w-full accent-indigo-500"
+              />
+            </div>
+
+            <label class="flex items-center justify-between cursor-pointer">
+              <span class="text-xs text-neutral-400">{locale.t('generation.facefix.title')}<InfoTip text={locale.t('generation.facefix.tip')} /></span>
+              <button
+                type="button"
+                role="switch"
+                aria-checked={generation.facefixEnabled}
+                aria-label={locale.t('generation.facefix.title')}
+                class="relative w-9 h-5 rounded-full transition-colors {generation.facefixEnabled ? 'bg-indigo-600' : 'bg-neutral-700'}"
+                onclick={() => { generation.facefixEnabled = !generation.facefixEnabled; generation.saveSettings(); }}
+              >
+                <span class="absolute top-0.5 left-0.5 w-4 h-4 rounded-full bg-white transition-transform {generation.facefixEnabled ? 'translate-x-4' : ''}"></span>
+              </button>
+            </label>
+
+            <label class="flex items-center justify-between cursor-pointer">
+              <span class="text-xs text-neutral-400">{locale.t('generation.inpaint.differential')}<InfoTip text={locale.t('generation.inpaint.differential_tip')} /></span>
+              <button
+                type="button"
+                role="switch"
+                aria-checked={generation.differentialDiffusion}
+                aria-label={locale.t('generation.inpaint.differential')}
+                class="relative w-9 h-5 rounded-full transition-colors {generation.differentialDiffusion ? 'bg-indigo-600' : 'bg-neutral-700'}"
+                onclick={() => { generation.differentialDiffusion = !generation.differentialDiffusion; generation.saveSettings(); }}
+              >
+                <span class="absolute top-0.5 left-0.5 w-4 h-4 rounded-full bg-white transition-transform {generation.differentialDiffusion ? 'translate-x-4' : ''}"></span>
+              </button>
+            </label>
           </div>
 
           {#if canvas.isCanvasMode}

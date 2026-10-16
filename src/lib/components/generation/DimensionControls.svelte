@@ -642,13 +642,13 @@
       <!-- Inpaint area: Whole picture / Only masked -->
       <div class="flex gap-1">
         <button
-          onclick={() => canvas.inpaintFullRes = false}
+          onclick={() => { canvas.inpaintFullRes = false; generation.inpaintArea = "whole"; }}
           class="flex-1 text-[10px] px-2 py-1 rounded border transition-colors {!canvas.inpaintFullRes
             ? 'border-indigo-500 text-indigo-300 bg-indigo-500/10'
             : 'border-neutral-700 text-neutral-400 hover:border-neutral-500 hover:text-neutral-200'}"
         >{locale.t('generation.inpaint.whole_picture')}</button>
         <button
-          onclick={() => canvas.inpaintFullRes = true}
+          onclick={() => { canvas.inpaintFullRes = true; generation.inpaintArea = "mask_only"; }}
           class="flex-1 text-[10px] px-2 py-1 rounded border transition-colors {canvas.inpaintFullRes
             ? 'border-indigo-500 text-indigo-300 bg-indigo-500/10'
             : 'border-neutral-700 text-neutral-400 hover:border-neutral-500 hover:text-neutral-200'}"
@@ -656,6 +656,32 @@
       </div>
 
       {#if canvas.inpaintFullRes}
+        <!-- Mask Box Resolution (Width x Height) -->
+        <div class="flex gap-2 pt-1">
+          <label class="flex-1 block">
+            <span class="text-[10px] text-neutral-500 block mb-0.5">{locale.t('generation.image.width')}</span>
+            <input
+              type="number"
+              bind:value={generation.inpaintMaskWidth}
+              min="64"
+              max="4096"
+              step="64"
+              class="w-full bg-neutral-800 border border-neutral-700 rounded px-2 py-1 text-xs text-neutral-200"
+            />
+          </label>
+          <label class="flex-1 block">
+            <span class="text-[10px] text-neutral-500 block mb-0.5">{locale.t('generation.image.height')}</span>
+            <input
+              type="number"
+              bind:value={generation.inpaintMaskHeight}
+              min="64"
+              max="4096"
+              step="64"
+              class="w-full bg-neutral-800 border border-neutral-700 rounded px-2 py-1 text-xs text-neutral-200"
+            />
+          </label>
+        </div>
+
         <!-- Only masked padding -->
         <div class="flex items-center justify-between gap-2">
           <span class="text-[10px] text-neutral-500">{locale.t('generation.inpaint.padding')}</span>
@@ -670,6 +696,52 @@
           />
           <span class="text-[10px] text-neutral-400 w-7 text-right">{canvas.inpaintFullResPadding}</span>
         </div>
+
+        <!-- Mask blend -->
+        <label class="flex items-center justify-between gap-2 pt-0.5">
+          <span class="text-[10px] text-neutral-400">{locale.t('generation.inpaint.mask_blend')}<InfoTip text={locale.t('generation.inpaint.mask_blend_tip')} /></span>
+          <div class="flex items-center gap-2">
+            <input type="range" bind:value={generation.inpaintMaskBlend} min="0" max="64" step="1" class="w-20 accent-indigo-500 h-1" />
+            <span class="text-[10px] text-neutral-400 w-5 text-right">{generation.inpaintMaskBlend}</span>
+          </div>
+        </label>
+
+        <!-- Grow mask -->
+        <label class="flex items-center justify-between gap-2 pt-0.5">
+          <span class="text-[10px] text-neutral-400">{locale.t('generation.inpaint.grow_mask')}<InfoTip text={locale.t('generation.inpaint.grow_mask_tip')} /></span>
+          <div class="flex items-center gap-2">
+            <input type="range" bind:value={generation.growMaskBy} min="0" max="256" step="1" class="w-20 accent-indigo-500 h-1" />
+            <span class="text-[10px] text-neutral-400 w-5 text-right">{generation.growMaskBy}</span>
+          </div>
+        </label>
+
+        <!-- Context factor -->
+        <label class="flex items-center justify-between gap-2 pt-0.5">
+          <span class="text-[10px] text-neutral-400">{locale.t('generation.inpaint.context')}<InfoTip text={locale.t('generation.inpaint.context_tip')} /></span>
+          <div class="flex items-center gap-2">
+            <input type="range" bind:value={generation.inpaintContextFactor} min="1" max="3" step="0.1" class="w-20 accent-indigo-500 h-1" />
+            <span class="text-[10px] text-neutral-400 w-5 text-right">{generation.inpaintContextFactor.toFixed(1)}</span>
+          </div>
+        </label>
+
+        <!-- HiPass filter -->
+        <label class="flex items-center justify-between gap-2 pt-0.5">
+          <span class="text-[10px] text-neutral-400">{locale.t('generation.inpaint.hipass')}<InfoTip text={locale.t('generation.inpaint.hipass_tip')} /></span>
+          <div class="flex items-center gap-2">
+            <input type="range" bind:value={generation.inpaintMaskHipass} min="0" max="1" step="0.01" class="w-20 accent-indigo-500 h-1" />
+            <span class="text-[10px] text-neutral-400 w-5 text-right">{generation.inpaintMaskHipass.toFixed(2)}</span>
+          </div>
+        </label>
+
+        <!-- Device mode -->
+        <label class="flex items-center justify-between gap-2 pt-0.5">
+          <span class="text-[10px] text-neutral-400">{locale.t('generation.inpaint.device')}<InfoTip text={locale.t('generation.inpaint.device_tip')} /></span>
+          <select bind:value={generation.inpaintDeviceMode}
+            class="bg-neutral-800 border border-neutral-700 rounded px-1 py-0.5 text-[11px] text-neutral-200">
+            <option value="cpu (compatible)">{locale.t('generation.inpaint.device_cpu')}</option>
+            <option value="gpu (much faster)">{locale.t('generation.inpaint.device_gpu')}</option>
+          </select>
+        </label>
       {/if}
 
       <!-- Mask blur -->

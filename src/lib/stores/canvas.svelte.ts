@@ -430,9 +430,11 @@ class CanvasStore {
     this.initCanvas(source.width, source.height);
   }
 
+  private _maskSyncInFlight: Promise<boolean> | null = null;
+
   private pushInpaintBaseSnapshot(snapshot: InpaintBaseSnapshot) {
     const history = [...this.inpaintBaseHistory, snapshot];
-    if (history.length > 20) {
+    if (history.length > 64) {
       const evicted = history.shift();
       if (evicted?.owned && evicted.previewUrl) URL.revokeObjectURL(evicted.previewUrl);
     }
@@ -537,9 +539,13 @@ class CanvasStore {
     this.pendingResultWidth = null;
     this.pendingResultHeight = null;
 
-    // Fresh mask on the new base.
+    // Fresh mask on the new base. Only clear Konva children if the stage is
+    // mounted; if the canvas panel is closed, the next initCanvas call will
+    // rebuild layers from scratch anyway.
     this.persistedMaskPreviewUrl = null;
-    this.clearMask();
+    if (this._stageRef) {
+      this.clearMask();
+    }
     this.initCanvas(generation.width, generation.height);
   }
 
@@ -613,7 +619,7 @@ class CanvasStore {
     this.originalInpaintWidth = null;
     this.originalInpaintHeight = null;
     this.referenceImageUrl = null;
-    this.inpaintDrawMode = "mask";
+    this.inpaintDrawMode = "regular";
     this.persistedMaskPreviewUrl = null;
     this.pendingMaskRestoreUrl = null;
     this._pendingPaste = null;
@@ -702,6 +708,7 @@ class CanvasStore {
 
   stageImage(url: string, options?: { owned?: boolean }) {
     if (!url) return;
+    if (this.stagingImages.some((e) => e.url === url)) return;
     this.stagingImages = [
       ...this.stagingImages,
       {
@@ -1322,6 +1329,11 @@ class CanvasStore {
   }
 
   async syncMaskToGeneration(maskCanvas: HTMLCanvasElement | null, uploadToComfy: boolean = true): Promise<boolean> {
+    this._maskSyncInFlight = this._syncMaskToGenerationImpl(maskCanvas, uploadToComfy);
+    return this._maskSyncInFlight;
+  }
+
+  private async _syncMaskToGenerationImpl(maskCanvas: HTMLCanvasElement | null, uploadToComfy: boolean = true): Promise<boolean> {
     if (!maskCanvas) {
       generation.maskImage = null;
       this.persistedMaskPreviewUrl = null;
@@ -1358,11 +1370,14 @@ class CanvasStore {
     const imgData = exportCtx.getImageData(0, 0, exportCanvas.width, exportCanvas.height);
     const pixels = imgData.data;
     for (let i = 0; i < pixels.length; i += 4) {
-      const gray = pixels[i];
-      pixels[i] = gray;
-      pixels[i + 1] = gray;
-      pixels[i + 2] = gray;
-      pixels[i + 3] = 255;
+      // Lower threshold to 16 so dark and semi-transparent mask strokes aren't dropped.
+      if (pixels[i + 3] > 0 && (pixels[i] > 16 || pixels[i + 1] > 16 || pixels[i + 2] > 16)) {
+        pixels[i] = pixels[i + 1] = pixels[i + 2] = 255;
+        pixels[i + 3] = 255;
+      } else {
+        pixels[i] = pixels[i + 1] = pixels[i + 2] = 0;
+        pixels[i + 3] = 255;
+      }
     }
     exportCtx.putImageData(imgData, 0, 0);
 
@@ -1414,11 +1429,13 @@ class CanvasStore {
     const imgData = exportCtx.getImageData(0, 0, exportCanvas.width, exportCanvas.height);
     const pixels = imgData.data;
     for (let i = 0; i < pixels.length; i += 4) {
-      const gray = pixels[i];
-      pixels[i] = gray;
-      pixels[i + 1] = gray;
-      pixels[i + 2] = gray;
-      pixels[i + 3] = 255;
+      if (pixels[i + 3] > 0 && (pixels[i] > 16 || pixels[i + 1] > 16 || pixels[i + 2] > 16)) {
+        pixels[i] = pixels[i + 1] = pixels[i + 2] = 255;
+        pixels[i + 3] = 255;
+      } else {
+        pixels[i] = pixels[i + 1] = pixels[i + 2] = 0;
+        pixels[i + 3] = 255;
+      }
     }
     exportCtx.putImageData(imgData, 0, 0);
 
@@ -1473,6 +1490,17 @@ class CanvasStore {
     let hasRaster = false;
     let hasMask = false;
     let cropRegion: CropRegion | null = null;
+
+    // Wait for any in-flight auto-commit of the mask so we never snapshot
+    // a stale/intermediate mask state.
+    if (this._maskSyncInFlight) {
+      try {
+        await this._maskSyncInFlight;
+      } catch {
+        // auto-commit failure is non-fatal; proceed with current mask state
+      }
+      this._maskSyncInFlight = null;
+    }
 
     // Clear any pending paste-back from previous generation.
     this._pendingPaste = null;
@@ -1573,20 +1601,27 @@ class CanvasStore {
         return upscaled;
       };
 
+      // In inpainting mode, raster drawn by the user takes priority over the
+      // session original input — the user may have painted touch-ups that need
+      // to be sent as the new baseline for this generation.
       if (isInpainting) {
-        if (generation.inputImage) {
-          hasRaster = true;
-        } else if (rasterCanvas) {
+        if (rasterCanvas) {
           const ctx = rasterCanvas.getContext("2d")!;
           const data = ctx.getImageData(0, 0, rasterCanvas.width, rasterCanvas.height).data;
           for (let i = 3; i < data.length; i += 4) {
-            if (data[i] > 0) { hasRaster = true; break; }
+            if (data[i] > 0) {
+              hasRaster = true;
+              break;
+            }
           }
           if (hasRaster) {
             const exportSrc = maybeUpscale(rasterCanvas);
             const result = await this.exportLayerAsImage(exportSrc, "canvas_input.png");
             generation.inputImage = result.name;
           }
+        }
+        if (!hasRaster && generation.inputImage) {
+          hasRaster = true;
         }
       } else {
         if (rasterCanvas) {
@@ -1623,9 +1658,15 @@ class CanvasStore {
       }
     }
 
-    // Resolve mode based on intelligent canvas router (txt2img, img2img, inpaint, outpaint).
-    // Preserve video mode if currently active.
-    if (generation.mode !== "video") {
+    // Keep the user-selected mode when using canvas flow for image editing modes.
+    // Only auto-detect mode when the current mode is txt2img (the default).
+    if (generation.mode !== "txt2img" && generation.mode !== "inpainting" && generation.mode !== "img2img") {
+      // video, image_edit, or any future mode — don't override
+    } else if (generation.mode === "inpainting") {
+      generation.mode = "inpainting";
+    } else if (generation.mode === "img2img") {
+      generation.mode = "img2img";
+    } else {
       const unifiedAction = this.currentUnifiedAction;
       if (unifiedAction === "inpaint" || unifiedAction === "outpaint") {
         generation.mode = "inpainting";
